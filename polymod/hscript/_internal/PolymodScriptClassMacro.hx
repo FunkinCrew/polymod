@@ -172,57 +172,108 @@ class PolymodScriptClassMacro {
 					var abstractImplPath = abstractType.impl.toString();
 					var abstractImplType = abstractType.impl.get();
 
-					var excludes:Array<String> = [];
 					for (field in abstractImplType.statics.get()) {
-						switch (field.type) {
-							case TFun(_, _):
-							default: 
-								continue;
-						}
+						switch (field.kind) {
+							case FVar(read, write):
+								trace(field.name, read, write);
 
-						// exclude anything that has a getter or setter
-						// most of the time i think variables that have them are not static
-						// hopefully that's true
-						if (field.name.startsWith('get_') || field.name.startsWith('_set')) {
-							excludes.push(field.name.replace('get_', '').replace('set_', ''));
-						}
-					}
+								var canGet:Bool = read == AccInline || read == AccNormal;
+								if (read == AccCall) {
+									var getter:Null<ClassField> = null;
+									 for (f in abstractImplType.statics.get()) {
+										if (f.name == 'get_${field.name}'){
+											getter = f;
+										}
+									}
 
-					for (field in abstractImplType.statics.get()) {
-						switch (field.type) {
-							case TFun(_, _):
-								continue;
-							default:
-						}
+									if (getter == null) {
+										throw 'This should not happen';
+									}
 
-						if (excludes.contains(field.name)) {
-							continue;
-						}
+									switch (getter.type) {
+										case TFun(args, _):
+											if (args.length != 0)
+												continue;
+										default:
+											throw 'This should not happen';
+									}
 
-						var fieldName:String = '${abstractImplPath.replace('.', '_')}_${field.name}';
-
-						fields.push({
-							pos: Context.currentPos(),
-							name: fieldName,
-							access: [Access.APublic, Access.AStatic],
-							kind: FProp('get', 'never', Context.toComplexType(field.type), null)
-						});
-
-						fields.push({
-							pos: Context.currentPos(),
-							name: 'get_${fieldName}',
-							access: [Access.APublic, Access.AStatic],
-							kind: FFun({
-								args: [],
-								ret: null,
-								expr: macro {
-									@:privateAccess
-									return ${Context.parse(abstractPath + '.' + field.name, Context.currentPos())};
+									canGet = true;
 								}
-							})
-						});
 
-						staticFieldToClass.set('${abstractImplPath}.${field.name}', 'polymod.hscript._internal.AbstractStaticMembers_${iteration}');
+								var canSet:Bool = write == AccNormal;
+								if (write == AccCall) {
+									var setter:Null<ClassField> = null;
+									 for (f in abstractImplType.statics.get()){
+										if (f.name == 'set_${field.name}'){
+											setter = f;
+										}
+									}
+
+									if (setter == null) {
+										throw 'This should not happen';
+									}
+
+									switch (setter.type) {
+										case TFun(args, _):
+											if (args.length != 1)
+												continue;
+										default:
+											throw 'This should not happen';
+									}
+
+									canSet = true;
+								}
+
+								if (!canGet && !canSet) {
+									continue;
+								}
+
+								var fieldName:String = '${abstractImplPath.replace('.', '_')}_${field.name}';
+
+								fields.push({
+									pos: Context.currentPos(),
+									name: fieldName,
+									access: [Access.APublic, Access.AStatic],
+									kind: FProp(canGet ? 'get' : 'never', canSet ? 'set' : 'never', Context.toComplexType(field.type), null)
+								});
+
+								if (canGet) {
+									fields.push({
+										pos: Context.currentPos(),
+										name: 'get_${fieldName}',
+										access: [Access.APublic, Access.AStatic],
+										kind: FFun({
+											args: [],
+											ret: null,
+											expr: macro {
+												@:privateAccess
+												return ${Context.parse(abstractPath + '.' + field.name, Context.currentPos())};
+											}
+										})
+									});
+								}
+
+								if (canSet) {
+									fields.push({
+										pos: Context.currentPos(),
+										name: 'set_${fieldName}',
+										access: [Access.APublic, Access.AStatic],
+										kind: FFun({
+											args: [{name: 'value'}],
+											ret: null,
+											expr: macro {
+												@:privateAccess
+												return ${Context.parse(abstractPath + '.' + field.name, Context.currentPos())} = value;
+											}
+										})
+									});
+								}
+
+								staticFieldToClass.set('${abstractImplPath}.${field.name}', 'polymod.hscript._internal.AbstractStaticMembers_${iteration}');
+							default:
+								continue;
+						}
 					}
 				default:
 					continue;
