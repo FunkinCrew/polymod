@@ -10,6 +10,11 @@ import polymod.util.Util;
 #if unifill
 import unifill.Unifill;
 #end
+#if hscript
+import hscript.Expr;
+import polymod.hscript._internal.Printer;
+import polymod.hscript._internal.Parser;
+#end
 import UnicodeString;
 
 class ParseRules
@@ -31,6 +36,7 @@ class ParseRules
       case JSON: new JSONParseFormat();
       case LINES: new LinesParseFormat(EndLineType.LF);
       case PLAINTEXT: new PlainTextParseFormat();
+      #if hscript case SCRIPT: new ScriptParseFormat(); #end
       default: new PlainTextParseFormat();
     }
     formats.set(extension, format);
@@ -689,6 +695,266 @@ class PlainTextParseFormat implements BaseParseFormat // <String>
   }
 }
 
+#if hscript
+class ScriptParseFormat implements BaseParseFormat // <String>
+{
+  public var format(default, null):TextFileFormat;
+
+  var parser:Parser = new Parser();
+  var printer:Printer = new Printer();
+
+  public function new()
+  {
+    format = SCRIPT;
+  }
+
+  public function parse(str:String):Array<ModuleDecl>
+  {
+    var output:Array<ModuleDecl> = [];
+    try
+    {
+      output = parser.parseModule(str);
+    }
+    catch (e:Error)
+    {
+      Polymod.error(ASSET_MERGE_FAILED, 'Script merge error: ${e.toString()}');
+      return [];
+    }
+
+    return output;
+  }
+
+  public function append(baseText:String, appendText:String, id:String):String
+  {
+    Polymod.warning(ASSET_MERGE_FAILED, '($id) Script files do not support append functionality!');
+    return baseText;
+  }
+
+  public function merge(baseText:String, mergeText:String, id:String):String
+  {
+    var baseDecls:Array<ModuleDecl> = parse(baseText);
+    var mergeDecls:Array<ModuleDecl> = parse(mergeText);
+    var output:String = baseText;
+
+    if (baseDecls.length == 0 || mergeDecls.length == 0)
+    {
+      return baseText;
+    }
+
+    for (decl in mergeDecls)
+    {
+      switch (decl)
+      {
+        case DImport(path, star, name):
+          // Simply push the import, duplicate imports are handled later.
+
+          baseDecls.push(decl);
+        case DPackage(path):
+          // If the base text doesn't have any package, add it in. Otherwise, don't replace it.
+
+          var hasPackage:Bool = false;
+          for (decl2 in baseDecls)
+          {
+            if (decl2.match(DPackage(_)))
+            {
+              hasPackage = true;
+              Polymod.warning(ASSET_MERGE_FAILED, 'Base Script already has a Package. Skipping.');
+              break;
+            }
+          }
+
+          if (!hasPackage) baseDecls.push(decl);
+        case DTypedef(c1):
+          // For Typedefs: if the base script has one with the same name, override it with @:mergeOverride metadata.
+          // Otherwise, add it regularly.
+
+          var hasTypedef:Bool = false;
+          var removeDecl:Null<ModuleDecl> = null;
+          for (decl2 in baseDecls)
+          {
+            switch (decl2)
+            {
+              case DTypedef(c2):
+                if (c2.name == c1.name)
+                {
+                  hasTypedef = true;
+
+                  if (!Type.enumEq(c2.t, c1.t))
+                  {
+                    // If the merge typedef has the @:mergeOverride metadata, override it.
+                    var metaNames:Array<String> = [for (m in c1.meta) m.name];
+                    if (metaNames.contains(":mergeOverride"))
+                    {
+                      removeDecl = decl2;
+                      hasTypedef = false;
+                      break;
+                    }
+                  }
+
+                  Polymod.warning(ASSET_MERGE_FAILED, 'Base script already has a typedef ${c1.name}. Skipping.');
+                }
+              default:
+            }
+          }
+
+          if (removeDecl != null) baseDecls.remove(removeDecl);
+          if (!hasTypedef) baseDecls.push(decl);
+        case DClass(c1):
+          // For classes, we handle things differently.
+          // If the class doesn't exist, add it.
+          // If the entire merged class has the @:mergeOverride metadata, replace the entire class.
+          // Otherwise add the missing fields with @:mergeAdd, including overriding the fields with @:mergeOverride.
+          // If a function has the @:mergeInsert metadata with an integer parameter, add the function content to the index from the parameter.
+
+          var hasClass:Bool = false;
+          var removeDecl:Null<ModuleDecl> = null;
+          for (decl2 in baseDecls)
+          {
+            switch (decl2)
+            {
+              case DClass(c2):
+                if (c1.name != c2.name) continue;
+                hasClass = true;
+
+                // Override the class if it has the @:mergeOverride metadata.
+                var metaNames:Array<String> = [for (m in c1.meta) m.name];
+                if (metaNames.contains(":mergeOverride"))
+                {
+                  removeDecl = decl2;
+                  hasClass = false;
+                  c1.meta.remove(c1.meta[metaNames.indexOf(":mergeOverride")]);
+                  break;
+                }
+
+                var fldNames:Array<String> = [for (fld in c2.fields) fld.name];
+                var removeFields:Array<FieldDecl> = [];
+                for (fld in c1.fields)
+                {
+                  var fldMetaNames:Array<String> = [for (m in fld.meta) m.name];
+
+                  // If the field has no metadata, do nothing.
+                  if (fldMetaNames.length == 0)
+                  {
+                    Polymod.warning(ASSET_MERGE_FAILED, 'Field ${fld.name} from the merge class ${c1.name} has no metadata. Skipping.');
+                    continue;
+                  }
+
+                  // If the field contains the @:mergeInsert metadata, insert the function expressions in the index.
+                  var metaInsertIndex:Int = fldMetaNames.indexOf(":mergeInsert");
+                  if (metaInsertIndex >= 0 && (fld.meta[metaInsertIndex].params?.length ?? 0) > 0)
+                  {
+                    var insertIndex:Int = switch (fld.meta[metaInsertIndex].params[0]#if hscriptPos .e #end)
+                    {
+                      case EConst(c):
+                        switch (c)
+                        {
+                          case CInt(v): v;
+                          default: 0;
+                        }
+                      default: 0;
+                    }
+
+                    switch (fld.kind)
+                    {
+                      case KFunction(f1):
+                        switch (c2.fields[fldNames.indexOf(fld.name)].kind)
+                        {
+                          case KFunction(f2):
+                            var funcExpr = #if hscriptPos f2.expr.e; #else f2.expr; #end
+
+                            // If the function isn't in a block, turn it into a block.
+                            switch (funcExpr)
+                            {
+                              case EBlock(b):
+                                b.insert(insertIndex, f1.expr);
+                              default:
+                                var exprArray:Array<Expr> = [f2.expr];
+                                exprArray.insert(insertIndex, f1.expr);
+                                funcExpr = EBlock(exprArray);
+                            }
+                          default:
+                            Polymod.warning(ASSET_MERGE_FAILED, 'Field ${fld.name} from the base class ${c2.name} is not a function. Skipping.');
+                        }
+                      default:
+                        Polymod.warning(ASSET_MERGE_FAILED, 'Field ${fld.name} from the merge class ${c1.name} is not a function. Skipping.');
+                    }
+                    continue;
+                  }
+
+                  // If the field has the @:mergeOverride metadata, override the class field.
+                  if (fldMetaNames.contains(":mergeOverride"))
+                  {
+                    removeFields.push(c2.fields[fldNames.indexOf(fld.name)]);
+                    fld.meta.remove(fld.meta[fldMetaNames.indexOf(":mergeOverride")]);
+                    c2.fields.push(fld);
+                    continue;
+                  }
+
+                  // If the field has the @:mergeAdd metadata, add it to the class if it doesn't already exist.
+                  if (fldMetaNames.contains(":mergeAdd"))
+                  {
+                    if (!fldNames.contains(fld.name))
+                    {
+                      c2.fields.push(fld);
+                    }
+                    else
+                    {
+                      Polymod.warning(ASSET_MERGE_FAILED, 'Field ${fld.name} from the merge class ${c1.name} already exists in the base class. Skipping.');
+                    }
+
+                    continue;
+                  }
+
+                  // Otherwise, throw a warning.
+                  Polymod.warning(ASSET_MERGE_FAILED, 'Field ${fld.name} from the merge class ${c1.name} doesn\'t have any merge metadata. Skipping.');
+                }
+
+                for (fld in removeFields)
+                {
+                  c2.fields.remove(fld);
+                }
+
+              default:
+            }
+          }
+
+          if (removeDecl != null) baseDecls.remove(removeDecl);
+          if (!hasClass) baseDecls.push(decl);
+        case DEnum(e1):
+          // For Enums: if the base script has an enum with the same name, throw a warning.
+          // Otherwise, add it to the base script.
+
+          var hasEnum:Bool = false;
+          for (decl2 in baseDecls)
+          {
+            switch (decl2)
+            {
+              case DEnum(e2):
+                if (e1.name == e2.name)
+                {
+                  hasEnum = true;
+                  Polymod.error(ASSET_MERGE_FAILED, 'Script merge error: Base Script already has an Enum ' + e1.name + ". Skipping.");
+                  continue;
+                }
+
+              default:
+            }
+          }
+
+          if (!hasEnum) baseDecls.push(decl);
+        default:
+      }
+    }
+
+    var realOutput:String = printer.modulesToString(baseDecls);
+    if (realOutput.length > 0) return realOutput;
+
+    // Failsafe in case the printing didn't work.
+    return output;
+  }
+}
+#end
+
 enum TextFileFormat
 {
   PLAINTEXT;
@@ -697,6 +963,7 @@ enum TextFileFormat
   TSV;
   XML;
   JSON;
+  #if hscript SCRIPT; #end
 }
 
 enum EndLineType
