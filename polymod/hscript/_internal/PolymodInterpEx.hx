@@ -247,8 +247,8 @@ class PolymodInterpEx extends Interp
   {
     super.resetVariables();
 
-    variables.set("Math", Math);
-    variables.set("Std", Std);
+    variables.set("Math", #if hl polymod.hscript._internal.HLWrapperMacro.HLMath #else Math #end);
+    variables.set("Std", #if hl polymod.hscript._internal.HLWrapperMacro.HLStd #else Std #end);
 
     variables.set("Array", Array);
     variables.set("Bool", Bool);
@@ -1201,7 +1201,12 @@ class PolymodInterpEx extends Interp
     {
       try
       {
+        #if hl
+        // HL is a bit weird with iterators with arguments
+        v = Reflect.callMethod(v, v.iterator, []);
+        #else
         v = v.iterator();
+        #end
       }
       catch (e:Dynamic) {};
     }
@@ -1352,6 +1357,7 @@ class PolymodInterpEx extends Interp
     }
 
     var oCls:String = Util.getTypeNameOf(o);
+    #if hl oCls = oCls.replace('$', ''); #end
 
     // Check if the field is a blacklisted static field.
     if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
@@ -1437,8 +1443,27 @@ class PolymodInterpEx extends Interp
       // #end
       // return result;
     }
+    #if (hl && haxe4)
+    else if (Std.isOfType(o, Enum))
+    {
+      try
+      {
+        return (o : Enum<Dynamic>).createByName(f);
+      }
+      catch (e)
+      {
+        error(EInvalidAccess(f));
+      }
+    }
+    #end
 
     // Default behavior
+    #if hl
+    // On HL, hasField on properties returns true but Reflect.field
+    // might return null so we have to check if a getter exists too.
+    // This happens mostly when the programmer mistakenly makes the field access (get, null) instead of (get, never)
+    return Reflect.getProperty(o, f);
+    #else
     if (Reflect.hasField(o, f))
     {
       return Reflect.field(o, f);
@@ -1454,6 +1479,7 @@ class PolymodInterpEx extends Interp
         return Reflect.field(o, f);
       }
     }
+    #end
     // return super.get(o, f);
   }
 
@@ -1462,6 +1488,7 @@ class PolymodInterpEx extends Interp
     if (o == null) error(ENullObjectReference(f));
 
     var oCls:String = Util.getTypeNameOf(o);
+    #if hl oCls = oCls.replace('$', ''); #end
 
     // Check if the field is a blacklisted static field.
     if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
