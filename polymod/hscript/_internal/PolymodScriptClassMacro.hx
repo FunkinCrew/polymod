@@ -377,6 +377,7 @@ class PolymodScriptClassMacro
                 case FMethod(k):
                   if (k != MethInline) continue;
                   if (abstractPath.startsWith('cpp')) continue;
+                  if (abstractPath.startsWith('hl')) continue;
                   if (abstractPath.startsWith('flixel.graphics.atlas.HashOrArray')) continue; // has to be ragebait
                   if (abstractType.isPrivate) continue;
 
