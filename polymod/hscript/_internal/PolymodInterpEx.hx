@@ -157,19 +157,19 @@ class PolymodInterpEx extends Interp
 
 		@:privateAccess
 		{
-			if (_proxy != null && _proxy._cachedUsingFunctions.exists(f))
+			if (func == null && _proxy != null && _proxy._cachedUsingFunctions.exists(f))
 			{
 				return _proxy._cachedUsingFunctions[f]([o].concat(args));
 			}
 		}
 
+		#if html5
 		// Workaround for an HTML5-specific issue.
 		// https://github.com/HaxeFoundation/haxe/issues/11298
 		if (func == null && f == "contains") {
 			func = get(o, "includes");
 		}
 
-		#if html5
 		// For web: remove is inlined so we have to use something else.
 		if (func == null && f == "remove")
 		{
