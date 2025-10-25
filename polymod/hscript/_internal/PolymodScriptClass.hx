@@ -474,6 +474,21 @@ class PolymodScriptClass
 
 			superClass = Type.createInstance(clsToCreate, args);
 		}
+
+		// Throw an error if the script class has an instance field with the same name as one from the super class.
+		for (f in _c.fields)
+		{
+			switch (f.kind)
+			{
+				case KVar(v):
+					if (!f.access.contains(AStatic) && superHasField(f.name))
+					{
+						throw 'Redefinition of variable "${f.name}" from superclass not allowed';
+					}
+
+				case _:
+			}
+		}
 	}
 
 	public static function reportError(err:hscript.Expr.Error, className:String = null, fnName:String = null)
