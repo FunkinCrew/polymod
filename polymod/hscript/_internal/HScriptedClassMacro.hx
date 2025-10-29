@@ -179,7 +179,7 @@ class HScriptedClassMacro
 			meta: null,
 			pos: cls.pos,
 			kind: FFun({
-				args: [{name: 'clsName', type: Context.toComplexType(Context.getType('String'))},].concat(superConstArgs),
+				args: [{name: 'clsName', type: macro :String},].concat(superConstArgs),
 				params: null,
 				ret: Context.toComplexType(Context.getType(clsTypeName)),
 				expr: macro
@@ -224,9 +224,9 @@ class HScriptedClassMacro
 			meta: null,
 			pos: cls.pos,
 			kind: FFun({
-				args: [{name: 'varName', type: Context.toComplexType(Context.getType('String'))}],
+				args: [{name: 'varName', type: macro :String}],
 				params: null,
-				ret: Context.toComplexType(Context.getType('Dynamic')),
+				ret: macro :Dynamic,
 				expr: macro
 				{
 					return _asc.fieldRead(varName);
@@ -242,15 +242,15 @@ class HScriptedClassMacro
 			pos: cls.pos,
 			kind: FFun({
 				args: [
-					{name: 'varName', type: Context.toComplexType(Context.getType('String'))},
+					{name: 'varName', type: macro :String},
 					{
 						name: 'varValue',
-						type: Context.toComplexType(Context.getType('Dynamic')),
+						type: macro :Dynamic,
 						value: macro null,
 					}
 				],
 				params: null,
-				ret: Context.toComplexType(Context.getType('Dynamic')),
+				ret: macro :Dynamic,
 				expr: macro
 				{
 					return _asc.fieldWrite(varName, varValue);
@@ -266,15 +266,15 @@ class HScriptedClassMacro
 			pos: cls.pos,
 			kind: FFun({
 				args: [
-					{name: 'funcName', type: Context.toComplexType(Context.getType('String'))},
+					{name: 'funcName', type: macro :String},
 					{
 						name: 'funcArgs',
-						type: toComplexTypeArray(Context.toComplexType(Context.getType('Dynamic'))),
+						type: macro :Array<Dynamic>,
 						value: macro null,
 					}
 				],
 				params: null,
-				ret: Context.toComplexType(Context.getType('Dynamic')),
+				ret: macro :Dynamic,
 				expr: macro
 				{
 					return _asc.callFunction(funcName, funcArgs == null ? [] : funcArgs);
@@ -286,7 +286,7 @@ class HScriptedClassMacro
 			name: '_asc',
 			doc: "The AbstractScriptClass instance which any variable or function calls are redirected to internally.",
 			access: [APrivate], // Private instance variable
-			kind: FVar(Context.toComplexType(Context.getType('polymod.hscript._internal.PolymodAbstractScriptClass'))),
+			kind: FVar(macro :polymod.hscript._internal.PolymodAbstractScriptClass),
 			pos: cls.pos,
 		};
 
@@ -299,7 +299,7 @@ class HScriptedClassMacro
 			kind: FFun({
 				args: [],
 				params: null,
-				ret: toComplexTypeArray(Context.toComplexType(Context.getType('String'))),
+				ret: macro :Array<String>,
 				expr: macro
 				{
 					return polymod.hscript._internal.PolymodScriptClass.listScriptClassesExtending($v{superClsTypeName});
@@ -315,11 +315,11 @@ class HScriptedClassMacro
 			pos: cls.pos,
 			kind: FFun({
 				args: [
-					{name: 'clsName', type: Context.toComplexType(Context.getType('String'))},
-					{name: 'funcName', type: Context.toComplexType(Context.getType('String'))},
+					{name: 'clsName', type: macro :String},
+					{name: 'funcName', type: macro :String},
 				],
 				params: null,
-				ret: Context.toComplexType(Context.getType('Dynamic')),
+				ret: macro :Dynamic,
 				expr: macro
 				{
 					return polymod.hscript._internal.PolymodScriptClass.callScriptClassStaticFunction(clsName, funcName);
@@ -335,11 +335,11 @@ class HScriptedClassMacro
 			pos: cls.pos,
 			kind: FFun({
 				args: [
-					{name: 'clsName', type: Context.toComplexType(Context.getType('String'))},
-					{name: 'fieldName', type: Context.toComplexType(Context.getType('String'))},
+					{name: 'clsName', type: macro :String},
+					{name: 'fieldName', type: macro :String},
 				],
 				params: null,
-				ret: Context.toComplexType(Context.getType('Dynamic')),
+				ret: macro :Dynamic,
 				expr: macro
 				{
 					return polymod.hscript._internal.PolymodScriptClass.getScriptClassStaticField(clsName, fieldName);
@@ -355,16 +355,16 @@ class HScriptedClassMacro
 			pos: cls.pos,
 			kind: FFun({
 				args: [
-					{name: 'clsName', type: Context.toComplexType(Context.getType('String'))},
-					{name: 'fieldName', type: Context.toComplexType(Context.getType('String'))},
+					{name: 'clsName', type: macro :String},
+					{name: 'fieldName', type: macro :String},
 					{
 						name: 'fieldValue',
-						type: Context.toComplexType(Context.getType('Dynamic')),
+						type: macro :Dynamic,
 						value: macro null,
 					},
 				],
 				params: null,
-				ret: Context.toComplexType(Context.getType('Dynamic')),
+				ret: macro :Dynamic,
 				expr: macro
 				{
 					return polymod.hscript._internal.PolymodScriptClass.setScriptClassStaticField(clsName, fieldName, fieldValue);
@@ -462,7 +462,7 @@ class HScriptedClassMacro
 			kind: FFun({
 				args: [],
 				params: null,
-				ret: Context.toComplexType(Context.getType('String')),
+				ret: macro :String,
 				expr: macro
 				{
 					if (_asc == null)

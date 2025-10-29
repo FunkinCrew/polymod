@@ -14,9 +14,11 @@ typedef PolymodClassDeclEx =
 	 * Save performance and improve sandboxing by resolving imports at interpretation time.
 	 */
 	@:optional var imports:Map<String, PolymodClassImport>;
+	@:optional var importsToValidate:Map<String, PolymodClassImport>;
 	@:optional var pkg:Array<String>;
 
 	@:optional var staticFields:Array<FieldDecl>;
+	@:optional var usings:Map<String, PolymodClassImport>;
 }
 
 /**

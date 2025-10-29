@@ -2,5 +2,6 @@
   "[haxe]": {
     "editor.formatOnSave": false,
     "editor.formatOnPaste": false
-  }
+  },
+  "lime.projectFile": "samples/openfl_hscript_class/project.xml",
 }

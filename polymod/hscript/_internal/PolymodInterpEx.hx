@@ -8,12 +8,15 @@ import polymod.hscript._internal.PolymodExprEx;
 import polymod.hscript._internal.PolymodClassDeclEx.PolymodClassImport;
 import polymod.hscript._internal.PolymodClassDeclEx.PolymodStaticClassReference;
 
+using StringTools;
+
 /**
  * Based on code by Ian Harrigan
  * @see https://github.com/ianharrigan/hscript-ex
  */
 @:access(polymod.hscript._internal.PolymodScriptClass)
 @:access(polymod.hscript._internal.PolymodAbstractScriptClass)
+@:access(polymod.hscript._internal.PolymodEnum)
 class PolymodInterpEx extends Interp
 {
 	var targetCls:Class<Dynamic>;
@@ -21,6 +24,8 @@ class PolymodInterpEx extends Interp
 	private var _proxy:PolymodAbstractScriptClass = null;
 
 	var _classDeclOverride:PolymodClassDeclEx = null;
+
+	var _propTrack:Map<String,Bool> = [];
 
 	function getClassDecl():PolymodClassDeclEx {
 		if (_classDeclOverride != null) {
@@ -30,6 +35,16 @@ class PolymodInterpEx extends Interp
 		} else {
 			return null;
 		}
+	}
+
+	function getClassFullyQualifiedName():Null<String> {
+		if (_proxy == null)
+		{
+			var clsDecl = getClassDecl() ?? return null;
+			return PolymodStaticClassReference.tryBuild(clsDecl.name)?.getFullyQualifiedName();
+		}
+
+		return _proxy.fullyQualifiedName;
 	}
 
 	public function new(targetCls:Class<Dynamic>, proxy:PolymodAbstractScriptClass)
@@ -63,6 +78,13 @@ class PolymodInterpEx extends Interp
 		// Try to retrieve a scripted class with this name in the base package.
 		var clsRef = PolymodStaticClassReference.tryBuild(cl);
 		if (clsRef != null) return clsRef.instantiate(args);
+
+		@:privateAccess
+		if (getClassDecl().imports != null && getClassDecl().imports.exists(cl))
+		{
+			var clsRef = PolymodStaticClassReference.tryBuild(getClassDecl().imports.get(cl).fullPath);
+			if (clsRef != null) return clsRef.instantiate(args);
+		}
 
 		@:privateAccess
 		if (getClassDecl()?.pkg != null)
@@ -133,11 +155,28 @@ class PolymodInterpEx extends Interp
 
 		var func = get(o, f);
 
+		@:privateAccess
+		{
+			if (_proxy != null && _proxy._cachedUsingFunctions.exists(f))
+			{
+				return _proxy._cachedUsingFunctions[f]([o].concat(args));
+			}
+		}
+
 		// Workaround for an HTML5-specific issue.
 		// https://github.com/HaxeFoundation/haxe/issues/11298
 		if (func == null && f == "contains") {
 			func = get(o, "includes");
 		}
+
+		#if html5
+		// For web: remove is inlined so we have to use something else.
+		if (func == null && f == "remove")
+		{
+			@:privateAccess
+			return HxOverrides.remove(cast o, args[0]);
+		}
+		#end
 
 		if (func == null)
 		{
@@ -193,6 +232,59 @@ class PolymodInterpEx extends Interp
 		return _scriptClassDescriptors.get(name);
 	}
 
+	private static var _scriptEnumDescriptors:Map<String, PolymodEnumDeclEx> = new Map<String, PolymodEnumDeclEx>();
+
+	private static function registerScriptEnum(e:PolymodEnumDeclEx)
+	{
+		var name = e.name;
+		if (e.pkg != null)
+		{
+			name = e.pkg.join(".") + "." + name;
+		}
+
+		if (_scriptEnumDescriptors.exists(name)) {
+			Polymod.error(SCRIPT_ENUM_ALREADY_REGISTERED, 'An enum with the fully qualified name "$name" has already been defined. Please change the enum name to ensure a unique name.');
+			return;
+		} else {
+			Polymod.debug('Registering enum $name');
+			_scriptEnumDescriptors.set(name, e);
+		}
+	}
+
+	public function clearScriptEnumDescriptors():Void {
+		// Clear the script enum descriptors.
+		_scriptEnumDescriptors.clear();
+
+		// Also destroy local variable scope.
+		this.resetVariables();
+	}
+
+	public static function validateImports():Void
+	{
+		for (cls in _scriptClassDescriptors)
+		{
+			var clsPath = cls.pkg != null ? (cls.pkg.join(".") + ".") : "";
+			clsPath += cls.name;
+
+			for (key => imp in cls.importsToValidate)
+			{
+				if (_scriptClassDescriptors.exists(imp.fullPath))
+				{
+					cls.imports.set(key, imp);
+					continue;
+				}
+
+				if (_scriptEnumDescriptors.exists(imp.fullPath))
+				{
+					cls.imports.set(key, imp);
+					continue;
+				}
+
+				Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import ${imp.fullPath}', clsPath);
+			}
+		}
+	}
+
 	override function setVar(id:String, v:Dynamic)
 	{
 		if (_proxy != null && _proxy.superClass != null)
@@ -231,16 +323,27 @@ class PolymodInterpEx extends Interp
 					if (_proxy != null)
 					{
 						var decl = _proxy.findVar(id);
-						var v = expr(e2);
 						switch (decl?.set)
 						{
 							case "set":
-								var out = _proxy.callFunction('set_$id', [v]);
-								return (out == null) ? v : out;
+								final setName = 'set_$id';
+								if (!_propTrack.exists(setName)) {
+									var v = expr(e2);
+									_propTrack.set(setName, true);
+									var out = _proxy.callFunction(setName, [v]);
+									_propTrack.remove(setName);
+									return (out == null) ? v : out;
+							}
 
 							case "never":
-								errorEx(EInvalidAccess(id));
+								errorEx(EInvalidPropSet(id));
 								return null;
+						}
+
+						if ((decl?.isfinal ?? false) && decl?.expr != null)
+						{
+							errorEx(EInvalidAccess(id));
+							return null;
 						}
 					}
 				}
@@ -259,6 +362,27 @@ class PolymodInterpEx extends Interp
 									var v = expr(e2);
 									Reflect.setProperty(_proxy.superClass, id, v);
 									return v;
+								}
+							}
+						}
+						else
+						{
+							@:privateAccess
+							{
+								// Check if we are setting a final. If so, throw an error.
+								if (_proxy != null && _proxy._c != null)
+								{
+									for (imp in _proxy._c.imports)
+									{
+										if (imp.name != id0) continue;
+										var finals = PolymodFinalMacro.getAllFinals().get(imp.fullPath) ?? [];
+
+										if (finals.contains(id))
+										{
+											errorEx(EInvalidFinalSet(id));
+											return null;
+										}
+									}
 								}
 							}
 						}
@@ -285,8 +409,8 @@ class PolymodInterpEx extends Interp
 						{
 							var v = switch (decl.get)
 							{
-								case "get": _proxy.callFunction('get_$id');
-								default: expr(decl.expr);
+								case "never": errorEx(EInvalidPropGet(id));
+								default: expr(e);
 							}
 
 							if (prefix)
@@ -295,11 +419,15 @@ class PolymodInterpEx extends Interp
 							switch(decl.set)
 							{
 								case "set":
-									_proxy.callFunction('set_$id', [prefix ? v : (v += delta)]);
-									return prefix ? v : (v += delta);
+									final setName = 'set_$id';
+									if (!_propTrack.exists(setName)) {
+										_propTrack.set(setName, true);
+										var r = _proxy.callFunction(setName, [prefix ? v : (v + delta)]);
+										_propTrack.remove(setName);
+										return r;
+									}
 								case "never":
-									errorEx(EInvalidAccess(id));
-									return prefix ? v : (v += delta);
+									return errorEx(EInvalidPropSet(id));
 							}
 						}
 					}
@@ -324,7 +452,7 @@ class PolymodInterpEx extends Interp
 						{
 							var value = switch (decl.get)
 							{
-								case "get": _proxy.callFunction('get_$id');
+								case "never": errorEx(EInvalidPropGet(id));
 								default: expr(e1);
 							}
 
@@ -333,10 +461,16 @@ class PolymodInterpEx extends Interp
 							switch(decl.set)
 							{
 								case "set":
-									_proxy.callFunction('set_$id', [v]);
-									return v;
+									final setName = 'set_$id';
+									if (!_propTrack.exists(setName)) {
+										_propTrack.set(setName, true);
+										var r = _proxy.callFunction(setName, [v]);
+										_propTrack.remove(setName);
+										return r;
+									}
+									// Fallback
 								case "never":
-									errorEx(EInvalidAccess(id));
+									errorEx(EInvalidPropSet(id));
 									return v;
 							}
 						}
@@ -367,7 +501,19 @@ class PolymodInterpEx extends Interp
 				// Evaluate the expression before assigning, applying typing if possible.
 				var result = (expression != null) ? exprWithType(expression, type) : null;
 
-				locals.set(name, {r: result});
+				locals.set(name, {r: result, isfinal: false});
+
+				return null;
+			case EFinal(name, type, expression):
+				// Fix to ensure local variables are committed properly.
+				declared.push({n: name, old: locals.get(name)});
+
+				// Evaluate the expression before assigning, applying typing if possible.
+				var result = (expression != null) ? exprWithType(expression, type) : null;
+
+				locals.set(name, {r: result, isfinal: true});
+
+				return null;
 			case EIdent(id):
 				// When resolving a variable, check if it is a property with a getter, and call it if necessary.
 				@:privateAccess
@@ -378,7 +524,23 @@ class PolymodInterpEx extends Interp
 						switch (decl?.get)
 						{
 							case "get":
-								return _proxy.callFunction('get_$id');
+								final getName = 'get_$id';
+								if (_propTrack.exists(getName)) {
+									switch (decl.set) {
+											case 'set', 'never':
+												var field = _proxy.findField(id);
+												var hasIsVar = false;
+												for (m in field?.meta ?? []) if (m.name == ':isVar') { hasIsVar = true; break; }
+												if (!hasIsVar) return errorEx(EPropVarNotReal(id));
+											default:
+									}
+								}
+								else {
+									_propTrack.set(getName, true);
+									var result = _proxy.callFunction(getName);
+									_propTrack.remove(getName);
+									return result;
+								}
 						}
 					}
 				}
@@ -473,12 +635,12 @@ class PolymodInterpEx extends Interp
 						}
 						catch (err:PolymodExprEx.ErrorEx)
 						{
-							PolymodScriptClass.reportErrorEx(err, 'anonymous');
+							PolymodScriptClass.reportErrorEx(err, getClassFullyQualifiedName(), name);
 							r = null;
 						}
 						catch (err:hscript.Expr.Error)
 						{
-							PolymodScriptClass.reportError(err, 'anonymous');
+							PolymodScriptClass.reportError(err, getClassFullyQualifiedName(), name);
 							r = null;
 						}
 						catch (err:Dynamic)
@@ -570,6 +732,88 @@ class PolymodInterpEx extends Interp
 				// If there is a try/catch block, the error will be caught.
 				// If there is no try/catch block, the error will be reported.
 				errorEx(EScriptThrow('${expr(e)}'));
+			// Enums
+			case EField(e,f):
+				var name = getIdent(e);
+				name = getClassDecl().imports.get(name)?.fullPath ?? name;
+				if (name != null && _scriptEnumDescriptors.exists(name))
+				{
+					return new PolymodEnum(_scriptEnumDescriptors.get(name), f, []);
+				}
+			case ECall(e,params):
+				switch(Tools.expr(e)) {
+					case EField(e,f):
+						var name = getIdent(e);
+						name = getClassDecl().imports.get(name)?.fullPath ?? name;
+						if (name != null && _scriptEnumDescriptors.exists(name))
+						{
+							var args = new Array();
+							for (p in params)
+								args.push(expr(p));
+
+							return new PolymodEnum(_scriptEnumDescriptors.get(name), f, args);
+						}
+					default:
+				}
+				case ESwitch(e, cases, def):
+					var val:Dynamic = expr(e);
+
+					if (Std.isOfType(val, PolymodEnum))
+					{
+						var old:Int = declared.length;
+						var match = false;
+						for(c in cases)
+						{
+							for(v in c.values)
+							{
+								switch (Tools.expr(v))
+								{
+									case ECall(e, params):
+										switch (Tools.expr(e))
+										{
+											case EField(_, f):
+												if (val._value == f)
+												{
+													for (i => p in params)
+													{
+														switch (Tools.expr(p))
+														{
+															case EIdent(n):
+																declared.push({
+																	n: n,
+																	old: {r: locals.get(n)}
+																});
+																locals.set(n, {r: val._args[i]});
+															default:
+														}
+													}
+													match = true;
+													break;
+												}
+											default:
+										}
+									case EField(_, f):
+										if (val._value == f)
+										{
+											match = true;
+											break;
+										}
+									default:
+								}
+							}
+							if(match)
+							{
+								val = expr(c.expr);
+								break;
+							}
+						}
+						if (!match)
+						{
+							val = def == null ? null : expr(def);
+						}
+						restore(old);
+						return val;
+					}
 			default:
 				// Do nothing.
 		}
@@ -708,8 +952,24 @@ class PolymodInterpEx extends Interp
 		return a;
 	}
 
+	function getIdent(e:Expr):Null<String> {
+		#if hscriptPos
+		switch (e.e)
+		{
+		#else
+		switch (e)
+		{
+		#end
+			case EIdent(v):
+				return v;
+			default:
+				return null;
+		}
+	}
+
 	override function makeIterator(v:Dynamic):Iterator<Dynamic>
 	{
+		if (v == null) errorEx(EInvalidIterator(v));
 		if (v.iterator != null)
 		{
 			try
@@ -826,12 +1086,12 @@ class PolymodInterpEx extends Interp
 		}
 		catch (err:PolymodExprEx.ErrorEx)
 		{
-			PolymodScriptClass.reportErrorEx(err, 'anonymous');
+			PolymodScriptClass.reportErrorEx(err, getClassFullyQualifiedName());
 			return null;
 		}
 		catch (err:hscript.Expr.Error)
 		{
-			PolymodScriptClass.reportError(err, 'anonymous');
+			PolymodScriptClass.reportError(err, getClassFullyQualifiedName());
 			return null;
 		}
 		catch (err:Dynamic)
@@ -848,7 +1108,8 @@ class PolymodInterpEx extends Interp
 
 	override function get(o:Dynamic, f:String):Dynamic
 	{
-		if (o == null) errorEx(EInvalidAccess(f));
+		if (o == null)
+			errorEx(EInvalidAccess(f));
 
 		// If not, check if it is a blacklisted instance field.
 		var oCls:String = switch(Type.typeof(o))
@@ -932,6 +1193,11 @@ class PolymodInterpEx extends Interp
 			// }
 			// #end
 			// return result;
+		}
+
+		var abstractKey:String = Type.getClassName(o) + '.' + f;
+		if (PolymodScriptClass.abstractClassStatics.exists(abstractKey)) {
+			return Reflect.getProperty(PolymodScriptClass.abstractClassStatics[abstractKey], abstractKey.replace('.', '_'));
 		}
 
 		// Default behavior
@@ -1096,6 +1362,10 @@ class PolymodInterpEx extends Interp
 			if (importedClass != null) {
 				if (importedClass.cls != null) return importedClass.cls;
 				if (importedClass.enm != null) return importedClass.enm;
+
+				// Resolve imported scripted classes.
+				var result = PolymodStaticClassReference.tryBuild(importedClass.fullPath);
+				if (result != null) return result;
 			}
 		} else {
 			trace('No proxy, trying to resolve: ${id}');
@@ -1233,7 +1503,7 @@ class PolymodInterpEx extends Interp
 			var result:Dynamic = null;
 			try
 			{
-				result = this.executeEx(fn.expr);
+				result = this.exprReturn(fn.expr);
 			}
 			catch (err:PolymodExprEx.ErrorEx)
 			{
@@ -1269,8 +1539,8 @@ class PolymodInterpEx extends Interp
 			return result;
 		} else {
 			Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-				'Error while calling static function ${fnName}(): EInvalidAccess' + '\n' +
-				'InvalidAccess error: Static function "${fnName}" does not exist! Define it or call the correct function.');
+				'Error while calling static function ${clsName}.${fnName}(): EInvalidAccess' + '\n' +
+				'Static function "${fnName}" does not exist! Define it or call the correct function.');
 			return null;
 		}
 	}
@@ -1315,20 +1585,38 @@ class PolymodInterpEx extends Interp
 						this.variables.set(prefixedName, result);
 						return result;
 					case KVar(v):
-						var result = this.expr(v.expr);
-						this.variables.set(prefixedName, result);
-						return result;
+						if (v.get != null) {
+							switch (v.get) {
+								case 'get':
+									var getterFunc = 'get_${fieldName}';
+									if (hasScriptClassStaticFunction(clsName, getterFunc, [])) {
+										return callScriptClassStaticFunction(clsName, getterFunc, []);
+									} else {
+										throw 'Could not resolve getter for property ${prefixedName}';
+									}
+								case 'default':
+									var result = this.expr(v.expr);
+									this.variables.set(prefixedName, result);
+									return result;
+								default:
+									throw 'Could not resolve getter for property ${prefixedName}';
+							}
+						} else if (v.expr != null) {
+							var result = this.expr(v.expr);
+							this.variables.set(prefixedName, result);
+							return result;
+						} else {
+							throw 'Could not resolve field declaration for ${prefixedName}';
+						}
 					default:
-						throw 'Wuh?';
+						throw 'Could not resolve field kind for ${prefixedName}';
 				}
 
 			} else {
 				return this.variables.get(prefixedName);
 			}
 		} else {
-			Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-				'Error while retrieving static field ${fieldName}: EInvalidAccess' + '\n' +
-				'Static field "${fieldName}" does not exist! Define it, import it, or access the correct variable.');
+			errorEx(EInvalidAccess(fieldName));
 			return null;
 		}
 	}
@@ -1384,15 +1672,40 @@ class PolymodInterpEx extends Interp
 	}
 
 	public function setScriptClassStaticField(clsName:String, fieldName:String, value:Dynamic):Dynamic {
-		var v = getScriptClassStaticFieldDecl(clsName, fieldName);
-		if (v != null) {
-			var prefixedName = clsName + '#' + fieldName;
-			this.variables.set(prefixedName, value);
-			return value;
+		var prefixedName = clsName + '#' + fieldName;
+	var fieldDecl = getScriptClassStaticFieldDecl(clsName, fieldName);
+		if (fieldDecl != null) {
+			if (!this.variables.exists(prefixedName)) {
+				switch (fieldDecl.kind) {
+					case KFunction(_fn):
+						throw 'Cannot override function ${prefixedName}';
+					case KVar(v):
+						if (v.set != null) {
+							switch (v.set) {
+								case 'set':
+									var setterFunc = 'set_${fieldName}';
+									if (hasScriptClassStaticFunction(clsName, setterFunc, [value])) {
+										return callScriptClassStaticFunction(clsName, setterFunc, [value]);
+									} else {
+										throw 'Could not resolve setter for property ${prefixedName}';
+									}
+								case 'default':
+									this.variables.set(prefixedName, value);
+									return value;
+								default:
+									throw 'Could not resolve setter for property ${prefixedName}';
+							}
+						} else {
+							this.variables.set(prefixedName, value);
+							return value;
+						}
+				}
+			} else {
+				this.variables.set(prefixedName, value);
+				return value;
+			}
 		} else {
-			Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-				'Error while modifying static field ${fieldName}: EInvalidAccess' + '\n' +
-				'Static field "${fieldName}" does not exist! Define it or modify the correct variable.');
+			errorEx(EInvalidAccess(fieldName));
 			return null;
 		}
 	}
@@ -1429,6 +1742,8 @@ class PolymodInterpEx extends Interp
 	{
 		var pkg:Array<String> = null;
 		var imports:Map<String, PolymodClassImport> = [];
+		var importsToValidate:Map<String, PolymodClassImport> = [];
+		var usings:Map<String, PolymodClassImport> = [];
 
 		for (importPath in PolymodScriptClass.defaultImports.keys())
 		{
@@ -1449,8 +1764,9 @@ class PolymodInterpEx extends Interp
 			{
 				case DPackage(path):
 					pkg = path;
-				case DImport(path, _):
+				case DImport(path, _, name):
 					var clsName = path[path.length - 1];
+					if (name != null) clsName = name;
 
 					if (imports.exists(clsName))
 					{
@@ -1480,6 +1796,8 @@ class PolymodInterpEx extends Interp
 						importedClass.cls = PolymodScriptClass.abstractClassImpls.get(importedClass.fullPath);
 						trace('RESOLVED ABSTRACT CLASS ${importedClass.fullPath} -> ${Type.getClassName(importedClass.cls)}');
 						trace(Type.getClassFields(importedClass.cls));
+					} else if (_scriptEnumDescriptors.exists(importedClass.fullPath)) {
+						// do nothing
 					} else {
 						var resultCls:Class<Dynamic> = Type.resolveClass(importedClass.fullPath);
 
@@ -1490,7 +1808,9 @@ class PolymodInterpEx extends Interp
 
 						// If the class is still not found, skip this import entirely.
 						if (resultCls == null && resultEnm == null) {
-							Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import class ${importedClass.fullPath}', origin);
+							//Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import class ${importedClass.fullPath}', origin);
+							// this could be a scripted class or enum that hasn't been registered yet
+							importsToValidate.set(importedClass.name, importedClass);
 							continue;
 						} else if (resultCls != null) {
 							importedClass.cls = resultCls;
@@ -1501,6 +1821,55 @@ class PolymodInterpEx extends Interp
 
 					Polymod.debug('Imported class ${importedClass.name} from ${importedClass.fullPath}');
 					imports.set(importedClass.name, importedClass);
+				case DUsing(path):
+					var clsName = path[path.length - 1];
+
+					if (usings.exists(clsName))
+					{
+						if (usings.get(clsName) == null) {
+							Polymod.error(SCRIPT_CLASS_MODULE_BLACKLISTED, 'Scripted class ${clsName} is blacklisted and cannot be used in scripts.', origin);
+						} else {
+							Polymod.warning(SCRIPT_CLASS_MODULE_ALREADY_IMPORTED, 'Scripted class ${clsName} has already been used.', origin);
+						}
+						continue;
+					}
+
+					var importedClass:PolymodClassImport = {
+						name: clsName,
+						pkg: path.slice(0, path.length - 1),
+						fullPath: path.join("."),
+						cls: null,
+						enm: null
+					};
+
+					if (PolymodScriptClass.importOverrides.exists(importedClass.fullPath)) {
+						// importOverrides can exist but be null (if it was set to null).
+						// If so, that means the class is blacklisted.
+
+						importedClass.cls = PolymodScriptClass.importOverrides.get(importedClass.fullPath);
+					} else if (PolymodScriptClass.abstractClassImpls.exists(importedClass.fullPath)) {
+						// We used a macro to map each abstract to its implementation.
+						importedClass.cls = PolymodScriptClass.abstractClassImpls.get(importedClass.fullPath);
+						trace('RESOLVED ABSTRACT CLASS ${importedClass.fullPath} -> ${Type.getClassName(importedClass.cls)}');
+						trace(Type.getClassFields(importedClass.cls));
+					} else if (_scriptEnumDescriptors.exists(importedClass.fullPath)) {
+						// do nothing
+					} else {
+						var resultCls:Class<Dynamic> = Type.resolveClass(importedClass.fullPath);
+
+						// If the class is still not found, skip this import entirely.
+						if (resultCls == null) {
+							//Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import class ${importedClass.fullPath}', origin);
+							// this could be a scripted class that hasn't been registered yet
+							importsToValidate.set(importedClass.name, importedClass);
+							continue;
+						} else {
+							importedClass.cls = resultCls;
+						}
+					}
+
+					Polymod.debug('Using class ${importedClass.name} from ${importedClass.fullPath}');
+					usings.set(importedClass.name, importedClass);
 				case DClass(c):
 					var extend = c.extend;
 					if (extend != null)
@@ -1547,6 +1916,8 @@ class PolymodInterpEx extends Interp
 
 					var classDecl:PolymodClassDeclEx = {
 						imports: imports,
+						importsToValidate: importsToValidate,
+						usings: usings,
 						pkg: pkg,
 						name: c.name,
 						params: c.params,
@@ -1559,6 +1930,25 @@ class PolymodInterpEx extends Interp
 						staticFields: staticFields,
 					};
 					registerScriptClass(classDecl);
+				case DEnum(e):
+					if (pkg != null)
+					{
+						imports.set(e.name, {
+							name: e.name,
+							pkg: pkg,
+							fullPath: pkg.join(".") + "." + e.name,
+							cls: null,
+							enm: null,
+						});
+					}
+
+					var enumDecl:PolymodEnumDeclEx = {
+						pkg: pkg,
+						name: e.name,
+						fields: e.fields,
+					};
+
+					registerScriptEnum(enumDecl);
 				case DTypedef(_):
 			}
 		}

@@ -863,14 +863,14 @@ class LimeModLibrary extends LimeAssetLibrary
 			}
 		};
 
-		var libraryItems = [for (i in p.type.keys()) i];
+		var libraryItems = p.typeLibraries.get(libraryId) ?? [];
 		for (id in libraryItems)
 		{
 			// Skip ignored files.
 			if (p.isAssetExcluded(id)) continue;
 
 			// Skip append/merge files.
-			if (id.startsWith(PolymodConfig.appendFolder) || id.startsWith(PolymodConfig.mergeFolder))
+			if (Util.isMergeOrAppend(id))
 				continue;
 
 			#if firetongue

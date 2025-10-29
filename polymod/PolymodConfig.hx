@@ -229,4 +229,24 @@ class PolymodConfig
 			modIgnoreFiles = DefineUtil.getDefineStringArray('POLYMOD_MOD_IGNORE', ['LICENSE.txt', 'ASSET_LICENSE.txt', 'CODE_LICENSE.txt']);
 		return modIgnoreFiles;
 	}
+
+	/**
+	 * If true, assets from ZIP mods will be loaded in a case-insensitive manner.
+	 * For example, if trying to load an asset called `FOO.txt`, a file called `foo.txt` will be loaded if it exists.
+	 * If multiple files with the same name but differing in letter case exist
+	 * in the same directory the choice of which file is loaded is undefined.
+	 * 
+	 * Disable this option by setting the `POLYMOD_ZIP_INSENSITIVE` Haxe define at compile time,
+	 * or by setting this value in your code.
+	 * 
+	 * @default `true`
+	 */
+	 public static var caseInsensitiveZipLoading(get, default):Null<Bool>;
+
+	 static function get_caseInsensitiveZipLoading():Null<Bool>
+	 {
+		if (caseInsensitiveZipLoading == null)
+			caseInsensitiveZipLoading = DefineUtil.getDefineBool('POLYMOD_ZIP_INSENSITIVE', true);
+		return caseInsensitiveZipLoading;
+	 }
 }

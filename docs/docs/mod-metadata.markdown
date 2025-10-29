@@ -5,7 +5,7 @@ title: Mod Metadata
 
 # Mod Metadata
 
-In order to be recognized by Polymod, a mod folder must contain a metadata file. By default, this file is located at `_polymod_meta.json`, but this can be reconfigured in your own projects. See [Configuring Polymod](./configuring-polymod) for more information.
+In order to be recognized by Polymod, a mod folder must contain a metadata file. By default, this file is located at `_polymod_meta.json`, but this can be reconfigured in your own projects. See [Configuring Polymod](./../configuring-polymod) for more information.
 
 A mod's metadata contains all the information needed for your project to not only recognize a mod and validate its compatibility, but also display it to your users. It includes a title, description, author, and even optionally an icon you can display.
 
@@ -53,7 +53,7 @@ The metadata JSON contains data which is loaded when scanning mods, and is meant
     - **This field is deprecated**, please use the `contributors` field instead.
     - This field is backwards compatible; requesting the `author` retrieves the name of the first contributor if available, and falls back to the `author` otherwise.
 - `api_version`: This defines the API version for your app which the mod was designed to use.
-    - If the major, minor, AND patch version do not match, the mod will not load. This behavior can be configured; see [Configuring Polymod](./configuring-polymod/).
+    - If the major, minor, AND patch version do not match, the mod will not load. This behavior can be configured; see [Configuring Polymod](./../configuring-polymod/).
     - This version must adhere to the Semantic Versioning 2.0 format.
 - `mod_version`: This represents the version for the mod itself, and does not relate to the API version.
     - Mod creators should adhere to the Semantic Versioning 2.0 format.

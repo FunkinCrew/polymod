@@ -145,6 +145,7 @@ class PolymodAssets
 			extensionMap: params.extensionMap,
 			fileSystem: params.fileSystem,
 			assetPrefix: params.assetPrefix,
+			frameworkParams: params.frameworkParams,
 			#if firetongue
 			firetongue: params.firetongue,
 			#end

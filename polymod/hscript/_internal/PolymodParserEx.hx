@@ -2,7 +2,11 @@ package polymod.hscript._internal;
 
 #if hscript
 import hscript.Parser;
+import hscript.Expr;
 
+#if hscript_typer
+@:access(polymod.hscript._internal.PolymodTyperEx)
+#end
 class PolymodParserEx extends Parser
 {
 	#if (hscript > "2.5.0")
@@ -12,10 +16,18 @@ class PolymodParserEx extends Parser
 	#end
 	{
 		#if (hscript > "2.5.0")
-		return super.parseModule(content, origin, position);
+		var decls:Array<ModuleDecl> = super.parseModule(content, origin, position);
 		#else
-		return super.parseModule(content, origin);
+		var decls:Array<ModuleDecl> = super.parseModule(content, origin);
 		#end
+		#if hscript_typer
+		PolymodTyperEx.allModules.push({
+			decls: decls,
+			code: content,
+			origin: origin,
+		});
+		#end
+		return decls;
 	}
 }
 #end

@@ -241,7 +241,7 @@ class ModFileEntry extends BytesFileEntry
 		{
 			if (id.indexOf(dirPath) != 0)
 				continue;
-			if (id.indexOf(PolymodConfig.appendFolder) == 0 || id.indexOf(PolymodConfig.mergeFolder) == 0)
+			if (Util.isMergeOrAppend(id))
 				continue;
 			if (p.ignoredFiles.indexOf(id) != -1)
 				continue;

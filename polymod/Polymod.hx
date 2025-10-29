@@ -331,6 +331,7 @@ class Polymod
 		if (params.useScriptedClasses)
 		{
 			Polymod.notice(PolymodErrorCode.SCRIPT_PARSING, 'Parsing script classes...');
+			Polymod.clearScripts();
 
 			if (params.loadScriptsAsync) {
 				Polymod.registerAllScriptClassesAsync();
@@ -655,6 +656,10 @@ class Polymod
 		#if hscript
 		@:privateAccess
 		polymod.hscript._internal.PolymodScriptClass.clearScriptedClasses();
+		polymod.hscript._internal.PolymodEnum.clearScriptedEnums();
+		#if hscript_typer
+		polymod.hscript._internal.PolymodTyperEx.clearAllModules();
+		#end
 		polymod.hscript.HScriptable.ScriptRunner.clearScripts();
 		#else
 		Polymod.warning(SCRIPT_HSCRIPT_NOT_INSTALLED, "Cannot register script classes, HScript is not available.");
@@ -691,6 +696,14 @@ class Polymod
 					polymod.hscript._internal.PolymodScriptClass.registerScriptClassByPath(path);
 				}
 			}
+
+			#if hscript_typer
+			// in the future typed modules might have a use
+			// but for now we just ignore the typed modules that are returned
+			var _ = polymod.hscript._internal.PolymodTyperEx.typeAllModules();
+			#end
+
+			polymod.hscript._internal.PolymodInterpEx.validateImports(); 
 		}
 		#else
 		Polymod.warning(SCRIPT_HSCRIPT_NOT_INSTALLED, "Cannot register script classes, HScript is not available.");
@@ -728,6 +741,9 @@ class Polymod
 				if (future != null) futures.push(future);
 			}
 		}
+
+		polymod.hscript._internal.PolymodInterpEx.validateImports();
+
 		return futures;
 		#else
 		Polymod.warning(SCRIPT_HSCRIPT_NOT_INSTALLED, "Cannot register script classes, HScript is not available.");
@@ -1358,6 +1374,12 @@ enum abstract PolymodErrorCode(String) from String to String
 	 * - Remove the field access to remove the error.
 	 */
 	 var SCRIPT_CLASS_FIELD_BLACKLISTED:String = 'script_class_field_blacklisted';
+  
+	 * You attempted to register a new enum with a name that is already in use.
+	 * - Rename the enum to one that is unique and will not conflict with other enums.
+	 * - If you need to clear all existing enum descriptors, call `Polymod.clearScripts()`.
+	 */
+	 var SCRIPT_ENUM_ALREADY_REGISTERED:String = 'script_enum_already_registered';
 
 	/**
 	 * One or more scripts are about to be parsed.

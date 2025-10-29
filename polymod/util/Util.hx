@@ -39,6 +39,11 @@ class Util
 		return parentDirs;
 	}
 
+	public static inline function isMergeOrAppend(id:String):Bool
+	{
+		return uIndexOf(id, PolymodConfig.mergeFolder) == 0 || uIndexOf(id, PolymodConfig.appendFolder) == 0;
+	}
+
 	public static function mergeAndAppendText(baseText:String, id:String, dirs:Array<String>, getModText:String->String->String, fileSystem:IFileSystem,
 			parseRules:ParseRules = null):String
 	{
@@ -360,7 +365,7 @@ class Util
 		return result;
 	}
 
-	public static function sl():String
+	public static inline function sl():String
 	{
 		return '/';
 	}
@@ -503,7 +508,7 @@ class Util
 		return extension;
 	}
 
-	public static function uIndexOf(str:String, substr:String, ?startIndex:Int):Int
+	public static inline function uIndexOf(str:String, substr:String, ?startIndex:Int):Int
 	{
 		#if unifill
 		return Unifill.uIndexOf(str, substr, startIndex);
@@ -512,7 +517,7 @@ class Util
 		#end
 	}
 
-	public static function uLastIndexOf(str:String, value:String, ?startIndex:Int):Int
+	public static inline function uLastIndexOf(str:String, value:String, ?startIndex:Int):Int
 	{
 		#if unifill
 		return Unifill.uLastIndexOf(str, value, startIndex);
@@ -521,7 +526,7 @@ class Util
 		#end
 	}
 
-	public static function uLength(str:String):Int
+	public static inline function uLength(str:String):Int
 	{
 		#if unifill
 		return Unifill.uLength(str);
@@ -609,7 +614,7 @@ class Util
 		return str;
 	}
 
-	public static function uSplit(str:String, substr:String):Array<String>
+	public static inline function uSplit(str:String, substr:String):Array<String>
 	{
 		#if unifill
 		return Unifill.uSplit(str, substr);
@@ -642,7 +647,7 @@ class Util
 		return sb.toString();
 	}
 
-	public static function uSubstr(str:String, pos:Int, ?len:Int):String
+	public static inline function uSubstr(str:String, pos:Int, ?len:Int):String
 	{
 		#if unifill
 		return Unifill.uSubstr(str, pos, len);
@@ -651,7 +656,7 @@ class Util
 		#end
 	}
 
-	public static function uSubstring(str:String, startIndex:Int, ?endIndex:Int):String
+	public static inline function uSubstring(str:String, startIndex:Int, ?endIndex:Int):String
 	{
 		#if unifill
 		return Unifill.uSubstring(str, startIndex, endIndex);
@@ -674,4 +679,20 @@ class Util
 		}
 		return output;
 	}
+
+	public static function indexOfInsens(arr:Array<String>, x:String, ?fromIndex:Int, ignoreConfig:Bool = false):Int
+    {
+        if (!PolymodConfig.caseInsensitiveZipLoading && !ignoreConfig) return arr.indexOf(x, fromIndex);
+        x = x.toLowerCase();
+        for (i => s in arr)
+        {
+            if (s.toLowerCase() == x) return i;
+        }
+        return -1;
+    }
+
+    public static inline function containsInsens(arr:Array<String>, x:String, ignoreConfig:Bool = false):Bool
+    {
+        return indexOfInsens(arr, x, ignoreConfig) != -1;
+    }
 }
