@@ -1111,13 +1111,14 @@ class PolymodInterpEx extends Interp
 		if (o == null)
 			errorEx(EInvalidAccess(f));
 
-		// If not, check if it is a blacklisted instance field.
 		var oCls:String = switch(Type.typeof(o))
 		{
 			case TClass(cls):
 				Std.string(cls);
 			case TEnum(enm):
 				Std.string(enm);
+			case TObject:
+				o;
 			default:
 				Std.string(Type.typeof(o));
 		}
@@ -1126,10 +1127,10 @@ class PolymodInterpEx extends Interp
 		if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
 		{
 			Polymod.error(SCRIPT_CLASS_FIELD_BLACKLISTED, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.');
-			errorEx(EInvalidAccess(f));
 			return null;
 		}
 
+		// If not, check if it is a blacklisted instance field.
 		if (oCls.length > 0)
 		{
 			for (cls => flds in PolymodScriptClass.blacklistedInstanceFields)
@@ -1224,6 +1225,8 @@ class PolymodInterpEx extends Interp
 				Std.string(cls);
 			case TEnum(enm):
 				Std.string(enm);
+			case TObject:
+				o;
 			default:
 				Std.string(Type.typeof(o));
 		}
