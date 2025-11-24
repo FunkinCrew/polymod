@@ -747,6 +747,7 @@ class Polymod
 		return futures;
 		#else
 		Polymod.warning(SCRIPT_HSCRIPT_NOT_INSTALLED, "Cannot register script classes, HScript is not available.");
+		return [];
 		#end
 	}
 
