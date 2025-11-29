@@ -549,6 +549,7 @@ class PolymodInterpEx extends Interp
 				var capturedLocals = duplicate(locals);
 				var me = this;
 				var hasOpt = false, minParams = 0;
+				var capturedClassDecl = _classDeclOverride;
 				for (p in params)
 				{
 					if (p.opt)
@@ -600,8 +601,10 @@ class PolymodInterpEx extends Interp
 					}
 					var old = me.locals;
 					var depth = me.depth;
+					var previousClassDecl = me._classDeclOverride;
 					me.depth++;
 					me.locals = me.duplicate(capturedLocals);
+					me._classDeclOverride = capturedClassDecl;
 					for (i in 0...params.length)
 					{
 						me.locals.set(params[i].name, {r: args[i]});
@@ -651,6 +654,7 @@ class PolymodInterpEx extends Interp
 					restore(oldDecl);
 					me.locals = old;
 					me.depth = depth;
+					me._classDeclOverride = previousClassDecl;
 					return r;
 				};
 
@@ -1324,7 +1328,6 @@ class PolymodInterpEx extends Interp
 			if (result != null) return result;
 		}
 
-		var prop:Dynamic;
 		// We are calling a LOCAL function from the same module.
 		if (_proxy != null && _proxy.findFunction(id, true) != null)
 		{
@@ -1395,6 +1398,7 @@ class PolymodInterpEx extends Interp
 					{
 						case KFunction(func):
 							fn = func;
+							break;
 						case _:
 					}
 				}
