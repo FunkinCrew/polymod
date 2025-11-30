@@ -6,8 +6,6 @@ import haxe.ds.ObjectMap;
 @:access(polymod.hscript._internal.PolymodScriptClass)
 abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
 {
-  static final fieldsCache:ObjectMap<Dynamic, Array<String>> = new ObjectMap();
-
   private function resolveField(name:String):Dynamic
   {
     switch (name)
@@ -97,15 +95,13 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
         else
         {
           // Class object
-          try
+          if (this.superHasField(name) || this.superHasField('get_$name'))
           {
-            return getClassObjectField(this.superClass, name);
+            return Reflect.getProperty(this.superClass, name);
           }
-          catch (e:String)
-          {
-            @:privateAccess this._interp.error(EInvalidAccess(name));
-            // throw "field '" + name + "' does not exist in script class '" + this.fullyQualifiedName + "' or super class '" + Type.getClassName(Type.getClass(this.superClass)) + "'";
-          }
+
+          @:privateAccess this._interp.error(EInvalidAccess(name));
+          // throw "field '" + name + "' does not exist in script class '" + this.fullyQualifiedName + "' or super class '" + Type.getClassName(Type.getClass(this.superClass)) + "'";
         }
     }
 
@@ -154,7 +150,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
     }
 
     // Script extends a class object, use standard reflection
-    if (hasClassObjectField(this.superClass, name)) return true;
+    if (this.superHasField(name) || this.superHasField('get_$name') || this.superHasField('set_$name')) return true;
 
     return false;
   }
@@ -205,8 +201,9 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
         else
         {
           // Class object
-          if (setClassObjectField(this.superClass, name, value))
+          if (this.superHasField(name) || this.superHasField('set_$name'))
           {
+            Reflect.setProperty(this.superClass, name, value);
             return value;
           }
 
@@ -225,47 +222,5 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
       @:privateAccess this._interp.error(EInvalidAccess(name));
       // throw "field '" + name + "' does not exist in script class '" + this.fullyQualifiedName + "' or super class '" + Type.getClassName(Type.getClass(this.superClass)) + "'";
     }
-  }
-
-  private static function retrieveClassObjectFields(o:Dynamic):Array<String>
-  {
-    final superClassCls = Type.getClass(o);
-    if (superClassCls == null) throw "Provided object isn't a class";
-
-    var fields = fieldsCache.get(superClassCls);
-    if (fields == null)
-    {
-      fields = Type.getInstanceFields(superClassCls);
-      fieldsCache.set(superClassCls, fields);
-    }
-
-    return fields;
-  }
-
-  private static function getClassObjectField(o:Dynamic, field:String):Null<Dynamic>
-  {
-    var fields = retrieveClassObjectFields(o);
-    if (fields.contains(field) || fields.contains('get_$field')) return Reflect.getProperty(o, field);
-
-    throw 'No such field $field';
-  }
-
-  private static function setClassObjectField(o:Dynamic, field:String, value:Dynamic):Bool
-  {
-    var fields = retrieveClassObjectFields(o);
-    if (fields.contains(field) || fields.contains('set_$field'))
-    {
-      Reflect.setProperty(o, field, value);
-      return true;
-    }
-    return false;
-  }
-
-  private static function hasClassObjectField(o:Dynamic, field:String):Bool
-  {
-    var fields = retrieveClassObjectFields(o);
-    if (fields.contains(field) || fields.contains('get_$field') || fields.contains('set_$field')) return true;
-
-    return false;
   }
 }
