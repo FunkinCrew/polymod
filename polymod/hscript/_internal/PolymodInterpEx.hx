@@ -51,8 +51,6 @@ class PolymodInterpEx extends Interp
 	{
 		super();
 		_proxy = proxy;
-		variables.set("Math", Math);
-		variables.set("Std", Std);
 		this.targetCls = targetCls;
 	}
 
@@ -157,19 +155,19 @@ class PolymodInterpEx extends Interp
 
 		@:privateAccess
 		{
-			if (_proxy != null && _proxy._cachedUsingFunctions.exists(f))
+			if (func == null && _proxy != null && _proxy._cachedUsingFunctions.exists(f))
 			{
 				return _proxy._cachedUsingFunctions[f]([o].concat(args));
 			}
 		}
 
+		#if html5
 		// Workaround for an HTML5-specific issue.
 		// https://github.com/HaxeFoundation/haxe/issues/11298
 		if (func == null && f == "contains") {
 			func = get(o, "includes");
 		}
 
-		#if html5
 		// For web: remove is inlined so we have to use something else.
 		if (func == null && f == "remove")
 		{
@@ -217,6 +215,12 @@ class PolymodInterpEx extends Interp
 			Polymod.debug('Registering scripted class $name');
 			_scriptClassDescriptors.set(name, c);
 		}
+	}
+
+	override function resetVariables() {
+		super.resetVariables();
+		variables.set("Math", Math);
+		variables.set("Std", Std);
 	}
 
 	public function clearScriptClassDescriptors():Void {
