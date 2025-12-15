@@ -703,7 +703,7 @@ class Polymod
 			var _ = polymod.hscript._internal.PolymodTyperEx.typeAllModules();
 			#end
 
-			polymod.hscript._internal.PolymodInterpEx.validateImports(); 
+			polymod.hscript._internal.PolymodInterpEx.validateImports();
 		}
 		#else
 		Polymod.warning(SCRIPT_HSCRIPT_NOT_INSTALLED, "Cannot register script classes, HScript is not available.");
@@ -1375,12 +1375,13 @@ enum abstract PolymodErrorCode(String) from String to String
 	 * - Remove the field access to remove the error.
 	 */
 	 var SCRIPT_CLASS_FIELD_BLACKLISTED:String = 'script_class_field_blacklisted';
-  
+
+	/**
 	 * You attempted to register a new enum with a name that is already in use.
 	 * - Rename the enum to one that is unique and will not conflict with other enums.
 	 * - If you need to clear all existing enum descriptors, call `Polymod.clearScripts()`.
 	 */
-	 var SCRIPT_ENUM_ALREADY_REGISTERED:String = 'script_enum_already_registered';
+	var SCRIPT_ENUM_ALREADY_REGISTERED:String = 'script_enum_already_registered';
 
 	/**
 	 * One or more scripts are about to be parsed.
