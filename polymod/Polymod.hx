@@ -849,6 +849,34 @@ class Polymod
 		Polymod.warning(PolymodErrorCode.SCRIPT_HSCRIPT_NOT_INSTALLED, 'Scripted classes imports were requested, but hscript is not installed.');
 		#end
 	}
+
+	/**
+	 * When a static field is being called, you can blacklist it from being used.
+	 * @param parentClass The class type with the fields.
+	 * @param fields The static fields you want to blacklist.
+	 */
+	public static function blacklistStaticFields(parentClass:Class<Dynamic>, fields:Array<String>):Void
+	{
+		#if hscript
+		PolymodScriptClass.blacklistedStaticFields.set(parentClass, fields);
+		#else
+		Polymod.warning(PolymodErrorCode.SCRIPT_HSCRIPT_NOT_INSTALLED, 'Scripted classes imports were requested, but hscript is not installed.');
+		#end
+	}
+
+	/**
+	 * When an instance field is being called, you can blacklist it from being used.
+	 * @param parentClass The class type with the fields.
+	 * @param fields The instance fields you want to blacklist.
+	 */
+	public static function blacklistInstanceFields(parentClass:Class<Dynamic>, fields:Array<String>):Void
+	{
+		#if hscript
+		PolymodScriptClass.blacklistedInstanceFields.set(parentClass, fields);
+		#else
+		Polymod.warning(PolymodErrorCode.SCRIPT_HSCRIPT_NOT_INSTALLED, 'Scripted classes imports were requested, but hscript is not installed.');
+		#end
+	}
 }
 
 /**
@@ -1342,6 +1370,12 @@ enum abstract PolymodErrorCode(String) from String to String
 	var SCRIPT_CLASS_MODULE_BLACKLISTED:String = 'script_class_module_blacklisted';
 
 	/**
+	 * Your script file attempted to access a blacklisted field.
+	 * - This is a security measure to prevent malicious scripts from accessing sensitive fields.
+	 * - Remove the field access to remove the error.
+	 */
+	 var SCRIPT_CLASS_FIELD_BLACKLISTED:String = 'script_class_field_blacklisted';
+  
 	 * You attempted to register a new enum with a name that is already in use.
 	 * - Rename the enum to one that is unique and will not conflict with other enums.
 	 * - If you need to clear all existing enum descriptors, call `Polymod.clearScripts()`.

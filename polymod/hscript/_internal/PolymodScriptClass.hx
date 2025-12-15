@@ -39,6 +39,18 @@ class PolymodScriptClass
 	 */
 	public static final defaultImports:Map<String, Class<Dynamic>> = new Map<String, Class<Dynamic>>();
 
+	/**
+	 * Provide a class name with an array of its static fields to blacklist them.
+	 * Blacklisted fields cannot be gotten or set.
+	 */
+	public static final blacklistedStaticFields:Map<Dynamic, Array<String>> = new Map<Dynamic, Array<String>>();
+
+	/**
+	 * Provide a class name with an array of its instance fields to blacklist them.
+	 * Blacklisted fields cannot be gotten or set.
+	 */
+	public static final blacklistedInstanceFields:Map<Dynamic, Array<String>> = new Map<Dynamic, Array<String>>();
+
 	/*
 	 * STATIC METHODS
 	 */
