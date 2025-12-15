@@ -51,8 +51,6 @@ class PolymodInterpEx extends Interp
 	{
 		super();
 		_proxy = proxy;
-		variables.set("Math", Math);
-		variables.set("Std", Std);
 		this.targetCls = targetCls;
 	}
 
@@ -217,6 +215,12 @@ class PolymodInterpEx extends Interp
 			Polymod.debug('Registering scripted class $name');
 			_scriptClassDescriptors.set(name, c);
 		}
+	}
+
+	override function resetVariables() {
+		super.resetVariables();
+		variables.set("Math", Math);
+		variables.set("Std", Std);
 	}
 
 	public function clearScriptClassDescriptors():Void {
