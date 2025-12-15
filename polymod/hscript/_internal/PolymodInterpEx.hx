@@ -1137,13 +1137,10 @@ class PolymodInterpEx extends Interp
 		// If not, check if it is a blacklisted instance field.
 		if (oCls.length > 0)
 		{
-			for (cls => flds in PolymodScriptClass.blacklistedInstanceFields)
+			if (PolymodScriptClass.blacklistedInstanceFields.exists(oCls) && PolymodScriptClass.blacklistedInstanceFields.get(oCls).contains(f))
 			{
-				if (oCls == Std.string(cls) && flds.contains(f))
-				{
-					Polymod.error(SCRIPT_CLASS_FIELD_BLACKLISTED, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.');
-					return null;
-				}
+				Polymod.error(SCRIPT_CLASS_FIELD_BLACKLISTED, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.');
+				return null;
 			}
 		}
 
@@ -1245,13 +1242,9 @@ class PolymodInterpEx extends Interp
 		// If not, check if it is a blacklisted instance field.
 		if (oCls.length > 0)
 		{
-			for (cls => flds in PolymodScriptClass.blacklistedInstanceFields)
-			{
-				if (oCls == Std.string(cls) && flds.contains(f))
-				{
+			if (PolymodScriptClass.blacklistedInstanceFields.exists(oCls) && PolymodScriptClass.blacklistedInstanceFields.get(oCls).contains(f)) {
 					Polymod.error(SCRIPT_CLASS_FIELD_BLACKLISTED, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.');
 					return null;
-				}
 			}
 		}
 
