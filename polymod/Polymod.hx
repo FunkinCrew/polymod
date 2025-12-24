@@ -872,7 +872,7 @@ class Polymod
 	public static function blacklistInstanceFields(parentClass:Class<Dynamic>, fields:Array<String>):Void
 	{
 		#if hscript
-		PolymodScriptClass.blacklistedInstanceFields.set(parentClass, fields);
+		PolymodScriptClass.blacklistedInstanceFields.set(Type.getClassName(parentClass), fields);
 		#else
 		Polymod.warning(PolymodErrorCode.SCRIPT_HSCRIPT_NOT_INSTALLED, 'Scripted classes imports were requested, but hscript is not installed.');
 		#end

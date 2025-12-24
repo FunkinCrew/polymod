@@ -1,6 +1,7 @@
 package polymod.hscript._internal;
 
 #if hscript
+import haxe.ds.ObjectMap;
 import hscript.Expr.FieldDecl;
 import hscript.Expr.FunctionDecl;
 import hscript.Expr.VarDecl;
@@ -40,16 +41,17 @@ class PolymodScriptClass
 	public static final defaultImports:Map<String, Class<Dynamic>> = new Map<String, Class<Dynamic>>();
 
 	/**
-	 * Provide a class name with an array of its static fields to blacklist them.
+	 * Provide a class with an array of its static fields to blacklist them.
 	 * Blacklisted fields cannot be gotten or set.
 	 */
-	public static final blacklistedStaticFields:Map<Dynamic, Array<String>> = new Map<Dynamic, Array<String>>();
+	public static final blacklistedStaticFields:ObjectMap<Dynamic, Array<String>> = new ObjectMap<Dynamic, Array<String>>();
 
 	/**
 	 * Provide a class name with an array of its instance fields to blacklist them.
+	 * Needs to be a string map because class instances won't point to the same reference.
 	 * Blacklisted fields cannot be gotten or set.
 	 */
-	public static final blacklistedInstanceFields:Map<Dynamic, Array<String>> = new Map<Dynamic, Array<String>>();
+	public static final blacklistedInstanceFields:Map<String, Array<String>> = new Map<String, Array<String>>();
 
 	/*
 	 * STATIC METHODS
