@@ -19,6 +19,11 @@ class HScriptedClassMacro
 	 */
 	public static macro function build():Array<Field>
 	{
+		// This macro seems to cause issues in the language server in macro-heavy projects,
+		// so we prevent it to run on display (for some reason the define doesn't really work so we have to check at runtime)
+		// TODO: Remove this when whatever causes those issues is resolved.
+		if (Context.getDisplayMode() != None) return null;
+
 		var cls:haxe.macro.Type.ClassType = Context.getLocalClass().get();
 		var initialFields:Array<Field> = Context.getBuildFields();
 		var fields:Array<Field> = [].concat(initialFields);
