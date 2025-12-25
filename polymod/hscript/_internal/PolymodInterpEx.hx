@@ -1256,7 +1256,7 @@ class PolymodInterpEx extends Interp
   {
     if (o == null) errorEx(ENullObjectReference(f));
 
-    var oCls:String = Util.getTypeName(Type.typeof(o));
+    var oCls:String = Util.getTypeNameOf(o);
 
     // Check if the field is a blacklisted static field.
     if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
@@ -1266,7 +1266,7 @@ class PolymodInterpEx extends Interp
     }
 
     // If not, check if it is a blacklisted instance field.
-    if (oCls.length > 0)
+    if (oCls.length > 0 && oCls != 'Object')
     {
       if (PolymodScriptClass.blacklistedInstanceFields.exists(oCls) && PolymodScriptClass.blacklistedInstanceFields.get(oCls).contains(f))
       {
@@ -1337,7 +1337,7 @@ class PolymodInterpEx extends Interp
       // return result;
     }
 
-    var abstractKey:String = Type.getClassName(o) + '.' + f;
+    var abstractKey:String = '$oCls.$f';
     if (PolymodScriptClass.abstractClassStatics.exists(abstractKey))
     {
       return Reflect.getProperty(PolymodScriptClass.abstractClassStatics[abstractKey], abstractKey.replace('.', '_'));
@@ -1366,7 +1366,7 @@ class PolymodInterpEx extends Interp
   {
     if (o == null) errorEx(ENullObjectReference(f));
 
-    var oCls:String = Util.getTypeName(Type.typeof(o));
+    var oCls:String = Util.getTypeNameOf(o);
 
     // Check if the field is a blacklisted static field.
     if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
@@ -1376,7 +1376,7 @@ class PolymodInterpEx extends Interp
     }
 
     // If not, check if it is a blacklisted instance field.
-    if (oCls.length > 0)
+    if (oCls.length > 0 && oCls != 'Object')
     {
       if (PolymodScriptClass.blacklistedInstanceFields.exists(oCls) && PolymodScriptClass.blacklistedInstanceFields.get(oCls).contains(f))
       {
