@@ -694,8 +694,9 @@ class Util
     return indexOfInsens(arr, x, ignoreConfig) != -1;
   }
 
-  public static function getTypeName(type:Type.ValueType):String
+  public static function getTypeNameOf(obj:Dynamic):String
   {
+    var type = Type.typeof(obj);
     return switch (type)
     {
       case TClass(cls):
@@ -707,8 +708,14 @@ class Util
         #end
       case TEnum(enm):
         Std.string(enm);
-      case TObject: // Anonymous object
-        'Object';
+      case TObject: // Anonymous object or class type
+        // We assume that if we cannot get the class name then it must be an object
+        #if hl
+        // A bit hacky but it's what the HL implementation does too, except this one avoids a null access error.
+        obj.__name__ ?? 'Object';
+        #else
+        Type.getClassName(obj) ?? 'Object';
+        #end
       default:
         Std.string(type);
     }
