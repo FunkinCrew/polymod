@@ -108,7 +108,6 @@ class SysFileSystem implements IFileSystem
 	public function getMetadata(modId:String)
 	{
 		var modPath = Util.pathJoin(modRoot, modId);
-		var test = readDirectory(modRoot);
 		if (exists(modPath))
 		{
 			var meta:ModMetadata = null;
