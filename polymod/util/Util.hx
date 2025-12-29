@@ -681,18 +681,37 @@ class Util
 	}
 
 	public static function indexOfInsens(arr:Array<String>, x:String, ?fromIndex:Int, ignoreConfig:Bool = false):Int
-    {
-        if (!PolymodConfig.caseInsensitiveZipLoading && !ignoreConfig) return arr.indexOf(x, fromIndex);
-        x = x.toLowerCase();
-        for (i => s in arr)
-        {
-            if (s.toLowerCase() == x) return i;
-        }
-        return -1;
-    }
+	{
+		if (!PolymodConfig.caseInsensitiveZipLoading && !ignoreConfig) return arr.indexOf(x, fromIndex);
+		x = x.toLowerCase();
+		for (i => s in arr)
+		{
+			if (s.toLowerCase() == x) return i;
+		}
+		return -1;
+	}
 
-    public static inline function containsInsens(arr:Array<String>, x:String, ignoreConfig:Bool = false):Bool
-    {
-        return indexOfInsens(arr, x, ignoreConfig) != -1;
-    }
+	public static inline function containsInsens(arr:Array<String>, x:String, ignoreConfig:Bool = false):Bool
+	{
+		return indexOfInsens(arr, x, ignoreConfig) != -1;
+	}
+
+	public static function getTypeName(type:Type.ValueType):String {
+		return switch(type)
+		{
+			case TClass(cls):
+				#if js
+				// On JavaScript, Std.string(cls) produces a string representation of the ENTIRE class, rather than just the name.
+				untyped cls.__name__;
+				#else
+				Std.string(cls);
+				#end
+			case TEnum(enm):
+				Std.string(enm);
+			case TObject: // Anonymous object
+				'Object';
+			default:
+				Std.string(type);
+		}
+	}
 }

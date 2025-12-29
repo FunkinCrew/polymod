@@ -7,6 +7,7 @@ import hscript.Tools;
 import polymod.hscript._internal.PolymodExprEx;
 import polymod.hscript._internal.PolymodClassDeclEx.PolymodClassImport;
 import polymod.hscript._internal.PolymodClassDeclEx.PolymodStaticClassReference;
+import polymod.util.Util;
 
 using StringTools;
 
@@ -1115,17 +1116,7 @@ class PolymodInterpEx extends Interp
 		if (o == null)
 			errorEx(EInvalidAccess(f));
 
-		var oCls:String = switch(Type.typeof(o))
-		{
-			case TClass(cls):
-				Std.string(cls);
-			case TEnum(enm):
-				Std.string(enm);
-			case TObject:
-				o;
-			default:
-				Std.string(Type.typeof(o));
-		}
+		var oCls:String = Util.getTypeName(Type.typeof(o));
 
 		// Check if the field is a blacklisted static field.
 		if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
@@ -1220,17 +1211,7 @@ class PolymodInterpEx extends Interp
 		if (o == null)
 			errorEx(EInvalidAccess(f));
 
-		var oCls:String = switch(Type.typeof(o))
-		{
-			case TClass(cls):
-				Std.string(cls);
-			case TEnum(enm):
-				Std.string(enm);
-			case TObject:
-				o;
-			default:
-				Std.string(Type.typeof(o));
-		}
+		var oCls:String = Util.getTypeName(Type.typeof(o));
 
 		// Check if the field is a blacklisted static field.
 		if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
