@@ -182,14 +182,18 @@ class PolymodAssetLibrary
   public function mergeAndAppendText(id:String, modText:String):String
   {
     var cacheKey = PolymodConfig.mergeFolder + id;
-    if (_textCache.exists(cacheKey))
+    if (PolymodConfig.enableTextCache && _textCache.exists(cacheKey))
     {
       return _textCache.get(cacheKey);
     }
 
     modText = Util.mergeAndAppendText(modText, id, dirs, getTextDirectly, fileSystem, parseRules);
 
-    _textCache.set(cacheKey, modText);
+    if (PolymodConfig.enableTextCache)
+    {
+      _textCache.set(cacheKey, modText);
+    }
+
     return modText;
   }
 
@@ -247,14 +251,14 @@ class PolymodAssetLibrary
 
   public function getText(id:String):String
   {
-    if (_textCache.exists(id))
+    if (PolymodConfig.enableTextCache && _textCache.exists(id))
     {
       return _textCache.get(id);
     }
 
     var result = backend.getText(id);
 
-    if (result != null)
+    if (PolymodConfig.enableTextCache && result != null)
     {
       _textCache.set(id, result);
     }
