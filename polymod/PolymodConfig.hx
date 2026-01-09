@@ -237,4 +237,21 @@ class PolymodConfig
     if (caseInsensitiveZipLoading == null) caseInsensitiveZipLoading = DefineUtil.getDefineBool('POLYMOD_ZIP_INSENSITIVE', true);
     return caseInsensitiveZipLoading;
   }
+
+  /**
+   * Whether the contents of text assets are cached, so that they're loaded faster.
+   * Don't enable this if mods need to modify these assets.
+   *
+   * Enable this option by setting the `POLYMOD_ENABLE_TEXT_CACHE` Haxe define at compile time,
+   * or by setting this value in your code.
+   *
+   * @default `false`
+   */
+  public static var enableTextCache(get, default):Null<Bool>;
+
+  static function get_enableTextCache():Null<Bool>
+  {
+    if (enableTextCache == null) enableTextCache = DefineUtil.getDefineBool('POLYMOD_ENABLE_TEXT_CACHE', false);
+    return enableTextCache;
+  }
 }
