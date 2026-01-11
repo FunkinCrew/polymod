@@ -10,11 +10,6 @@ import polymod.hscript._internal.PolymodClassDeclEx;
 
 using StringTools;
 
-enum Param
-{
-	Unused;
-}
-
 /**
  * Provides handlers for scripted classes
  * Based on code by Ian Harrigan
@@ -727,20 +722,6 @@ class PolymodScriptClass
 		}
 		name += _c.name;
 		return name;
-	}
-
-	private function superConstructor(arg0:Dynamic = Unused, arg1:Dynamic = Unused, arg2:Dynamic = Unused, arg3:Dynamic = Unused)
-	{
-		var args = [];
-		if (arg0 != Unused)
-			args.push(arg0);
-		if (arg1 != Unused)
-			args.push(arg1);
-		if (arg2 != Unused)
-			args.push(arg2);
-		if (arg3 != Unused)
-			args.push(arg3);
-		createSuperClass(args);
 	}
 
 	private inline function callFunction0(name:String):Dynamic

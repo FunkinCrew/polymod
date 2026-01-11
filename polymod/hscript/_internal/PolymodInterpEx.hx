@@ -1303,7 +1303,7 @@ class PolymodInterpEx extends Interp
 			}
 			else if (_proxy.superClass == null)
 			{
-				return _proxy.superConstructor;
+				return Reflect.makeVarArgs(_proxy.createSuperClass);
 			}
 			else
 			{
