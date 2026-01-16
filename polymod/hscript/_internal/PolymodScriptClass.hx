@@ -669,29 +669,7 @@ class PolymodScriptClass
     if (fn != null)
     {
       // previousValues is used to restore variables after they are shadowed in the local scope.
-      var previousValues:Map<String, Dynamic> = [];
-      var i = 0;
-      for (a in fn.args)
-      {
-        var value:Dynamic = null;
-
-        if (args != null && i < args.length)
-        {
-          value = args[i];
-        }
-        else if (a.value != null)
-        {
-          value = _interp.expr(a.value);
-        }
-
-        // NOTE: We assign these as variables rather than locals because those get wiped when we enter the function.
-        if (_interp.variables.exists(a.name))
-        {
-          previousValues.set(a.name, _interp.variables.get(a.name));
-        }
-        _interp.variables.set(a.name, value);
-        i++;
-      }
+      var previousValues:Map<String, Dynamic> = _interp.setFunctionValues(fn, args);
 
       // Polymod.debug('Calling scripted class function "${fullyQualifiedName}.${fnName}(${args})"', null);
 
