@@ -925,7 +925,7 @@ class PolymodScriptClass
 	private var _cachedSuperFunctionDecls:Map<String, Dynamic> = [];
 	private var _cachedFunctionDecls:Map<String, FunctionDecl> = [];
 	private var _cachedVarDecls:Map<String, VarDecl> = [];
-	private var _cachedUsingFunctions:Map<String, Dynamic> = [];
+	private var _cachedUsingFunctions:Map<String, Array<Dynamic>->Dynamic> = [];
 
 	private function buildCaches()
 	{
@@ -935,22 +935,7 @@ class PolymodScriptClass
 		_cachedVarDecls.clear();
 		_cachedUsingFunctions.clear();
 
-		for (n => u in _c.usings)
-		{
-			var fields = Type.getClassFields(u.cls);
-			if (fields.length == 0) continue;
-
-			for (fld in fields)
-			{
-				var func:Dynamic = function(params:Array<Dynamic>)
-				{
-					var prop:Dynamic = Reflect.getProperty(u.cls, fld);
-					return Reflect.callMethod(u.cls, prop, params);
-				}
-
-				_cachedUsingFunctions.set(fld, func);
-			}
-		}
+		buildExtensionFunctionCache(_c, _cachedUsingFunctions);
 
 		for (f in _c.fields)
 		{
@@ -994,5 +979,32 @@ class PolymodScriptClass
 		}
 
 		return 'PolymodScriptClass<$fullyQualifiedName>';
+	}
+
+	/**
+	 * Populates a string map with functions from a 'using' class.
+	 * @param clsDecl The class to retrieve functions from.
+	 * @param usingCache The map to populate.
+	 */
+	public static function buildExtensionFunctionCache(clsDecl:PolymodClassDeclEx, usingCache:Map<String, Array<Dynamic>->Dynamic>):Void
+	{
+		for (_ => u in clsDecl.usings)
+		{
+			var fields = Type.getClassFields(u.cls);
+			if (fields.length == 0) continue;
+
+			for (fld in fields)
+			{
+				var field:Dynamic = Reflect.getProperty(u.cls, fld);
+				if (!Reflect.isFunction(field)) continue;
+
+				var func:Dynamic = function(params:Array<Dynamic>)
+				{
+					return Reflect.callMethod(u.cls, field, params);
+				}
+
+				usingCache.set(fld, func);
+			}
+		}
 	}
 }

@@ -140,7 +140,8 @@ class PolymodInterpEx extends Interp
 			// Force call super function.
 			return super.fcall(o, '__super_${f}', args);
 		}
-		else if (Std.isOfType(o, PolymodStaticClassReference)) {
+		else if (Std.isOfType(o, PolymodStaticClassReference))
+		{
 			var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
 
 			return ref.callFunction(f, args);
@@ -153,50 +154,60 @@ class PolymodInterpEx extends Interp
 		}
 
 		var func = get(o, f);
+		if (func != null)
+		{
+			return call(o, func, args);
+		}
 
 		@:privateAccess
+		if (_proxy != null && _proxy._cachedUsingFunctions.exists(f))
 		{
-			if (func == null && _proxy != null && _proxy._cachedUsingFunctions.exists(f))
+			return _proxy._cachedUsingFunctions[f]([o].concat(args));
+		}
+		else if (_classDeclOverride != null)
+		{
+			// TODO: Optimize with a cache
+			var usingFuncs:Map<String, Array<Dynamic>->Dynamic> = [];
+			PolymodScriptClass.buildExtensionFunctionCache(_classDeclOverride, usingFuncs);
+
+			if (usingFuncs.exists(f))
 			{
-				return _proxy._cachedUsingFunctions[f]([o].concat(args));
+				return usingFuncs[f]([o].concat(args));
 			}
 		}
 
 		#if html5
 		// Workaround for an HTML5-specific issue.
 		// https://github.com/HaxeFoundation/haxe/issues/11298
-		if (func == null && f == "contains") {
+		if (f == "contains")
+		{
 			func = get(o, "includes");
 		}
-
 		// For web: remove is inlined so we have to use something else.
-		if (func == null && f == "remove")
+		else if (f == "remove")
 		{
 			@:privateAccess
 			return HxOverrides.remove(cast o, args[0]);
 		}
 		#end
 
-		if (func == null)
+		if (Std.isOfType(o, HScriptedClass))
 		{
-			if (Std.isOfType(o, HScriptedClass))
+			// This is a scripted class!
+			// We should try to call the function on the scripted class.
+			// If it doesn't exist, `asc.callFunction()` will handle generating an error message.
+			if (o.scriptCall != null)
 			{
-				// This is a scripted class!
-				// We should try to call the function on the scripted class.
-				// If it doesn't exist, `asc.callFunction()` will handle generating an error message.
-				if (o.scriptCall != null) {
-					return o.scriptCall(f, args);
-				}
+				return o.scriptCall(f, args);
+			}
 
-				errorEx(EInvalidScriptedFnAccess(f));
-			}
-			else
-			{
-				// Throw an error for a missing function.
-				errorEx(EInvalidAccess(f));
-			}
+			return errorEx(EInvalidScriptedFnAccess(f));
 		}
-		return call(o, func, args);
+		else
+		{
+			// Throw an error for a missing function.
+			return errorEx(EInvalidAccess(f));
+		}
 	}
 
 	private static var _scriptClassDescriptors:Map<String, PolymodClassDeclEx> = new Map<String, PolymodClassDeclEx>();
