@@ -472,9 +472,7 @@ class HScriptedClassMacro
 				{
 					if (_asc == null)
 					{
-						var clsName = $v{cls.name};
-						var superName = $v{cls.superClass.t.get().name};
-						return 'PolymodScriptedClass<${clsName} extends ${superName}>(NO ASC)';
+						return $v{'PolymodScriptedClass<${cls.name} extends ${cls.superClass.t.get().name}>(NO ASC)'};
 					}
 					else
 					{
@@ -944,7 +942,7 @@ class HScriptedClassMacro
 						ret: func_ret,
 						expr: macro
 						{
-							var fieldName:String = $v{funcName};
+							// var fieldName:String = $v{funcName};
 							// Fallback, call the original function.
 							// trace('ASC: Force call to super ${fieldName}');
 							$

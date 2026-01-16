@@ -55,12 +55,13 @@ EInvalidScriptedFnAccess(f:String);
 EInvalidScriptedVarGet(v:String);
 EInvalidScriptedVarSet(v:String);
 EInvalidFinalSet(f:String);
-EInvalidPropGet(p:String);
-EInvalidPropSet(p:String);
-EPropVarNotReal(p:String);
+EInvalidPropGet(p:String); // Accessing a never/null getter
+EInvalidPropSet(p:String); // Accessing a never/null setter
+EPropVarNotReal(p:String); // Getter/setter accessing a (get/never,set/never) property within itself without "@:isVar"
 EInvalidInStaticContext(v:String); // Accessing "this" or "super" in a static function
 EClassSuperNotCalled;
 EClassUnresolvedSuperclass(c:String, r:String); // superclass and reason
+EClassInvalidSuper; // Accessing "super" in a parentless class
 EScriptThrow(v:Dynamic); // Script called "throw"
 EScriptCallThrow(v:Dynamic); // Script called a function which threw
 // Fallback error type.
