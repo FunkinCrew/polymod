@@ -570,9 +570,17 @@ class Parser
   {
     while (true)
     {
-      var id = getIdent();
-      var t = maybe(TDoubleDot) ? parseType() : null;
-      args.push({name: id, t: t});
+      var arg:Argument = {name: null};
+      if (maybe(TQuestion)) arg.opt = true;
+      arg.name = getIdent();
+
+      if (allowTypes)
+      {
+        if (maybe(TDoubleDot)) arg.t = parseType();
+        if (maybe(TOp("="))) arg.value = parseExpr();
+      }
+      args.push(arg);
+
       var tk = token();
       switch (tk)
       {

@@ -664,47 +664,55 @@ class PolymodInterpEx extends Interp
           {
             hasOpt = true;
           }
-          else
+          if (!p.opt && p.value == null)
           {
             minParams++;
           }
         }
 
-        // This CREATES a new function in memory, that we call later.
-        var newFun:Dynamic = function(args:Array<Dynamic>) {
-          if (((args == null) ? 0 : args.length) != params.length)
+				// This CREATES a new function in memory, that we call later.
+				var newFun:Dynamic = function(args:Array<Dynamic>)
+				{
+          if (args == null) args = [];
+
+          if (args.length < minParams)
           {
-            if (args.length < minParams)
+            var str = "Invalid number of parameters. Got " + args.length + ", required " + minParams;
+            if (name != null)
+              str += " for function '" + name + "'";
+            errorEx(ECustom(str));
+          }
+
+          // make sure mandatory args are forced
+          var args2 = [];
+          var pos = 0;
+          for (p in params)
+          {
+            if (pos < args.length)
             {
-              var str = "Invalid number of parameters. Got " + args.length + ", required " + minParams;
-              if (name != null) str += " for function '" + name + "'";
-              errorEx(ECustom(str));
-            }
-            // make sure mandatory args are forced
-            var args2 = [];
-            var extraParams = args.length - minParams;
-            var pos = 0;
-            for (p in params)
-            {
-              if (p.opt)
+              var arg = args[pos++];
+              if (arg == null && p.value != null)
               {
-                if (extraParams > 0)
-                {
-                  args2.push(args[pos++]);
-                  extraParams--;
-                }
-                else
-                {
-                  args2.push(null);
-                }
+                args2.push(expr(p.value));
               }
               else
               {
-                args2.push(args[pos++]);
+                args2.push(arg);
               }
             }
-            args = args2;
+            else
+            {
+              if (p.value != null)
+              {
+                args2.push(expr(p.value));
+              }
+              else
+              {
+                args2.push(null);
+              }
+            }
           }
+          args = args2;
 
           clone.depth++;
 
@@ -1657,31 +1665,9 @@ class PolymodInterpEx extends Interp
     {
       // Populate function arguments.
 
-      // previousValues is used to restore variables after they are shadowed in the local scope.
       var previousClassDecl = _classDeclOverride;
-      var previousValues:Map<String, Dynamic> = [];
-      var i = 0;
-      for (a in fn.args)
-      {
-        var value:Dynamic = null;
-
-        if (args != null && i < args.length)
-        {
-          value = args[i];
-        }
-        else if (a.value != null)
-        {
-          value = this.expr(a.value);
-        }
-
-        // NOTE: We assign these as variables rather than locals because those get wiped when we enter the function.
-        if (this.variables.exists(a.name))
-        {
-          previousValues.set(a.name, this.variables.get(a.name));
-        }
-        this.variables.set(a.name, value);
-        i++;
-      }
+      // previousValues is used to restore variables after they are shadowed in the local scope.
+      var previousValues:Map<String, Dynamic> = setFunctionValues(fn, args);
 
       this._classDeclOverride = cls;
 
@@ -1732,6 +1718,45 @@ class PolymodInterpEx extends Interp
         'Static function "${fnName}" does not exist! Define it or call the correct function.');
       return null;
     }
+  }
+
+  /**
+	 * Initializes function arguments within the interpreter scope.
+   *
+	 * @param fn The function declaration to extract arguments from.
+	 * @param args The arguments to pass to the function.
+	 * @return The Map containing the variable values before they are shadowed in the local scope.
+	 */
+  public function setFunctionValues(fn:Null<FunctionDecl>, args:Array<Dynamic> = null):Map<String, Dynamic>
+  {
+    var previousValues:Map<String, Dynamic> = [];
+    if (fn == null) return previousValues;
+
+    var i = 0;
+    for (a in fn.args)
+    {
+      var value:Dynamic = null;
+
+      // Uses the passed value if provided and not null, if not fall back to the default value defined in the function argument.
+      if (args != null && i < args.length && args[i] != null)
+      {
+        value = args[i];
+      }
+      else if (a.value != null)
+      {
+        value = this.expr(a.value);
+      }
+
+      // NOTE: We assign these as variables rather than locals because those get wiped when we enter the function.
+      if (this.variables.exists(a.name))
+      {
+        previousValues.set(a.name, this.variables.get(a.name));
+      }
+      this.variables.set(a.name, value);
+      i++;
+    }
+
+    return previousValues;
   }
 
   public function hasScriptClassStaticFunction(clsName:String, fnName:String):Bool
