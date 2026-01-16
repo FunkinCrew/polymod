@@ -1497,11 +1497,6 @@ class PolymodInterpEx extends Interp
       return null;
     }
 
-    if (locals.exists(id))
-    {
-      // NOTE: id may exist but be null
-      return locals.get(id).r;
-    }
     if (variables.exists(id))
     {
       // NOTE: id may exist but be null
@@ -1689,10 +1684,11 @@ class PolymodInterpEx extends Interp
 
       this._classDeclOverride = cls;
 
+      var localsCopy:Map<String, {r:Dynamic, ?isfinal:Null<Bool>}> = this.locals.copy();
       var result:Dynamic = null;
       try
       {
-        result = this.exprReturn(fn.expr);
+        result = this.executeEx(fn.expr);
       }
       catch (err:PolymodExprEx.ErrorEx)
       {
@@ -1724,6 +1720,7 @@ class PolymodInterpEx extends Interp
         }
       }
       this._classDeclOverride = previousClassDecl;
+      this.locals = localsCopy;
 
       return result;
     }
