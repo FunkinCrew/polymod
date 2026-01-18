@@ -1481,6 +1481,39 @@ class Parser
             name: name,
             fields: fields
           });
+      case "interface":
+        var name = getIdent();
+        var params = parseParams();
+        var extend = [];
+
+        while (true)
+        {
+          var t = token();
+          switch (t)
+          {
+            case TId("extends"):
+              extend.push(parseType());
+            default:
+              push(t);
+              break;
+          }
+        }
+
+        var fields = [];
+        ensure(TBrOpen);
+        while (!maybe(TBrClose))
+          fields.push(parseInterfaceField());
+
+        return DInterface(
+          {
+            name: name,
+            meta: meta,
+            params: params,
+            isPrivate: isPrivate,
+            extend: extend,
+            fields: fields,
+            isExtern: isExtern,
+          });
       default:
         unexpected(TId(ident));
     }
@@ -1558,6 +1591,85 @@ class Parser
                 set: set,
                 type: type,
                 expr: expr,
+                isfinal: (id == "final")
+              }),
+          };
+        default:
+          unexpected(TId(id));
+          break;
+      }
+    }
+    return null;
+  }
+
+  function parseInterfaceField():FieldDecl
+  {
+    var meta = parseMetadata();
+    var access = [];
+    while (true)
+    {
+      var id = getIdent();
+      switch (id)
+      {
+        case "public":
+          access.push(APublic);
+        case "private":
+          access.push(APrivate);
+        case "static":
+          access.push(AStatic);
+        case "function":
+          var name = getIdent();
+          ensure(TPOpen);
+          var args = parseFunctionArgs();
+          var ret = null;
+          if (allowTypes)
+          {
+            var tk = token();
+            if (tk != TDoubleDot) push(tk);
+            else
+              ret = parseType();
+          }
+          ensure(TSemicolon);
+          return {
+            name: name,
+            meta: meta,
+            access: access,
+            kind: KFunction(
+              {
+                args: args,
+                expr: null,
+                ret: ret,
+              }),
+          };
+        case "var", "final":
+          var name = getIdent();
+          var get = null, set = null;
+          if (maybe(TPOpen))
+          {
+            get = getIdent();
+            ensure(TComma);
+            set = getIdent();
+            ensure(TPClose);
+          }
+          var type = maybe(TDoubleDot) ? parseType() : null;
+
+          if (type != null && type.match(CTAnon(_)))
+          {
+            maybe(TSemicolon);
+          }
+          else
+            ensure(TSemicolon);
+
+          return {
+            name: name,
+            meta: meta,
+            access: access,
+            kind: KVar(
+              {
+                get: get,
+                set: set,
+                type: type,
+                expr: null,
                 isfinal: (id == "final")
               }),
           };

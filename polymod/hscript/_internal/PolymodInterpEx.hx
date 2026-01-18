@@ -2139,6 +2139,7 @@ class PolymodInterpEx extends Interp
 
           registerScriptEnum(enumDecl);
         case DTypedef(_):
+        case DInterface(_):
       }
     }
   }

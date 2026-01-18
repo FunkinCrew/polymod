@@ -147,6 +147,7 @@ enum ModuleDecl
   DClass(c:ClassDecl);
   DTypedef(c:TypeDecl);
   DEnum(e:EnumDecl);
+  DInterface(e:InterfaceDecl);
 }
 
 typedef ModuleType =
@@ -270,6 +271,14 @@ typedef TypeDecl =
 {
   > ModuleType,
   var t:CType;
+}
+
+typedef InterfaceDecl =
+{
+  > ModuleType,
+  var extend:Array<CType>;
+  var fields:Array<FieldDecl>;
+  var isExtern:Bool;
 }
 
 typedef FieldDecl =
