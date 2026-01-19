@@ -135,7 +135,7 @@ class PolymodInterpEx extends Interp
 	override function fcall(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic
 	{
 		// OVERRIDE CHANGE: Custom logic to handle super calls to prevent infinite recursion
-		if (_proxy != null && o == _proxy.superClass)
+		if (_proxy != null && o == _proxy.superClass && !Std.isOfType(o, PolymodScriptClass))
 		{
 			// Force call super function.
 			return super.fcall(o, '__super_${f}', args);
@@ -271,6 +271,30 @@ class PolymodInterpEx extends Interp
 			var clsPath = cls.pkg != null ? (cls.pkg.join(".") + ".") : "";
 			clsPath += cls.name;
 
+			// Automatically import classes with the same package or a parent package.
+			for (imp in _scriptClassDescriptors)
+			{
+				if (cls == imp) continue;
+
+				var classImport = {
+					name: imp.name,
+					pkg: imp.pkg,
+					fullPath: (imp.pkg?.join(".") ?? "") + ((imp.pkg?.length ?? 0) > 0 ? "." : "") + imp.name
+				}
+
+				if ((imp.pkg?.length ?? 0) == 0)
+				{
+					cls.imports.set(imp.name, classImport);
+					continue;
+				}
+
+				var fullPackage:String = cls.pkg.join(".") + ".";
+				if (clsPath.indexOf(fullPackage) == 0)
+				{
+					cls.imports.set(imp.name, classImport);
+				}
+			}
+
 			for (key => imp in cls.importsToValidate)
 			{
 				if (_scriptClassDescriptors.exists(imp.fullPath))
@@ -287,19 +311,52 @@ class PolymodInterpEx extends Interp
 
 				Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import ${imp.fullPath}', clsPath);
 			}
+
+			// Check if the scripted classes extend the right type.
+			if (cls.extend == null) continue;
+
+			var superClassPath:String = new hscript.Printer().typeToString(cls.extend);
+			if (!cls.imports.exists(superClassPath))
+			{
+				switch (cls.extend)
+				{
+					case CTPath(path, params):
+						if (params != null && params.length > 0)
+						{
+							Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not extend ${superClassPath}, do not include type parameters in super class name', clsPath);
+						}
+
+						default:
+							// Other error handling?
+				}
+
+				// Default
+				Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not extend ${superClassPath}, is the type imported?', clsPath);
+			}
+			else
+			{
+				switch (cls.extend)
+				{
+					case CTPath(_, params):
+						cls.extend = CTPath(cls.imports.get(superClassPath).fullPath.split('.'), params);
+					case _:
+				}
+			}
 		}
 	}
 
 	override function setVar(id:String, v:Dynamic)
 	{
-		if (_proxy != null && _proxy.superClass != null)
+		if (_proxy != null && _proxy.superHasField(id))
 		{
-			if (_proxy.superHasField(id))
+			if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
 			{
-				// Set in super class.
-				Reflect.setProperty(_proxy.superClass, id, v);
-				return;
+				var superClass:PolymodAbstractScriptClass = cast (_proxy.superClass, PolymodScriptClass);
+				return superClass.fieldWrite(id, v);
 			}
+
+			Reflect.setProperty(_proxy.superClass, id, v);
+			return;
 		}
 
 		// Fallback to setting in local scope.
@@ -313,14 +370,18 @@ class PolymodInterpEx extends Interp
 			case EIdent(id):
 				// Make sure setting superclass fields directly works.
 				// Also ensures property functions are accounted for.
-				if (_proxy != null && _proxy.superClass != null)
+				if (_proxy != null && _proxy.superHasField(id))
 				{
-					if (_proxy.superHasField(id))
+					var v = expr(e2);
+
+					if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
 					{
-						var v = expr(e2);
-						Reflect.setProperty(_proxy.superClass, id, v);
-						return v;
+						var superClass:PolymodAbstractScriptClass = cast (_proxy.superClass, PolymodScriptClass);
+						return superClass.fieldWrite(id, v);
 					}
+
+					Reflect.setProperty(_proxy.superClass, id, v);
+					return v;
 				}
 
 				@:privateAccess
@@ -360,14 +421,18 @@ class PolymodInterpEx extends Interp
 					case EIdent(id0):
 						if (id0 == "this")
 						{
-							if (_proxy != null && _proxy.superClass != null)
+							if (_proxy != null && _proxy.superHasField(id))
 							{
-								if (_proxy.superHasField(id))
+								var v = expr(e2);
+
+								if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
 								{
-									var v = expr(e2);
-									Reflect.setProperty(_proxy.superClass, id, v);
-									return v;
+									var superClass:PolymodAbstractScriptClass = cast (_proxy.superClass, PolymodScriptClass);
+									return superClass.fieldWrite(id, v);
 								}
+
+								Reflect.setProperty(_proxy.superClass, id, v);
+								return v;
 							}
 						}
 						else
@@ -1149,6 +1214,12 @@ class PolymodInterpEx extends Interp
 			}
 			else if (proxy.superClass != null && proxy.superHasField(f))
 			{
+				if (Std.isOfType(proxy.superClass, PolymodScriptClass))
+				{
+					var superClass:PolymodAbstractScriptClass = cast (proxy.superClass, PolymodScriptClass);
+					return superClass.fieldRead(f);
+				}
+
 				return Reflect.getProperty(proxy.superClass, f);
 			}
 			else
@@ -1241,12 +1312,14 @@ class PolymodInterpEx extends Interp
 			{
 				proxy._interp.variables.set(f, v);
 			}
-			else if (proxy.superClass != null && Reflect.hasField(proxy.superClass, f))
+			else if (proxy.superClass != null && proxy.superHasField(f))
 			{
-				Reflect.setProperty(proxy.superClass, f, v);
-			}
-			else if (proxy.superClass != null && Type.getInstanceFields(Type.getClass(_proxy.superClass)).contains(f))
-			{
+				if (Std.isOfType(proxy.superClass, PolymodScriptClass))
+				{
+					var superClass:PolymodAbstractScriptClass = cast (proxy.superClass, PolymodScriptClass);
+					return superClass.fieldWrite(f, v);
+				}
+
 				Reflect.setProperty(proxy.superClass, f, v);
 			}
 			else
@@ -1380,6 +1453,13 @@ class PolymodInterpEx extends Interp
 		else if (_proxy != null && _proxy.superHasField(id))
 		{
 			_nextCallObject = _proxy.superClass;
+
+			if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
+			{
+				var superClass:PolymodAbstractScriptClass = cast (_proxy.superClass, PolymodScriptClass);
+				return superClass.fieldRead(id);
+			}
+
 			return Reflect.getProperty(_proxy.superClass, id);
 		}
 		else if (_proxy != null)
@@ -1852,38 +1932,6 @@ class PolymodInterpEx extends Interp
 					Polymod.debug('Using class ${importedClass.name} from ${importedClass.fullPath}');
 					usings.set(importedClass.name, importedClass);
 				case DClass(c):
-					var extend = c.extend;
-					if (extend != null)
-					{
-						var superClassPath = new hscript.Printer().typeToString(extend);
-						if (!imports.exists(superClassPath)) {
-							switch (extend) {
-								case CTPath(path, params):
-									if (params != null && params.length > 0) {
-										errorEx(EClassUnresolvedSuperclass(superClassPath, 'do not include type parameters in super class name'));
-									}
-								default:
-									// Other error handling?
-							}
-							// Default
-							errorEx(EClassUnresolvedSuperclass(superClassPath, 'not recognized, is the type imported?'));
-						}
-
-						if (imports.exists(superClassPath))
-						{
-							var extendImport = imports.get(superClassPath);
-							if (extendImport.cls == null)
-								errorEx(EClassUnresolvedSuperclass(superClassPath, 'expected a class'));
-
-							switch (extend)
-							{
-								case CTPath(_, params):
-									extend = CTPath(imports.get(superClassPath).fullPath.split('.'), params);
-								case _:
-							}
-						}
-					}
-
 					var instanceFields = [];
 					var staticFields = [];
 					for (f in c.fields)
@@ -1904,7 +1952,7 @@ class PolymodInterpEx extends Interp
 						params: c.params,
 						meta: c.meta,
 						isPrivate: c.isPrivate,
-						extend: extend,
+						extend: c.extend,
 						implement: c.implement,
 						fields: instanceFields,
 						isExtern: c.isExtern,
