@@ -290,8 +290,9 @@ class PolymodInterpEx extends Interp
 					continue;
 				}
 
-				var fullPackage:String = cls.pkg.join(".") + ".";
-				if (clsPath.indexOf(fullPackage) == 0)
+				var hasPackage:Bool = cls.pkg != null && cls.pkg.length > 0;
+				var fullPackage:String = hasPackage ? cls.pkg.join(".") + "." : "";
+				if (hasPackage && clsPath.indexOf(fullPackage) == 0)
 				{
 					cls.imports.set(imp.name, classImport);
 				}
@@ -827,8 +828,8 @@ class PolymodInterpEx extends Interp
 						}
 					default:
 				}
-				case ESwitch(e, cases, def):
-					var val:Dynamic = expr(e);
+			case ESwitch(e, cases, def):
+				var val:Dynamic = expr(e);
 
 					if (Std.isOfType(val, PolymodEnum))
 					{
@@ -1426,6 +1427,10 @@ class PolymodInterpEx extends Interp
 				// Resolve imported scripted classes.
 				var result = PolymodStaticClassReference.tryBuild(importedClass.fullPath);
 				if (result != null) return result;
+
+				// If we are here, there is an imported class whose value is null, and it isn't a scripted class.
+				// This means that we are attempting to access a BLACKLISTED module.
+				errorEx(EBlacklistedModule(importedClass.fullPath));
 			}
 		}
 
@@ -1743,7 +1748,7 @@ class PolymodInterpEx extends Interp
 
 	public function setScriptClassStaticField(clsName:String, fieldName:String, value:Dynamic):Dynamic {
 		var prefixedName = clsName + '#' + fieldName;
-	var fieldDecl = getScriptClassStaticFieldDecl(clsName, fieldName);
+		var fieldDecl = getScriptClassStaticFieldDecl(clsName, fieldName);
 		if (fieldDecl != null) {
 			if (!this.variables.exists(prefixedName)) {
 				switch (fieldDecl.kind) {
