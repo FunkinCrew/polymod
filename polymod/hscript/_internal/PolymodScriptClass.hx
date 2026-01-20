@@ -575,6 +575,9 @@ class PolymodScriptClass
 			case EPurgedFunction(f):
 				Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
 					'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + 'Attempted to call purged function "${f}", did it throw an uncaught exception earlier?');
+			case ENullObjectReference(f):
+				Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
+					'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + 'Null object reference to field "${f}", is the target object null?');
 			case EUnknownVariable(v):
 				Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
 					'Error while executing function ${className}.${fnName}()#${errLine}:' + '\n' +
@@ -586,7 +589,7 @@ class PolymodScriptClass
 			case EInvalidAccess(f):
 				Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
 					'Error while executing function ${className}.${fnName}()#${errLine}:' + '\n' +
-					'Tried to access "${f}", but it is not a valid field or method. Is the target object null?');
+					'Tried to access "${f}", but it is not a valid field or method.');
 			case EInvalidPropGet(p):
 				Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
 					'Error while executing function ${className}.${fnName}()#${errLine}:' + '\n' +

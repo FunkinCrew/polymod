@@ -1181,7 +1181,7 @@ class PolymodInterpEx extends Interp
 	override function get(o:Dynamic, f:String):Dynamic
 	{
 		if (o == null)
-			errorEx(EInvalidAccess(f));
+			errorEx(ENullObjectReference(f));
 
 		var oCls:String = Util.getTypeName(Type.typeof(o));
 
@@ -1284,7 +1284,7 @@ class PolymodInterpEx extends Interp
 	override function set(o:Dynamic, f:String, v:Dynamic):Dynamic
 	{
 		if (o == null)
-			errorEx(EInvalidAccess(f));
+			errorEx(ENullObjectReference(f));
 
 		var oCls:String = Util.getTypeName(Type.typeof(o));
 

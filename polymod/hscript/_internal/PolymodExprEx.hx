@@ -49,6 +49,7 @@ EInvalidAccess(f:String);
 EInvalidModule(m:String);
 EBlacklistedModule(m:String);
 EPurgedFunction(f:String); // Function can't be called because it previously threw an uncaught exception
+ENullObjectReference(f:String); // Accessing a field of "null"
 EInvalidScriptedFnAccess(f:String);
 EInvalidScriptedVarGet(v:String);
 EInvalidScriptedVarSet(v:String);

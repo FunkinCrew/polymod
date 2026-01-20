@@ -23,6 +23,7 @@ class PolymodPrinterEx extends Printer
 			case EInvalidModule(m): "Invalid module: " + m;
 			case EBlacklistedModule(m): "Blacklisted module: " + m;
 			case EPurgedFunction(f): "Invalid access to purged function (did it throw an uncaught exception earlier?): " + f;
+			case ENullObjectReference(f): "Invalid reference to field of a null object: " + f;
 			case EInvalidInStaticContext(v): "Invalid field access from static context: " + v;
 			case EInvalidScriptedFnAccess(f): "Invalid function access to scripted class: " + f;
 			case EInvalidScriptedVarGet(v): "Invalid variable retrieval to scripted class: " + v;
