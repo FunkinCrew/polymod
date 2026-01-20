@@ -48,6 +48,7 @@ EInvalidAccess(f:String);
 // Polymod-specific error types.
 EInvalidModule(m:String);
 EBlacklistedModule(m:String);
+EPurgedFunction(f:String); // Function can't be called because it previously threw an uncaught exception
 EInvalidScriptedFnAccess(f:String);
 EInvalidScriptedVarGet(v:String);
 EInvalidScriptedVarSet(v:String);

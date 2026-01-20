@@ -22,6 +22,7 @@ class PolymodPrinterEx extends Printer
 			case EPropVarNotReal(p): "Cannot access property " + p + " because it is not a real variable";
 			case EInvalidModule(m): "Invalid module: " + m;
 			case EBlacklistedModule(m): "Blacklisted module: " + m;
+			case EPurgedFunction(f): "Invalid access to purged function (did it throw an uncaught exception earlier?): " + f;
 			case EInvalidInStaticContext(v): "Invalid field access from static context: " + v;
 			case EInvalidScriptedFnAccess(f): "Invalid function access to scripted class: " + f;
 			case EInvalidScriptedVarGet(v): "Invalid variable retrieval to scripted class: " + v;

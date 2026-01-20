@@ -110,6 +110,8 @@ class PolymodInterpEx extends Interp
 			}
 
 			// Ignore importedClass.enm as enums cannot be instantiated.
+
+			// Importing a blacklisted module creates an import with a `null` class, so we check for that here.
 			var c = importedClass.cls;
 			if (c == null)
 			{
@@ -1231,6 +1233,8 @@ class PolymodInterpEx extends Interp
 				catch (e:Dynamic)
 				{
 				}
+
+				// If we're here, the field doesn't exist on the proxy.
 				errorEx(EUnknownVariable(f));
 			}
 		}
@@ -1412,6 +1416,8 @@ class PolymodInterpEx extends Interp
 		// Attempt to access an import.
 		if (getClassDecl() != null)
 		{
+			// This scripted class has imports.
+
 			var importedClass:PolymodClassImport = getClassDecl().imports.get(id);
 			if (importedClass != null) {
 				if (importedClass.cls != null) return importedClass.cls;
@@ -1421,8 +1427,6 @@ class PolymodInterpEx extends Interp
 				var result = PolymodStaticClassReference.tryBuild(importedClass.fullPath);
 				if (result != null) return result;
 			}
-		} else {
-			trace('No proxy, trying to resolve: ${id}');
 		}
 
 		// Allow access to scripted classes for calling static functions.
@@ -1462,6 +1466,9 @@ class PolymodInterpEx extends Interp
 
 			return Reflect.getProperty(_proxy.superClass, id);
 		}
+		else if (_proxy != null && _proxy.hasPurgedScriptFunction(id)) {
+			errorEx(EPurgedFunction(id));
+		}
 		else if (_proxy != null)
 		{
 			try
@@ -1475,6 +1482,7 @@ class PolymodInterpEx extends Interp
 				// Skip and fall through to the next case.
 			}
 		}
+
 		if (getClassDecl() != null) {
 			// We are retrieving an adjacent field from a static context.
 			var cls = getClassDecl();
@@ -1485,6 +1493,7 @@ class PolymodInterpEx extends Interp
 			return PolymodScriptClass.getScriptClassStaticField(name, id);
 		}
 
+		// If we're here, the field definitely doesn't exist.
 		errorEx(EUnknownVariable(id));
 
 		return null;
@@ -1571,7 +1580,7 @@ class PolymodInterpEx extends Interp
 				PolymodScriptClass.reportErrorEx(err, clsName, fnName);
 				// A script error occurred while executing the script function.
 				// Purge the function from the cache so it is not called again.
-				// purgeFunction(fnName);
+				// purgeStaticFunction(fnName);
 				return null;
 			}
 			catch (err:hscript.Expr.Error)
@@ -1579,7 +1588,7 @@ class PolymodInterpEx extends Interp
 				PolymodScriptClass.reportError(err, clsName, fnName);
 				// A script error occurred while executing the script function.
 				// Purge the function from the cache so it is not called again.
-				// purgeFunction(fnName);
+				// purgeStaticFunction(fnName);
 				return null;
 			}
 
