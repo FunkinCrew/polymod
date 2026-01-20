@@ -572,6 +572,9 @@ class PolymodScriptClass
 			case EBlacklistedModule(m):
 				Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
 					'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + 'Imported module "${m}" has been blacklisted.');
+			case EBlacklistedField(f):
+				Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
+					'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + 'Attempted to access blacklisted field or method "${f}".');
 			case EPurgedFunction(f):
 				Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
 					'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + 'Attempted to call purged function "${f}", did it throw an uncaught exception earlier?');

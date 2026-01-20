@@ -48,6 +48,7 @@ EInvalidAccess(f:String);
 // Polymod-specific error types.
 EInvalidModule(m:String);
 EBlacklistedModule(m:String);
+EBlacklistedField(f:String);
 EPurgedFunction(f:String); // Function can't be called because it previously threw an uncaught exception
 ENullObjectReference(f:String); // Accessing a field of "null"
 EInvalidScriptedFnAccess(f:String);
