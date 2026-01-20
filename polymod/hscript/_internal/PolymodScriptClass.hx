@@ -727,6 +727,24 @@ class PolymodScriptClass
 		return fn != null;
 	}
 
+	/**
+	 * Checks if the class has a script function with the given name,
+	 * which has been purged due to an uncaught exception when it was previously called.
+	 * @param name
+	 * @return Bool
+	 */
+	public function hasPurgedScriptFunction(name:String):Bool {
+		if (hasScriptFunction(name)) return false;
+
+		// Make sure to ignore the cache, which the function was purged from.
+		final USE_CACHE:Bool = false;
+		var field = findField(name);
+		if (field == null) return false;
+
+		var fn = findFunction(name, USE_CACHE);
+		return fn != null;
+	}
+
 	private var _c:PolymodClassDeclEx;
 	private var _interp:PolymodInterpEx;
 
@@ -849,7 +867,11 @@ class PolymodScriptClass
 
 	/**
 	 * Remove a function from the cache.
-	 * This is useful when a function is broken and needs to be skipped.
+	 *
+	 * If a scripted function throws an exception that isn't caught,
+	 * it will be purged so it can't be invoked again until the script is reloaded.
+	 * This prevents broken functions from causing errors every frame and locking the game, for example.
+	 *
 	 * @param name The name of the function to remove from the cache.
 	 */
 	private function purgeFunction(name:String):Void {
