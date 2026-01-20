@@ -382,7 +382,10 @@ class PolymodScriptClass
 				var clsPath = pth.join('.');
 				var clsName = pth[pth.length - 1];
 
-				if (scriptClassOverrides.exists(clsPath)) {
+				if (PolymodInterpEx.findScriptClassDescriptor(clsName) != null) {
+					targetClass = null;
+				}
+				else if (scriptClassOverrides.exists(clsPath)) {
 					targetClass = scriptClassOverrides.get(clsPath);
 				}
 				else if (c.imports.exists(clsName))
@@ -429,7 +432,19 @@ class PolymodScriptClass
 		// Reflect.hasField(this, name) is REALLY expensive so we use a cache.
 		if (__superClassFieldList == null)
 		{
-			__superClassFieldList = Reflect.fields(superClass).concat(Type.getInstanceFields(Type.getClass(superClass)));
+			__superClassFieldList = [];
+
+			var _superClass = superClass;
+			while (Std.isOfType(_superClass, PolymodScriptClass))
+			{
+				var scriptFields:Array<String> = [for (key in (_superClass._cachedFieldDecls?.keys() ?? [])) key.name];
+				__superClassFieldList = __superClassFieldList.concat(scriptFields);
+
+				_superClass = _superClass.superClass;
+			}
+
+			__superClassFieldList = __superClassFieldList.concat(Reflect.fields(_superClass));
+			__superClassFieldList = __superClassFieldList.concat(Type.getInstanceFields(Type.getClass(_superClass)));
 		}
 		return __superClassFieldList.indexOf(name) != -1;
 	}
@@ -808,6 +823,15 @@ class PolymodScriptClass
 			return _cachedSuperFunctionDecls.get(name);
 		}
 
+		if (Std.isOfType(superClass, PolymodScriptClass))
+		{
+			var func = Reflect.field(superClass, name);
+			if (func == null) return null;
+
+			_cachedSuperFunctionDecls.set(name, func);
+			return func;
+		}
+
 		// OVERRIDE CHANGE: Use __super_ when calling superclass
 		var fixedName = '__super_${name}';
 
@@ -917,7 +941,7 @@ class PolymodScriptClass
 					var prop:Dynamic = Reflect.getProperty(u.cls, fld);
 					return Reflect.callMethod(u.cls, prop, params);
 				}
-					
+
 				_cachedUsingFunctions.set(fld, func);
 			}
 		}

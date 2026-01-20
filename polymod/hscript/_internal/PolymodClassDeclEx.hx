@@ -64,6 +64,12 @@ class PolymodStaticClassReference {
 		}
 
 		var scriptedObj = asc.superClass;
+
+		while (Std.isOfType(scriptedObj, PolymodScriptClass))
+		{
+			scriptedObj = scriptedObj.superClass;
+		}
+
 		Reflect.setField(scriptedObj, '_asc', asc);
 		return scriptedObj;
 	}
