@@ -91,7 +91,7 @@ class HScriptedClassMacro
 
   /**
    * Create the complicated parts of the generated class,
-   * specifically the `init()` function and the override methods.
+   * specifically the `scriptInit()` function and the override methods.
    */
   public static function buildHScriptClass(cls:haxe.macro.Type.ClassType, fields:Array<Field>):Array<Field>
   {
@@ -123,7 +123,7 @@ class HScriptedClassMacro
                 for (arg in args)
                   {name: arg.name, opt: arg.opt, type: Context.toComplexType(arg.t)}
               ];
-              var initField:Field = buildScriptedClassInit(cls, superCls, constArgs);
+              var initField:Field = buildScriptedClassInit(cls, superCls);
               fields.push(initField);
               constructor = buildScriptedClassConstructor(constArgs);
             case TLazy(builder):
@@ -136,7 +136,7 @@ class HScriptedClassMacro
                     for (arg in args)
                       {name: arg.name, opt: arg.opt, type: Context.toComplexType(arg.t)}
                   ];
-                  var initField:Field = buildScriptedClassInit(cls, superCls, constArgs);
+                  var initField:Field = buildScriptedClassInit(cls, superCls);
                   fields.push(initField);
                   constructor = buildScriptedClassConstructor(constArgs);
                 default:
@@ -151,7 +151,7 @@ class HScriptedClassMacro
           constructor = buildEmptyScriptedClassConstructor();
           // Create scripted class utility functions.
           Context.info('  Creating scripted class utils...', Context.currentPos());
-          var initField:Field = buildScriptedClassInit(cls, superCls, []);
+          var initField:Field = buildScriptedClassInit(cls, superCls);
           fields.push(initField);
           fields.push(constructor);
         }
@@ -166,13 +166,10 @@ class HScriptedClassMacro
     return fields;
   }
 
-  static function buildScriptedClassInit(cls:haxe.macro.Type.ClassType, superCls:haxe.macro.Type.ClassType, superConstArgs:Array<FunctionArg>):Field
+  static function buildScriptedClassInit(cls:haxe.macro.Type.ClassType, superCls:haxe.macro.Type.ClassType):Field
   {
     // Context.info('  Building scripted class init() function', Context.currentPos());
     var clsTypeName:String = cls.pack.join('.') != '' ? '${cls.pack.join('.')}.${cls.name}' : cls.name;
-    var superClsTypeName:String = superCls.pack.join('.') != '' ? '${superCls.pack.join('.')}.${superCls.name}' : superCls.name;
-
-    var constArgs = [for (arg in superConstArgs) macro $i{arg.name}];
     var typePath:haxe.macro.TypePath =
       {
         pack: cls.pack,
@@ -180,7 +177,7 @@ class HScriptedClassMacro
       };
     var function_init:Field =
       {
-        name: 'init',
+        name: 'scriptInit',
         doc: "Initializes a scripted class instance using the given scripted class name and constructor arguments.",
         access: [APublic, AStatic],
         meta: null,
@@ -188,7 +185,7 @@ class HScriptedClassMacro
         kind: FFun(
           {
             args: [
-              {name: 'clsName', type: macro :String},].concat(superConstArgs),
+              {name: 'clsName', type: macro :String}, {name: 'args', type: macro :...Dynamic}],
             params: null,
             ret: Context.toComplexType(Context.getType(clsTypeName)),
             expr: macro
@@ -204,7 +201,7 @@ class HScriptedClassMacro
 
               try
               {
-                var result = clsRef.instantiate([$a{constArgs}]);
+                var result = clsRef.instantiate((cast args) ?? []);
                 if (result == null)
                 {
                   polymod.Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
@@ -333,6 +330,17 @@ class HScriptedClassMacro
         pos: cls.pos,
       };
 
+    var var__isHScriptedClass:Field =
+      {
+        name: '_isHScriptedClass',
+        doc: 'Field used to identify a HScriptedClass.',
+        access: [APrivate, AStatic],
+        meta: [
+          {name: ':noCompletion', pos: cls.pos}],
+        pos: cls.pos,
+        kind: FVar(macro :Bool, macro true)
+      };
+
     var function_listScriptClasses:Field =
       {
         name: 'listScriptClasses',
@@ -444,6 +452,7 @@ class HScriptedClassMacro
 
     return [
       var__asc,
+      var__isHScriptedClass,
       function_listScriptClasses,
       function_scriptCall,
       function_scriptGet,

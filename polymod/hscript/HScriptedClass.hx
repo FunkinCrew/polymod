@@ -22,7 +22,7 @@ interface HScriptedClass
    * @param constArgs The arguments to pass to the constructor.
    * @return The instance of the scripted class.
    */
-  // public static function init(clsName:String, constArgs:Array<Dynamic>):ThisType;
+  // public static function scriptInit(clsName:String, ...constArgs:Dynamic):ThisType;
   /**
    * Call a custom static function on a scripted class, by the given name, with the given arguments.
    *
