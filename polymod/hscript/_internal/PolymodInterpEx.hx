@@ -42,7 +42,7 @@ class PolymodInterpEx extends Interp
 		if (_proxy == null)
 		{
 			var clsDecl = getClassDecl() ?? return null;
-			return PolymodStaticClassReference.tryBuild(clsDecl.name)?.getFullyQualifiedName();
+			return Util.getFullClassName(clsDecl);
 		}
 
 		return _proxy.fullyQualifiedName;
@@ -205,11 +205,7 @@ class PolymodInterpEx extends Interp
 
 	private static function registerScriptClass(c:PolymodClassDeclEx)
 	{
-		var name = c.name;
-		if (c.pkg != null)
-		{
-			name = c.pkg.join(".") + "." + name;
-		}
+		var name = Util.getFullClassName(c);
 
 		if (_scriptClassDescriptors.exists(name)) {
 			Polymod.error(SCRIPT_CLASS_ALREADY_REGISTERED, 'Scripted class with fully qualified name "$name" has already been defined. Please change the class name or the package name to ensure uniqueness.');
@@ -270,8 +266,7 @@ class PolymodInterpEx extends Interp
 	{
 		for (cls in _scriptClassDescriptors)
 		{
-			var clsPath = cls.pkg != null ? (cls.pkg.join(".") + ".") : "";
-			clsPath += cls.name;
+			var clsPath = Util.getFullClassName(cls);
 
 			// Automatically import classes with the same package or a parent package.
 			for (imp in _scriptClassDescriptors)
@@ -281,7 +276,7 @@ class PolymodInterpEx extends Interp
 				var classImport = {
 					name: imp.name,
 					pkg: imp.pkg,
-					fullPath: (imp.pkg?.join(".") ?? "") + ((imp.pkg?.length ?? 0) > 0 ? "." : "") + imp.name
+					fullPath: Util.getFullClassName(imp)
 				}
 
 				if ((imp.pkg?.length ?? 0) == 0)
@@ -1094,15 +1089,23 @@ class PolymodInterpEx extends Interp
 		}
 		else
 		{
-			try {
+			try
+			{
 				var result = Reflect.callMethod(target, fun, args);
 				_nextCallObject = null;
 				return result;
-			} catch (e) {
-				errorEx(EScriptCallThrow(e));
-				_nextCallObject = null;
-				return null;
 			}
+			catch (e:Dynamic)
+			{
+				_nextCallObject = null;
+
+				if (Std.isOfType(e, PolymodExprEx.ErrorEx) || Std.isOfType(e, hscript.Expr.Error))
+				{
+					throw e;
+				}
+				return errorEx(EScriptCallThrow(e));
+			}
+			return null;
 		}
 	}
 
@@ -1124,7 +1127,8 @@ class PolymodInterpEx extends Interp
 		this.depth++;
 
 		// Call the function.
-		try {
+		try
+		{
 			var result = Reflect.callMethod(_proxy, fun, args);
 
 			// Restore the local scope.
@@ -1133,15 +1137,20 @@ class PolymodInterpEx extends Interp
 			this.depth = capturedDepth;
 
 			return result;
-		} catch (e) {
-			errorEx(EScriptCallThrow(e));
-
+		}
+		catch (e:Dynamic)
+		{
 			// Restore the local scope.
 			this.locals = capturedLocals;
 			this.declared = capturedDeclared;
 			this.depth = capturedDepth;
 
-			return null;
+			if (Std.isOfType(e, PolymodExprEx.ErrorEx) || Std.isOfType(e, hscript.Expr.Error))
+			{
+				throw e;
+			}
+
+			return errorEx(EScriptCallThrow(e));
 		}
 
 	}
@@ -1381,6 +1390,8 @@ class PolymodInterpEx extends Interp
 			}
 			else if (_proxy.superClass == null)
 			{
+				if (_proxy._c.extend == null)
+					errorEx(EClassInvalidSuper);
 				return Reflect.makeVarArgs(_proxy.createSuperClass);
 			}
 			else
@@ -1454,6 +1465,12 @@ class PolymodInterpEx extends Interp
 
 		var prop:Dynamic;
 		// We are calling a LOCAL function from the same module.
+		// We first check if any of the child classes has overriden the scripted function
+		if (_proxy != null && _proxy.topASC?.hasScriptFunction(id) ?? false)
+		{
+			_nextCallObject = _proxy.topASC;
+			return _proxy.topASC.resolveField(id);
+		}
 		if (_proxy != null && _proxy.findFunction(id, true) != null)
 		{
 			_nextCallObject = _proxy;

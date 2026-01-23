@@ -7,6 +7,7 @@ import hscript.Expr.FunctionDecl;
 import hscript.Expr.VarDecl;
 import hscript.Printer;
 import polymod.hscript._internal.PolymodClassDeclEx;
+import polymod.util.Util;
 
 using StringTools;
 
@@ -382,7 +383,7 @@ class PolymodScriptClass
 				var clsPath = pth.join('.');
 				var clsName = pth[pth.length - 1];
 
-				if (PolymodInterpEx.findScriptClassDescriptor(clsName) != null) {
+				if (PolymodInterpEx.findScriptClassDescriptor(clsPath) != null) {
 					targetClass = null;
 				}
 				else if (scriptClassOverrides.exists(clsPath)) {
@@ -402,7 +403,10 @@ class PolymodScriptClass
 					Polymod.error(SCRIPT_PARSE_ERROR, 'Could not determine target class for "${pth.join('.')}" (unregistered type?)');
 				}
 			default:
-				Polymod.error(SCRIPT_PARSE_ERROR, 'Could not determine target class for "${c.extend}" (unknown type?)');
+				if (c.extend != null)
+				{
+					Polymod.error(SCRIPT_PARSE_ERROR, 'Could not determine target class for "${c.extend}" (unknown type?)');
+				}
 		}
 		_interp = new PolymodInterpEx(targetClass, this);
 		_c = c;
@@ -434,12 +438,14 @@ class PolymodScriptClass
 		{
 			__superClassFieldList = [];
 
-			var _superClass = superClass;
+			// NOTE: Explicit Dynamic so Haxe doesn't infer it's a PolymodScriptClass
+			var _superClass:Dynamic = superClass;
 			while (Std.isOfType(_superClass, PolymodScriptClass))
 			{
-				var scriptFields:Array<String> = [for (key in (_superClass._cachedFieldDecls?.keys() ?? [])) key.name];
+				var scriptFields:Array<String> = [for (key in ((_superClass:PolymodScriptClass)._cachedFieldDecls?.keys() ?? cast [])) key];
 				__superClassFieldList = __superClassFieldList.concat(scriptFields);
 
+				if (_superClass.superClass == null) break;
 				_superClass = _superClass.superClass;
 			}
 
@@ -451,6 +457,11 @@ class PolymodScriptClass
 
 	private function createSuperClass(args:Array<Dynamic> = null)
 	{
+		if (_c.extend == null)
+		{
+			_interp.errorEx(EClassInvalidSuper);
+		}
+
 		if (args == null)
 		{
 			args = [];
@@ -468,7 +479,7 @@ class PolymodScriptClass
 		var fullExtendStringParts = fullExtendString.split('.');
 		var extendString = fullExtendStringParts[fullExtendStringParts.length - 1];
 
-		var classDescriptor = PolymodInterpEx.findScriptClassDescriptor(extendString);
+		var classDescriptor = PolymodInterpEx.findScriptClassDescriptor(fullExtendString);
 		if (classDescriptor != null)
 		{
 			var abstractSuperClass:PolymodAbstractScriptClass = new PolymodScriptClass(classDescriptor, args);
@@ -550,6 +561,9 @@ class PolymodScriptClass
 			case EClassSuperNotCalled:
 					Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
 						'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + 'Custom constructor does not call "super()".');
+			case EClassInvalidSuper:
+					Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
+						'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + 'Unexpected "super" in class that does not extend anything.');
 			case EInvalidScriptedFnAccess(f):
 				Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
 					'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' +
@@ -615,7 +629,6 @@ class PolymodScriptClass
 		}
 	}
 
-	@:privateAccess(hscript.Interp)
 	public function callFunction(fnName:String, args:Array<Dynamic> = null):Dynamic
 	{
 		var field = findField(fnName);
@@ -693,6 +706,21 @@ class PolymodScriptClass
 		}
 		else
 		{
+			if (fnName == 'toString')
+			{
+				return toString();
+			}
+
+			var _super:Dynamic = superClass;
+			while (Std.isOfType(_super, PolymodScriptClass))
+			{
+				if (_super.hasScriptFunction(fnName))
+				{
+					return _super.callFunction(fnName, args);
+				}
+				_super = _super.superClass;
+			}
+
 			var fn = findSuperFunction(fnName);
 			if (fn == null)
 			{
@@ -752,18 +780,13 @@ class PolymodScriptClass
 	private var _interp:PolymodInterpEx;
 
 	public var superClass:Dynamic = null;
+	public var topASC(default, null):Null<PolymodAbstractScriptClass>;
 
 	public var fullyQualifiedName(get, null):String;
 
-	private function get_fullyQualifiedName():String
+	private inline function get_fullyQualifiedName():String
 	{
-		var name = "";
-		if (_c.pkg != null && _c.pkg.length > 0)
-		{
-			name += (_c.pkg?.join(".") ?? '') + ".";
-		}
-		name += _c.name;
-		return name;
+		return Util.getFullClassName(_c);
 	}
 
 	private inline function callFunction0(name:String):Dynamic
@@ -999,6 +1022,26 @@ class PolymodScriptClass
 					throw 'Unknown field kind: ${f.kind}';
 			}
 		}
+	}
+
+	// Acts like a HScriptedClass override would but for classes not extending anything
+	public function toString():String
+	{
+		if (hasScriptFunction('toString'))
+		{
+			return callFunction('toString', []);
+		}
+		else if (Std.isOfType(superClass, PolymodScriptClass))
+		{
+			var spr = cast(superClass, PolymodScriptClass);
+			// We call it only if it's a script override
+			if (spr.hasScriptFunction('toString'))
+			{
+				return spr.callFunction('toString', []);
+			}
+		}
+
+		return 'PolymodScriptClass<$fullyQualifiedName>';
 	}
 }
 #end

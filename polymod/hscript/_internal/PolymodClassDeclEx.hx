@@ -63,11 +63,18 @@ class PolymodStaticClassReference {
 			return null;
 		}
 
-		var scriptedObj = asc.superClass;
-
+		var scriptedObj:Null<Dynamic> = asc.superClass;
 		while (Std.isOfType(scriptedObj, PolymodScriptClass))
 		{
+			scriptedObj.topASC = asc;
 			scriptedObj = scriptedObj.superClass;
+		}
+
+		if (scriptedObj == null)
+		{
+			// We've hit a class that does not extend anything
+			// The ASC will act like a scripted class for us instead.
+			return asc;
 		}
 
 		Reflect.setField(scriptedObj, '_asc', asc);

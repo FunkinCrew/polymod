@@ -31,6 +31,7 @@ class PolymodPrinterEx extends Printer
 			case EInvalidScriptedVarSet(v): "Invalid variable assignment to scripted class: " + v;
 			case EInvalidFinalSet(f): "Invalid final field assignment: " + f;
 			case EClassSuperNotCalled: "Super constructor not called";
+			case EClassInvalidSuper: "Unexpected \"super\" in class that does not extend anything.";
 			case EClassUnresolvedSuperclass(c, r): 'Unresolved superclass $c (reason: $r)';
 			// TODO: Do we need to distinguish these?
 			case EScriptCallThrow(v): "Script threw an exception: \n" + v;

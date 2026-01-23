@@ -472,9 +472,7 @@ class HScriptedClassMacro
 				{
 					if (_asc == null)
 					{
-						var clsName = $v{cls.name};
-						var superName = $v{cls.superClass.t.get().name};
-						return 'PolymodScriptedClass<${clsName} extends ${superName}>(NO ASC)';
+						return $v{'PolymodScriptedClass<${cls.name} extends ${cls.superClass.t.get().name}>(NO ASC)'};
 					}
 					else
 					{
@@ -908,26 +906,37 @@ class HScriptedClassMacro
 						ret: func_ret,
 						expr: macro
 						{
-							if (_asc != null && _asc.hasScriptFunction($v{funcName}))
+							if (_asc != null)
 							{
-								// trace('ASC: Calling $fieldName() in macro-generated function...');
-								$
+								if (_asc.hasScriptFunction($v{funcName}))
 								{
-									doesReturnVoid
-										? (macro _asc.callFunction($v{funcName}, [$a{func_callArgs}]))
-										: (macro return _asc.callFunction($v{funcName}, [$a{func_callArgs}]))
+									// trace('ASC: Calling $fieldName() in macro-generated function...');
+									$
+									{
+										doesReturnVoid
+											? (macro { _asc.callFunction($v{funcName}, [$a{func_callArgs}]); return; })
+											: (macro return _asc.callFunction($v{funcName}, [$a{func_callArgs}]))
+									}
+								}
+								// If another scripted class is being extended, call if the function exists there
+								else if ((_asc.superClass is polymod.hscript._internal.PolymodScriptClass) && _asc.superClass.hasScriptFunction($v{funcName}))
+								{
+									var _super = (_asc.superClass:polymod.hscript._internal.PolymodScriptClass);
+									$
+									{
+										doesReturnVoid
+											? (macro { _super.callFunction($v{funcName}, [$a{func_callArgs}]); return; })
+											: (macro return _super.callFunction($v{funcName}, [$a{func_callArgs}]))
+									}
 								}
 							}
-							else
+							// Fallback, call the original function.
+							// trace('ASC: Fallback to original ${fieldName}');
+							$
 							{
-								// Fallback, call the original function.
-								// trace('ASC: Fallback to original ${fieldName}');
-								$
-								{
-									doesReturnVoid
-										? (macro super.$funcName($a{func_callArgs}))
-										: (macro return super.$funcName($a{func_callArgs}))
-								}
+								doesReturnVoid
+									? (macro super.$funcName($a{func_callArgs}))
+									: (macro return super.$funcName($a{func_callArgs}))
 							}
 						},
 					}),
@@ -944,7 +953,7 @@ class HScriptedClassMacro
 						ret: func_ret,
 						expr: macro
 						{
-							var fieldName:String = $v{funcName};
+							// var fieldName:String = $v{funcName};
 							// Fallback, call the original function.
 							// trace('ASC: Force call to super ${fieldName}');
 							$
