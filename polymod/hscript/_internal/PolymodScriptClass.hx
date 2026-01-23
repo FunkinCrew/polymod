@@ -442,7 +442,7 @@ class PolymodScriptClass
 			var _superClass:Dynamic = superClass;
 			while (Std.isOfType(_superClass, PolymodScriptClass))
 			{
-				var scriptFields:Array<String> = [for (key in ((_superClass:PolymodScriptClass)._cachedFieldDecls.keys())) key];
+				var scriptFields:Array<String> = [for (key in ((_superClass:PolymodScriptClass)._cachedFieldDecls?.keys() ?? cast [])) key];
 				__superClassFieldList = __superClassFieldList.concat(scriptFields);
 
 				if (_superClass.superClass == null) break;
@@ -711,6 +711,16 @@ class PolymodScriptClass
 				return toString();
 			}
 
+			var _super:Dynamic = superClass;
+			while (Std.isOfType(_super, PolymodScriptClass))
+			{
+				if (_super.hasScriptFunction(fnName))
+				{
+					return _super.callFunction(fnName, args);
+				}
+				_super = _super.superClass;
+			}
+
 			var fn = findSuperFunction(fnName);
 			if (fn == null)
 			{
@@ -770,6 +780,7 @@ class PolymodScriptClass
 	private var _interp:PolymodInterpEx;
 
 	public var superClass:Dynamic = null;
+	public var topASC(default, null):Null<PolymodAbstractScriptClass>;
 
 	public var fullyQualifiedName(get, null):String;
 

@@ -66,6 +66,7 @@ class PolymodStaticClassReference {
 		var scriptedObj:Null<Dynamic> = asc.superClass;
 		while (Std.isOfType(scriptedObj, PolymodScriptClass))
 		{
+			scriptedObj.topASC = asc;
 			scriptedObj = scriptedObj.superClass;
 		}
 

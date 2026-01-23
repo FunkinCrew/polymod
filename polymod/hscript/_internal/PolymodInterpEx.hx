@@ -1144,7 +1144,7 @@ class PolymodInterpEx extends Interp
 			this.locals = capturedLocals;
 			this.declared = capturedDeclared;
 			this.depth = capturedDepth;
-			
+
 			if (Std.isOfType(e, PolymodExprEx.ErrorEx) || Std.isOfType(e, hscript.Expr.Error))
 			{
 				throw e;
@@ -1465,6 +1465,12 @@ class PolymodInterpEx extends Interp
 
 		var prop:Dynamic;
 		// We are calling a LOCAL function from the same module.
+		// We first check if any of the child classes has overriden the scripted function
+		if (_proxy != null && _proxy.topASC?.hasScriptFunction(id) ?? false)
+		{
+			_nextCallObject = _proxy.topASC;
+			return _proxy.topASC.resolveField(id);
+		}
 		if (_proxy != null && _proxy.findFunction(id, true) != null)
 		{
 			_nextCallObject = _proxy;
