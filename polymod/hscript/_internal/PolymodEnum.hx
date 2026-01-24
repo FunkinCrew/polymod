@@ -1,11 +1,10 @@
 package polymod.hscript._internal;
 
-#if hscript
-import hscript.Expr;
+import polymod.hscript._internal.Expr;
 
 @:access(hscript.Interp)
 @:allow(polymod.Polymod)
-class PolymodEnum 
+class PolymodEnum
 {
   private static final scriptInterp = new PolymodInterpEx(null, null);
 
@@ -15,13 +14,13 @@ class PolymodEnum
 
   private var _args:Array<Dynamic>;
 
-  public function new(e:PolymodEnumDeclEx, value:String, args:Array<Dynamic>) 
+  public function new(e:PolymodEnumDeclEx, value:String, args:Array<Dynamic>)
   {
     this._e = e;
 
     var field = getField(value);
 
-    if (field == null) 
+    if (field == null)
     {
       Polymod.error(SCRIPT_PARSE_ERROR, '${e.name}.${value} does not exist.');
       return;
@@ -29,7 +28,7 @@ class PolymodEnum
 
     this._value = value;
 
-    if (args.length != field.args.length) 
+    if (args.length != field.args.length)
     {
       Polymod.error(SCRIPT_PARSE_ERROR, '${e.name}.${value} got the wrong number of arguments.');
       return;
@@ -38,16 +37,16 @@ class PolymodEnum
     this._args = args;
   }
 
-  public static function clearScriptedEnums():Void 
+  public static function clearScriptedEnums():Void
   {
     scriptInterp.clearScriptEnumDescriptors();
   }
 
-  private function getField(name:String):Null<EnumFieldDecl> 
+  private function getField(name:String):Null<EnumFieldDecl>
   {
-    for (field in _e.fields) 
+    for (field in _e.fields)
       {
-        if (field.name == name) 
+        if (field.name == name)
         {
           return field;
         }
@@ -55,7 +54,7 @@ class PolymodEnum
       return null;
   }
 
-  public function toString():String 
+  public function toString():String
   {
     var result:String = '${_e.name}.${_value}';
     if(_args.length > 0)
@@ -63,4 +62,3 @@ class PolymodEnum
     return result;
   }
 }
-#end

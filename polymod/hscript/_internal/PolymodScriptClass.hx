@@ -1,11 +1,10 @@
 package polymod.hscript._internal;
 
-#if hscript
 import haxe.ds.ObjectMap;
-import hscript.Expr.FieldDecl;
-import hscript.Expr.FunctionDecl;
-import hscript.Expr.VarDecl;
-import hscript.Printer;
+import polymod.hscript._internal.Expr.FieldDecl;
+import polymod.hscript._internal.Expr.FunctionDecl;
+import polymod.hscript._internal.Expr.VarDecl;
+import polymod.hscript._internal.Printer;
 import polymod.hscript._internal.PolymodClassDeclEx;
 import polymod.util.Util;
 
@@ -16,7 +15,7 @@ using StringTools;
  * Based on code by Ian Harrigan
  * @see https://github.com/ianharrigan/hscript-ex
  */
-@:access(hscript.Interp)
+@:access(polymod.hscript._internal.Interp)
 @:allow(polymod.Polymod)
 class PolymodScriptClass
 {
@@ -159,7 +158,7 @@ class PolymodScriptClass
 					default:
 						Polymod.error(SCRIPT_PARSE_ERROR, 'Error while executing script ${path}#${errLine}: ' + '\n' + 'An unknown error occurred: ${err}');
 				}
-			} catch (err:hscript.Expr.Error) {
+			} catch (err:Expr.Error) {
 				var errLine:String = #if hscriptPos '${err.line}' #else "#???" #end;
 				#if hscriptPos
 				switch (err.e)
@@ -288,7 +287,7 @@ class PolymodScriptClass
 		}
 
 		// Get the super class name.
-		var fullSuperClsName = (new hscript.Printer()).typeToString(classDecl.extend);
+		var fullSuperClsName = (new Printer()).typeToString(classDecl.extend);
 		var baseSuperClsName = switch(classDecl.extend) {
 			case CTPath(pth, params):
 				pth[pth.length - 1];
@@ -467,7 +466,7 @@ class PolymodScriptClass
 			args = [];
 		}
 
-		var fullExtendString = new hscript.Printer().typeToString(_c.extend);
+		var fullExtendString = new Printer().typeToString(_c.extend);
 
 		// Templates are ignored completely since there's no type checking in HScript.
 		if (fullExtendString.indexOf('<') != -1)
@@ -526,7 +525,7 @@ class PolymodScriptClass
 		}
 	}
 
-	public static function reportError(err:hscript.Expr.Error, className:String = null, fnName:String = null)
+	public static function reportError(err:Expr.Error, className:String = null, fnName:String = null)
 	{
 		var errEx = PolymodExprEx.ErrorExUtil.toErrorEx(err);
 		reportErrorEx(errEx, className, fnName);
@@ -678,7 +677,7 @@ class PolymodScriptClass
 				// Purge the function from the cache so it is not called again.
 				purgeFunction(fnName);
 			}
-			catch (err:hscript.Expr.Error)
+			catch (err:Expr.Error)
 			{
 				reportError(err, fullyQualifiedName, fnName);
 				// A script error occurred while executing the script function.
@@ -997,4 +996,3 @@ class PolymodScriptClass
 		return 'PolymodScriptClass<$fullyQualifiedName>';
 	}
 }
-#end

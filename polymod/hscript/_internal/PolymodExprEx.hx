@@ -68,7 +68,7 @@ EScriptCallThrow(v:Dynamic); // Script called a function which threw
 ECustom(msg:String);
 } class ErrorExUtil
 {
-	public static function toErrorEx(err:hscript.Expr.Error):ErrorEx
+	public static function toErrorEx(err:Expr.Error):ErrorEx
 	{
 		#if hscriptPos
 		switch (err.e)

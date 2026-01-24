@@ -1,13 +1,10 @@
 package polymod.hscript._internal;
 
-#if hscript
-import hscript.Expr;
+import polymod.hscript._internal.Expr;
 
-typedef PolymodEnumDeclEx = 
+typedef PolymodEnumDeclEx =
 {
     > EnumDecl,
-    
+
     @:optional var pkg:Array<String>;
 }
-
-#end

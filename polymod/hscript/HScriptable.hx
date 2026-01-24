@@ -1,10 +1,10 @@
 package polymod.hscript;
 
 import haxe.Json;
+import polymod.hscript._internal.Expr;
 import polymod.Polymod;
 import polymod.util.Util;
 
-#if hscript
 /**
  * This interface triggers the execution of a macro on any elements which use the `@:hscript` annotation.
  * Adding the annotation to the function will cause the associate script to be executed.
@@ -17,10 +17,10 @@ interface HScriptable
 
 /**
  * Used to provide additional parameters to a script function.
- * 
+ *
  * `@:hscript({context, pathName, ...})` can be added to any function to make it scriptable.
  * Add constant identifiers to `context` to make values accessible to the script and use the other values to define the script's behavior.
- * 
+ *
  * For the purposes of backwards compatibility, `@:hscript(A, B, C)` can also be used, which will specify the context.
  * `@:hscript(A, B, C)` is equivalent to `@:hscript({context: [A, B, C]})` but doesn't allow modifying other parameters.
  * The new syntax should be adopted where possible.
@@ -81,7 +81,7 @@ class HScriptParams
 	 * to determine the pathname of the script to run.
 	 *
 	 * This can be the name of a String variable, or of a function.
-	 * 
+	 *
 	 * DON'T SET `pathNameDynId` DIRECTLY!
 	 * Just pass an identifier into `pathName` instead of a constant.
 	 */
@@ -273,7 +273,7 @@ class Script
 {
 	private static var parser:polymod.hscript._internal.PolymodParserEx;
 
-	public var program:hscript.Expr;
+	public var program:Expr;
 	public var interp:polymod.hscript._internal.PolymodInterpEx;
 
 	public static function buildParser():polymod.hscript._internal.PolymodParserEx
@@ -312,4 +312,3 @@ class Script
 		};
 	}
 }
-#end

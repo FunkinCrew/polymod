@@ -1,6 +1,6 @@
 package polymod.hscript._internal;
 
-import hscript.Printer;
+import polymod.hscript._internal.Printer;
 
 class PolymodPrinterEx extends Printer
 {

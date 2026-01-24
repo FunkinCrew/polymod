@@ -1,11 +1,11 @@
 package polymod.hscript._internal;
 
 #if hscript_typer
-import hscript.Expr;
+import polymod.hscript._internal.Expr;
 import hscript.typer.Typer;
 import hscript.typer.TypedExpr;
 
-class PolymodTyperEx extends Typer 
+class PolymodTyperEx extends Typer
 {
   static var allModules:Array<TyperModule> = [];
 
@@ -13,36 +13,36 @@ class PolymodTyperEx extends Typer
   var aliasPaths:Map<String, String>;
   var defaultImports:Map<String, CType>;
 
-  public static function clearAllModules():Void 
+  public static function clearAllModules():Void
   {
     allModules = [];
   }
 
-  public static function typeAllModules():Array<TypedModuleDecl> 
+  public static function typeAllModules():Array<TypedModuleDecl>
   {
     return new PolymodTyperEx(new PolymodInterpEx(null, null)).typeModules(allModules);
   }
 
-  public function new(interp:PolymodInterpEx) 
+  public function new(interp:PolymodInterpEx)
   {
     super(interp);
 
     blacklistImports = [];
     aliasPaths = new Map<String, String>();
-    for (k => imp in PolymodScriptClass.importOverrides) 
+    for (k => imp in PolymodScriptClass.importOverrides)
     {
-      if (imp == null) 
+      if (imp == null)
         blacklistImports.push(k);
       else
         aliasPaths.set(k, Type.getClassName(imp));
     }
-    for (k => imp in PolymodScriptClass.abstractClassImpls) 
+    for (k => imp in PolymodScriptClass.abstractClassImpls)
     {
 			aliasPaths.set(k, Type.getClassName(imp));
     }
 
     defaultImports = new Map<String, CType>();
-    for (k => imp in PolymodScriptClass.defaultImports) 
+    for (k => imp in PolymodScriptClass.defaultImports)
     {
       defaultImports.set(k, CTPath([Type.getClassName(imp)], null));
     }
