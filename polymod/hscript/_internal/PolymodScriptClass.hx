@@ -789,53 +789,6 @@ class PolymodScriptClass
 		return Util.getFullClassName(_c);
 	}
 
-	private inline function callFunction0(name:String):Dynamic
-	{
-		return callFunction(name);
-	}
-
-	private inline function callFunction1(name:String, arg0:Dynamic):Dynamic
-	{
-		return callFunction(name, [arg0]);
-	}
-
-	private inline function callFunction2(name:String, arg0:Dynamic, arg1:Dynamic):Dynamic
-	{
-		return callFunction(name, [arg0, arg1]);
-	}
-
-	private inline function callFunction3(name:String, arg0:Dynamic, arg1:Dynamic, arg2:Dynamic):Dynamic
-	{
-		return callFunction(name, [arg0, arg1, arg2]);
-	}
-
-	private inline function callFunction4(name:String, arg0:Dynamic, arg1:Dynamic, arg2:Dynamic, arg3:Dynamic):Dynamic
-	{
-		return callFunction(name, [arg0, arg1, arg2, arg3]);
-	}
-
-	private inline function callFunction5(name:String, arg0:Dynamic, arg1:Dynamic, arg2:Dynamic, arg3:Dynamic, arg4:Dynamic):Dynamic
-	{
-		return callFunction(name, [arg0, arg1, arg2, arg3, arg4]);
-	}
-
-	private inline function callFunction6(name:String, arg0:Dynamic, arg1:Dynamic, arg2:Dynamic, arg3:Dynamic, arg4:Dynamic, arg5:Dynamic):Dynamic
-	{
-		return callFunction(name, [arg0, arg1, arg2, arg3, arg4, arg5]);
-	}
-
-	private inline function callFunction7(name:String, arg0:Dynamic, arg1:Dynamic, arg2:Dynamic, arg3:Dynamic, arg4:Dynamic, arg5:Dynamic,
-			arg6:Dynamic):Dynamic
-	{
-		return callFunction(name, [arg0, arg1, arg2, arg3, arg4, arg5, arg6]);
-	}
-
-	private inline function callFunction8(name:String, arg0:Dynamic, arg1:Dynamic, arg2:Dynamic, arg3:Dynamic, arg4:Dynamic, arg5:Dynamic, arg6:Dynamic,
-			arg7:Dynamic):Dynamic
-	{
-		return callFunction(name, [arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7]);
-	}
-
 	/**
 	 * Search for a function field with the given name. Excludes variables and static functions.
 	 * @param name The name of the function to search for.

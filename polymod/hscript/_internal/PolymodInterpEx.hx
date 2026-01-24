@@ -1637,7 +1637,7 @@ class PolymodInterpEx extends Interp
 		}
 	}
 
-	public function hasScriptClassStaticFunction(clsName:String, fnName:String, args:Array<Dynamic> = null):Bool {
+	public function hasScriptClassStaticFunction(clsName:String, fnName:String):Bool {
 		var imports:Map<String, PolymodClassImport> = [];
 
 		var cls:Null<PolymodClassDeclEx> = _scriptClassDescriptors.get(clsName);
@@ -1673,7 +1673,7 @@ class PolymodInterpEx extends Interp
 			if (!this.variables.exists(prefixedName)) {
 				switch (fieldDecl.kind) {
 					case KFunction(fn):
-						var result = buildScriptClassStaticFunction(clsName, fieldName, fn);
+						var result = buildScriptClassStaticFunction(clsName, fieldName);
 						this.variables.set(prefixedName, result);
 						return result;
 					case KVar(v):
@@ -1681,7 +1681,7 @@ class PolymodInterpEx extends Interp
 							switch (v.get) {
 								case 'get':
 									var getterFunc = 'get_${fieldName}';
-									if (hasScriptClassStaticFunction(clsName, getterFunc, [])) {
+									if (hasScriptClassStaticFunction(clsName, getterFunc)) {
 										return callScriptClassStaticFunction(clsName, getterFunc, []);
 									} else {
 										throw 'Could not resolve getter for property ${prefixedName}';
@@ -1713,54 +1713,10 @@ class PolymodInterpEx extends Interp
 		}
 	}
 
-	private function buildScriptClassStaticFunction(clsName:String, fieldName:String, fn:FunctionDecl):Dynamic {
-		var argCount = fn.args.length;
-		switch(argCount) {
-			case 0: return function():Dynamic {
-				return callScriptClassStaticFunction(clsName, fieldName, []);
-			};
-
-			case 1: return function(a:Dynamic):Dynamic {
-				return callScriptClassStaticFunction(clsName, fieldName, [a]);
-			};
-
-			case 2: return function(a:Dynamic, b:Dynamic):Dynamic {
-				return callScriptClassStaticFunction(clsName, fieldName, [a, b]);
-			};
-
-			case 3: return function(a:Dynamic, b:Dynamic, c:Dynamic):Dynamic {
-				return callScriptClassStaticFunction(clsName, fieldName, [a, b, c]);
-			}
-
-			case 4: return function(a:Dynamic, b:Dynamic, c:Dynamic, d:Dynamic):Dynamic {
-				return callScriptClassStaticFunction(clsName, fieldName, [a, b, c, d]);
-			}
-
-			#if neko
-			case _: @:privateAccess error(ECustom("only 4 params allowed in script class functions (.bind limitation)"));
-			#else
-			case 5: return function(a:Dynamic, b:Dynamic, c:Dynamic, d:Dynamic, e:Dynamic):Dynamic {
-				return callScriptClassStaticFunction(clsName, fieldName, [a, b, c, d, e]);
-			}
-
-			case 6: return function(a:Dynamic, b:Dynamic, c:Dynamic, d:Dynamic, e:Dynamic, f:Dynamic):Dynamic {
-				return callScriptClassStaticFunction(clsName, fieldName, [a, b, c, d, e, f]);
-			}
-
-			case 7: return function(a:Dynamic, b:Dynamic, c:Dynamic, d:Dynamic, e:Dynamic, f:Dynamic, g:Dynamic):Dynamic {
-				return callScriptClassStaticFunction(clsName, fieldName, [a, b, c, d, e, f, g]);
-			}
-
-			case 8: return function(a:Dynamic, b:Dynamic, c:Dynamic, d:Dynamic, e:Dynamic, f:Dynamic, g:Dynamic, h:Dynamic):Dynamic {
-				return callScriptClassStaticFunction(clsName, fieldName, [a, b, c, d, e, f, g, h]);
-			}
-
-			case _: @:privateAccess error(ECustom("only 8 params allowed in script class functions (.bind limitation)"));
-			#end
-		}
-
-		// Fallthrough
-		return null;
+	private inline function buildScriptClassStaticFunction(clsName:String, fieldName:String):Dynamic {
+		return Reflect.makeVarArgs(function(args:Array<Dynamic>):Dynamic {
+			return callScriptClassStaticFunction(clsName, fieldName, args);
+		});
 	}
 
 	public function setScriptClassStaticField(clsName:String, fieldName:String, value:Dynamic):Dynamic {
@@ -1776,7 +1732,7 @@ class PolymodInterpEx extends Interp
 							switch (v.set) {
 								case 'set':
 									var setterFunc = 'set_${fieldName}';
-									if (hasScriptClassStaticFunction(clsName, setterFunc, [value])) {
+									if (hasScriptClassStaticFunction(clsName, setterFunc)) {
 										return callScriptClassStaticFunction(clsName, setterFunc, [value]);
 									} else {
 										throw 'Could not resolve setter for property ${prefixedName}';
