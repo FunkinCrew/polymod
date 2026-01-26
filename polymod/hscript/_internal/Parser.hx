@@ -1201,16 +1201,31 @@ class Parser
           {
             case TBrClose: break;
             case TId("var"), TId("final"):
+              var isOpt = maybe(TQuestion);
               var name = getIdent();
               ensure(TDoubleDot);
+              var type = parseType();
+              if (isOpt) type = CTOpt(type);
               if (t.match(TId("final")))
               {
                 if (meta == null) meta = [];
                 meta.push({name: ":final", params: []});
               }
-              fields.push({name: name, t: parseType(), meta: meta});
+              fields.push({name: name, t: type, meta: meta});
               meta = null;
               ensure(TSemicolon);
+            case TQuestion:
+              var name = getIdent();
+              ensure(TDoubleDot);
+              fields.push({name: name, t: CTOpt(parseType()), meta: meta});
+              meta = null;
+              t = token();
+              switch (t)
+              {
+                case TComma:
+                case TBrClose: break;
+                default: unexpected(t);
+              }
             case TId(name):
               ensure(TDoubleDot);
               fields.push({name: name, t: parseType(), meta: meta});
@@ -1456,6 +1471,18 @@ class Parser
         var name = getIdent();
         var params = parseParams();
         ensureToken(TOp("="));
+
+        var extensions = [];
+        if (maybe(TBrOpen))
+        {
+          while (maybe(TOp(">")))
+          {
+            extensions.push(parseType());
+            maybe(TComma);
+          }
+          push(TBrOpen);
+        }
+
         var t = parseType();
         return DTypedef(
           {
@@ -1463,6 +1490,7 @@ class Parser
             meta: meta,
             params: params,
             isPrivate: isPrivate,
+            extensions: extensions,
             t: t,
           });
       case "enum":

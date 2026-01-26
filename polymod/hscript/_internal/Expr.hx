@@ -270,6 +270,7 @@ typedef EnumArgDecl =
 typedef TypeDecl =
 {
   > ModuleType,
+  var extensions:Array<CType>;
   var t:CType;
 }
 
