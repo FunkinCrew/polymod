@@ -8,9 +8,7 @@ import polymod.backends.PolymodAssets;
 import polymod.format.JsonHelp;
 import polymod.format.ParseRules;
 import polymod.fs.PolymodFileSystem;
-#if hscript
 import polymod.hscript._internal.PolymodScriptClass;
-#end
 import polymod.util.DependencyUtil;
 import polymod.util.VersionUtil;
 import thx.semver.Version;
@@ -327,7 +325,6 @@ class Polymod
 		prevParams = params;
 
 		// Do scripted class initialization now that the assetLibrary is loaded.
-		#if hscript
 		if (params.useScriptedClasses)
 		{
 			Polymod.notice(PolymodErrorCode.SCRIPT_PARSING, 'Parsing script classes...');
@@ -342,12 +339,6 @@ class Polymod
 				Polymod.notice(PolymodErrorCode.SCRIPT_PARSED, 'Parsed and registered ${classList.length} scripted classes.');
 			}
 		}
-		#else
-		if (params.useScriptedClasses)
-		{
-			Polymod.warning(PolymodErrorCode.SCRIPT_HSCRIPT_NOT_INSTALLED, 'Scripted classes were requested, but hscript is not installed.');
-		}
-		#end
 
 		return sortedModsToLoad;
 	}
@@ -653,7 +644,6 @@ class Polymod
 	 */
 	public static function clearScripts():Void
 	{
-		#if hscript
 		@:privateAccess
 		polymod.hscript._internal.PolymodScriptClass.clearScriptedClasses();
 		polymod.hscript._internal.PolymodEnum.clearScriptedEnums();
@@ -661,9 +651,6 @@ class Polymod
 		polymod.hscript._internal.PolymodTyperEx.clearAllModules();
 		#end
 		polymod.hscript.HScriptable.ScriptRunner.clearScripts();
-		#else
-		Polymod.warning(SCRIPT_HSCRIPT_NOT_INSTALLED, "Cannot register script classes, HScript is not available.");
-		#end
 	}
 
 	/**
@@ -671,7 +658,6 @@ class Polymod
 	 */
 	public static function registerAllScriptClasses():Void
 	{
-		#if hscript
 		@:privateAccess {
 			// Go through each script and parse any classes in them.
 			var potentialScripts:Array<String> = Polymod.assetLibrary.list(TEXT);
@@ -705,9 +691,6 @@ class Polymod
 
 			polymod.hscript._internal.PolymodInterpEx.validateImports();
 		}
-		#else
-		Polymod.warning(SCRIPT_HSCRIPT_NOT_INSTALLED, "Cannot register script classes, HScript is not available.");
-		#end
 	}
 
 	/**
@@ -716,7 +699,6 @@ class Polymod
 	 */
 	public static function registerAllScriptClassesAsync():Array<lime.app.Future<Bool>>
 	{
-		#if hscript
 		// Go through each script and parse any classes in them.
 		var potentialScripts:Array<String> = Polymod.assetLibrary.list(TEXT);
 		var libraryIds:Array<String> = Polymod.assetLibrary.listLibraries();
@@ -745,10 +727,6 @@ class Polymod
 		polymod.hscript._internal.PolymodInterpEx.validateImports();
 
 		return futures;
-		#else
-		Polymod.warning(SCRIPT_HSCRIPT_NOT_INSTALLED, "Cannot register script classes, HScript is not available.");
-		return [];
-		#end
 	}
 
 	public static function error(code:PolymodErrorCode, message:String, origin:PolymodErrorOrigin = UNKNOWN):Void
@@ -810,19 +788,13 @@ class Polymod
 	 * @param importClass The class type to import instead.
 	 */
 	public static function addImportAlias(importAlias:String, importClass:Class<Dynamic>):Void {
-		#if hscript
 		PolymodScriptClass.importOverrides.set(importAlias, importClass);
-		#else
-		Polymod.warning(PolymodErrorCode.SCRIPT_HSCRIPT_NOT_INSTALLED, 'Scripted classes imports were requested, but hscript is not installed.');
-		#end
+
 	}
 
 	public static function removeImportAlias(importAlias:String):Void {
-		#if hscript
 		PolymodScriptClass.importOverrides.remove(importAlias);
-		#else
-		Polymod.warning(PolymodErrorCode.SCRIPT_HSCRIPT_NOT_INSTALLED, 'Scripted classes imports were requested, but hscript is not installed.');
-		#end
+
 	}
 
 	/**
@@ -831,11 +803,7 @@ class Polymod
 	 * @param importAlias (optional) The alias to use for the import. If not provided, the full class path will be used.
 	 */
 	public static function addDefaultImport(importClass:Class<Dynamic>, ?importAlias:String):Void {
-		#if hscript
 		PolymodScriptClass.defaultImports.set(importAlias == null ? Type.getClassName(importClass) : importAlias, importClass);
-		#else
-		Polymod.warning(PolymodErrorCode.SCRIPT_HSCRIPT_NOT_INSTALLED, 'Scripted classes imports were requested, but hscript is not installed.');
-		#end
 	}
 
 	/**
@@ -843,11 +811,7 @@ class Polymod
 	 * @param importPath The full import path to blacklist, as a string.
 	 */
 	public static function blacklistImport(importPath:String):Void {
-		#if hscript
 		addImportAlias(importPath, null);
-		#else
-		Polymod.warning(PolymodErrorCode.SCRIPT_HSCRIPT_NOT_INSTALLED, 'Scripted classes imports were requested, but hscript is not installed.');
-		#end
 	}
 
 	/**
@@ -857,11 +821,7 @@ class Polymod
 	 */
 	public static function blacklistStaticFields(parentClass:Class<Dynamic>, fields:Array<String>):Void
 	{
-		#if hscript
 		PolymodScriptClass.blacklistedStaticFields.set(parentClass, fields);
-		#else
-		Polymod.warning(PolymodErrorCode.SCRIPT_HSCRIPT_NOT_INSTALLED, 'Scripted classes imports were requested, but hscript is not installed.');
-		#end
 	}
 
 	/**
@@ -871,11 +831,7 @@ class Polymod
 	 */
 	public static function blacklistInstanceFields(parentClass:Class<Dynamic>, fields:Array<String>):Void
 	{
-		#if hscript
 		PolymodScriptClass.blacklistedInstanceFields.set(Type.getClassName(parentClass), fields);
-		#else
-		Polymod.warning(PolymodErrorCode.SCRIPT_HSCRIPT_NOT_INSTALLED, 'Scripted classes imports were requested, but hscript is not installed.');
-		#end
 	}
 }
 
@@ -1310,12 +1266,6 @@ enum abstract PolymodErrorCode(String) from String to String
 	 * - Make sure you call Polymod.init before attempting to call this function.
 	 */
 	var POLYMOD_NOT_LOADED:String = 'polymod_not_loaded';
-
-	/**
-	 * Script classes are currently disabled because the `hscript` library is not available.
-	 * - Make sure you have the `hscript` Haxelib installed if you want to use scripts.
-	 */
-	var SCRIPT_HSCRIPT_NOT_INSTALLED:String = 'script_hscript_not_installed';
 
 	/**
 	 * A script file of the given name could not be found.

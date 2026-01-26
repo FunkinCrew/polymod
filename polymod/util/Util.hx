@@ -12,9 +12,7 @@ import polymod.format.ParseRules.CSVParseFormat;
 import polymod.format.ParseRules.TextFileFormat;
 import polymod.format.ParseRules;
 import polymod.fs.PolymodFileSystem.IFileSystem;
-#if hscript
 import polymod.hscript._internal.PolymodClassDeclEx;
-#end
 #if unifill
 import unifill.Unifill;
 #end
@@ -718,7 +716,6 @@ class Util
 		}
 	}
 
-	#if hscript
 	/**
 	 * Retrieves the full qualified name of a class declaration.
 	 * @param clsDecl The class declaration.
@@ -728,5 +725,4 @@ class Util
 	{
 		return (clsDecl.pkg != null ? (clsDecl.pkg.join(".") + ".") : "") + clsDecl.name;
 	}
-	#end
 }

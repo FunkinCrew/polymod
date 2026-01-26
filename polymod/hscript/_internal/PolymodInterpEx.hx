@@ -1,9 +1,7 @@
 package polymod.hscript._internal;
 
-#if hscript
-import hscript.Expr;
-import hscript.Interp;
-import hscript.Tools;
+import polymod.hscript._internal.Expr;
+import polymod.hscript._internal.Printer;
 import polymod.hscript._internal.PolymodExprEx;
 import polymod.hscript._internal.PolymodClassDeclEx.PolymodClassImport;
 import polymod.hscript._internal.PolymodClassDeclEx.PolymodStaticClassReference;
@@ -92,7 +90,7 @@ class PolymodInterpEx extends Interp
 			var packagedClass = getClassDecl().pkg.join(".") + "." + cl;
 			if (_scriptClassDescriptors.exists(packagedClass))
 			{
-				// OVERRIDE CHANGE: Create a PolymodScriptClass instead of a hscript.ScriptClass
+				// OVERRIDE CHANGE: Create a PolymodScriptClass instead of a ScriptClass
 				var proxy:PolymodAbstractScriptClass = new PolymodScriptClass(_scriptClassDescriptors.get(packagedClass), args);
 				return proxy;
 			}
@@ -104,7 +102,7 @@ class PolymodInterpEx extends Interp
 			var importedClass:PolymodClassImport = getClassDecl().imports.get(cl);
 			if (_scriptClassDescriptors.exists(importedClass.fullPath))
 			{
-				// OVERRIDE CHANGE: Create a PolymodScriptClass instead of a hscript.ScriptClass
+				// OVERRIDE CHANGE: Create a PolymodScriptClass instead of a ScriptClass
 				var proxy:PolymodAbstractScriptClass = new PolymodScriptClass(_scriptClassDescriptors.get(importedClass.fullPath), args);
 				return proxy;
 			}
@@ -313,7 +311,7 @@ class PolymodInterpEx extends Interp
 			// Check if the scripted classes extend the right type.
 			if (cls.extend == null) continue;
 
-			var superClassPath:String = new hscript.Printer().typeToString(cls.extend);
+			var superClassPath:String = new Printer().typeToString(cls.extend);
 			if (!cls.imports.exists(superClassPath))
 			{
 				switch (cls.extend)
@@ -706,7 +704,7 @@ class PolymodInterpEx extends Interp
 							PolymodScriptClass.reportErrorEx(err, getClassFullyQualifiedName(), name);
 							r = null;
 						}
-						catch (err:hscript.Expr.Error)
+						catch (err:Expr.Error)
 						{
 							PolymodScriptClass.reportError(err, getClassFullyQualifiedName(), name);
 							r = null;
@@ -931,7 +929,7 @@ class PolymodInterpEx extends Interp
 									#if hscriptPos
 									curExpr = e;
 									#end
-									var error = 'Invalid expression in map initialization (expected key=>value, got ${hscript.Printer.toString(e)})';
+									var error = 'Invalid expression in map initialization (expected key=>value, got ${Printer.toString(e)})';
 									errorEx(ECustom(error));
 								}
 							} else if (last == "Array") {
@@ -946,7 +944,7 @@ class PolymodInterpEx extends Interp
 									#if hscriptPos
 									curExpr = e;
 									#end
-									var error = 'Invalid expression in array initialization (expected no key=>value pairs, got ${hscript.Printer.toString(e)})';
+									var error = 'Invalid expression in array initialization (expected no key=>value pairs, got ${Printer.toString(e)})';
 									errorEx(ECustom(error));
 								}
 							} else {
@@ -982,7 +980,7 @@ class PolymodInterpEx extends Interp
 					#if hscriptPos
 					curExpr = e;
 					#end
-					var error = 'Invalid expression in map initialization (expected key=>value, got ${hscript.Printer.toString(e)})';
+					var error = 'Invalid expression in map initialization (expected key=>value, got ${Printer.toString(e)})';
 					errorEx(ECustom(error));
 			}
 		}
@@ -1007,7 +1005,7 @@ class PolymodInterpEx extends Interp
 				}
 			default:
 				// Whatever.
-				error(ECustom('Invalid key type for empty map initialization (${new hscript.Printer().typeToString(keyType)}).'));
+				error(ECustom('Invalid key type for empty map initialization (${new Printer().typeToString(keyType)}).'));
 		}
 		return super.makeMap([], []);
 	}
@@ -1099,7 +1097,7 @@ class PolymodInterpEx extends Interp
 			{
 				_nextCallObject = null;
 
-				if (Std.isOfType(e, PolymodExprEx.ErrorEx) || Std.isOfType(e, hscript.Expr.Error))
+				if (Std.isOfType(e, PolymodExprEx.ErrorEx) || Std.isOfType(e, polymod.hscript._internal.Expr.Error))
 				{
 					throw e;
 				}
@@ -1145,7 +1143,7 @@ class PolymodInterpEx extends Interp
 			this.declared = capturedDeclared;
 			this.depth = capturedDepth;
 
-			if (Std.isOfType(e, PolymodExprEx.ErrorEx) || Std.isOfType(e, hscript.Expr.Error))
+			if (Std.isOfType(e, PolymodExprEx.ErrorEx) || Std.isOfType(e, polymod.hscript._internal.Expr.Error))
 			{
 				throw e;
 			}
@@ -1171,7 +1169,7 @@ class PolymodInterpEx extends Interp
 			PolymodScriptClass.reportErrorEx(err, getClassFullyQualifiedName());
 			return null;
 		}
-		catch (err:hscript.Expr.Error)
+		catch (err:Expr.Error)
 		{
 			PolymodScriptClass.reportError(err, getClassFullyQualifiedName());
 			return null;
@@ -1370,7 +1368,7 @@ class PolymodInterpEx extends Interp
 	override function exprReturn(expr:Expr):Dynamic
 	{
 		return super.exprReturn(expr);
-		// catch (err:hscript.Expr.Error)
+		// catch (err:Expr.Error)
 		// {
 		// 	#if hscriptPos
 		// 	throw err;
@@ -1605,7 +1603,7 @@ class PolymodInterpEx extends Interp
 				// purgeStaticFunction(fnName);
 				return null;
 			}
-			catch (err:hscript.Expr.Error)
+			catch (err:Expr.Error)
 			{
 				PolymodScriptClass.reportError(err, clsName, fnName);
 				// A script error occurred while executing the script function.
@@ -1989,4 +1987,3 @@ private class ArrayIterator<T>
 		return a[pos++];
 	}
 }
-#end

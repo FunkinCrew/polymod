@@ -1,7 +1,7 @@
 package polymod.hscript._internal;
 
-import hscript.Expr.ClassDecl;
-import hscript.Expr.FieldDecl;
+import polymod.hscript._internal.Expr.ClassDecl;
+import polymod.hscript._internal.Expr.FieldDecl;
 import polymod.hscript._internal.PolymodScriptClass;
 
 /**
