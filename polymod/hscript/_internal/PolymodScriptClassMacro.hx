@@ -19,7 +19,7 @@ using StringTools;
 class PolymodScriptClassMacro {
 	/**
 	 * Returns a `Map<String, Class<Dynamic>>` which maps superclass paths to scripted classes.
-     * So `class ScriptedStage extends Stage implements HScriptable` will be `"Stage" -> ScriptedStage`
+	 * So `class ScriptedStage extends Stage implements HScriptable` will be `"Stage" -> ScriptedStage`
 	 */
 	public static macro function listHScriptedClasses():ExprOf<Map<String, Class<Dynamic>>> {
 		if (!onGenerateCallbackRegistered)
@@ -62,10 +62,10 @@ class PolymodScriptClassMacro {
   	static var onAfterTypingCallbackRegistered:Bool = false;
 
   	static function onGenerate(allTypes:Array<haxe.macro.Type>) {
-    	// Reset these, since onGenerate persists across multiple builds.
+		// Reset these, since onGenerate persists across multiple builds.
 		var hscriptedClassType:ClassType = MacroUtil.getClassType('polymod.hscript.HScriptedClass');
 
-    	var hscriptedClassEntries:Array<Expr> = [];
+		var hscriptedClassEntries:Array<Expr> = [];
 		var abstractImplEntries:Array<Expr> = [];
 		var abstractStaticEntries:Array<Expr> = [];
 
@@ -76,8 +76,8 @@ class PolymodScriptClassMacro {
 			    var classType:ClassType = t.get();
 				var classPath:String = '${classType.pack.concat([classType.name]).join(".")}';
 
-			    if (classType.isInterface) {
-    				// Ignore interfaces.
+				if (classType.isInterface) {
+					// Ignore interfaces.
 				} else if (MacroUtil.implementsInterface(classType, hscriptedClassType)) {
 					// Context.info('${classPath} implements HScriptedClass? YEAH', Context.currentPos());
 				  // TODO: Do we need to parameterize?
@@ -95,54 +95,54 @@ class PolymodScriptClassMacro {
 				} else { }
 			  case TAbstract(t, _params):
 				var abstractPath:String = t.toString();
-				if (abstractPath == 'flixel.util.FlxColor') {
-					var abstractType = t.get();
-					var abstractImpl = abstractType.impl.get();
-					var abstractImplPath = abstractType.impl.toString();
-					// Context.info('${abstractImplPath} implements FlxColor', Context.currentPos());
+				var abstractType = t.get();
+				var abstractImpl = abstractType.impl?.get();
+				var abstractImplPath:String = abstractType.impl?.toString() ?? '';
 
-					var entryData = [
-						macro $v{abstractPath},
-						macro $v{abstractImplPath}
-					];
+				if (abstractImpl == null) {
+					// If the abstract doesn't have an implementation, it's usually an extern or something, so we always want to ignore it.
+					continue;
+				}
 
-					abstractImplEntries.push(macro $a{entryData});
+				var entryData = [
+					macro $v{abstractPath},
+					macro $v{abstractImplPath}
+				];
 
-					for (field in abstractImpl.statics.get()) {
-						switch (field.type) {
-							case TAbstract(_, _):
-								//
-							case TType(_, _):
-								//
-								default:
-								continue;
-						}
-						
-						var key:String = '${abstractImplPath}.${field.name}';
+				abstractImplEntries.push(macro $a{entryData});
 
-						if (!staticFieldToClass.exists(key)) {
+				for (field in abstractImpl.statics.get()) {
+					switch (field.type) {
+						case TAbstract(_, _):
+							//
+						case TType(_, _):
+							//
+							default:
 							continue;
-						}
-						
-						var staticEntryData = [
-							macro $v{key},
-							macro $v{staticFieldToClass[key]},
-						];
-
-						abstractStaticEntries.push(macro $a{staticEntryData});
 					}
 
-					// Try to apply RTTI?
-					abstractType.meta.add(':rtti', [], Context.currentPos());
-					abstractImpl.meta.add(':rtti', [], Context.currentPos());
+					var key:String = '${abstractImplPath}.${field.name}';
+
+					if (!staticFieldToClass.exists(key)) {
+						continue;
+					}
+
+					var staticEntryData = [
+						macro $v{key},
+						macro $v{staticFieldToClass[key]},
+					];
+
+					abstractStaticEntries.push(macro $a{staticEntryData});
 				}
 			  default:
-			    continue;
+				continue;
 		  	}
 		}
 
-    	var polymodScriptClassClassType:ClassType = MacroUtil.getClassType('polymod.hscript._internal.PolymodScriptClassMacro');
-    	polymodScriptClassClassType.meta.remove('hscriptedClasses');
+		Context.info('PolymodScriptClassMacro: Registering ${hscriptedClassEntries.length} HScriptedClasses, ${abstractImplEntries.length} abstract impls, ${abstractStaticEntries.length} abstract statics', Context.currentPos());
+
+		var polymodScriptClassClassType:ClassType = MacroUtil.getClassType('polymod.hscript._internal.PolymodScriptClassMacro');
+		polymodScriptClassClassType.meta.remove('hscriptedClasses');
 		polymodScriptClassClassType.meta.add('hscriptedClasses', hscriptedClassEntries, Context.currentPos());
 		polymodScriptClassClassType.meta.remove('abstractImpls');
 		polymodScriptClassClassType.meta.add('abstractImpls', abstractImplEntries, Context.currentPos());
@@ -161,11 +161,15 @@ class PolymodScriptClassMacro {
 					var abstractPath = a.toString();
 					var abstractType = a.get();
 
-					if (abstractPath != 'flixel.util.FlxColor') {
+					// If the abstract is private, the implementation won't be accessible.
+					var abstractIsPrivate = abstractType.isPrivate;
+					if (abstractIsPrivate) {
 						continue;
 					}
-					
-					if (abstractType.impl == null) {
+
+					// Check if, for other reasons, the implementation is missing.
+					var abstractHasNoImpl = abstractType.impl == null;
+					if (abstractHasNoImpl) {
 						continue;
 					}
 
@@ -187,7 +191,7 @@ class PolymodScriptClassMacro {
 									}
 
 									if (getter == null) {
-										throw 'This should not happen';
+										throw 'Getter is null?';
 									}
 
 									switch (getter.type) {
@@ -195,7 +199,7 @@ class PolymodScriptClassMacro {
 											if (args.length != 0)
 												continue;
 										default:
-											throw 'This should not happen';
+											throw 'Getter has an unknown type?';
 									}
 
 									canGet = true;
@@ -211,7 +215,7 @@ class PolymodScriptClassMacro {
 									}
 
 									if (setter == null) {
-										throw 'This should not happen';
+										throw 'Setter is null?';
 									}
 
 									switch (setter.type) {
@@ -219,7 +223,7 @@ class PolymodScriptClassMacro {
 											if (args.length != 1)
 												continue;
 										default:
-											throw 'This should not happen';
+											throw 'Setter has an unknown type?';
 									}
 
 									canSet = true;
@@ -299,25 +303,25 @@ class PolymodScriptClassMacro {
 	public static function fetchHScriptedClasses():Map<String, Class<Dynamic>> {
 		var metaData = Meta.getType(PolymodScriptClassMacro);
 
-    // trace('Got metaData: ' + metaData);
+		// trace('Got metaData: ' + metaData);
 
 		if (metaData.hscriptedClasses != null) {
-      trace('Got hscriptedClasses: ' + metaData.hscriptedClasses);
+			trace('Got hscriptedClasses: ' + metaData.hscriptedClasses);
 
 			var result:Map<String, Class<Dynamic>> = [];
 
 			// Each element is formatted as `[superClassPath, classPath]`.
 
 			for (element in metaData.hscriptedClasses) {
-        		if (element.length != 2) {
-        	  		throw 'Malformed element in hscriptedClasses: ' + element;
-        		}
+				if (element.length != 2) {
+			  		throw 'Malformed element in hscriptedClasses: ' + element;
+				}
 
-        		var superClassPath:String = element[0];
-        		var classPath:String = element[1];
+				var superClassPath:String = element[0];
+				var classPath:String = element[1];
 				var classType:Class<Dynamic> = cast Type.resolveClass(classPath);
-        		result.set(superClassPath, classType);
-      		}
+				result.set(superClassPath, classType);
+	  		}
 
 			return result;
 		} else {
