@@ -3,22 +3,48 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [1.9.0] - 202?-??-??
-## Added
-- Scripted classes can now access static functions of other modules.
-  - Scripted classes currently can't be imported, but you can statically access any scripted class by name as long as it is defined in the same package.
-  - You should also be able to reliably access scripted classes from the same file.
-- Scripted class instances can now be constructed directly from another script.
-  - For example, if you have declared `class MyScriptedClass extends Stage` in an hxc file, then another hxc file can call `new MyScriptedClass()` rather than having to call `ScriptedStage.init('MyScriptedClass')`.
-- Added a new Polymod warning which gets invoked when a mod is skipped for having an incompatible API version.
-- Added a new Polymod warning which gets invoked when attempting to create two scripted classes with the same qualified name.
-  - This previously silently failed, causing unintended behavior!
+# [2.0.0] - 2026-??-??
+## 
+- You can now declare and access static variables and functions of scripted classes, even from other scripts.
+- You can directly instantiate a scripted class by name from another script (`new TestClass()` instead of `ScriptedBar.init('TestClass', [])`).
+- Scripted classes can now extend an aliased class.
+  - For example, if you `import foo.Bar as Baz;`, you can do `class TestClass extends Baz`.
+- You can now use the `package` keyword in a scripted class to specify a package name for a scripted class, preventing the `SCRIPTED_CLASS_ALREADY_REGISTERED` warning.
 - Added the new function `Polymod.clearAllScriptClasses()` to clear all registered scripted class descriptors.
+- Added new generated function to classes implementing `HScriptedClass`:
+  - `scriptStaticCall` to invoke a static function on a scripted class.
+  - `scriptStaticGet` to retrieve a static variable on a scripted class.
+  - `scriptStaticSet` to assign a static variable on a scripted class.
+- Added the ability to blacklist static or instance fields or methods.
+  - Use `Polymod.blacklistStaticFields(Class, Array<String>)` to blacklist static variables or functions from being accessed by scripts.
+  - Use `Polymod.blacklistInstanceFields(Class, Array<String>)` to blacklist instance variables or functions from being accessed by scripts.
+- Added support for scripted `enum` values, accessible from other scripts. () - by @lemz1 in [#192]
+- Added support for the `final` keyword. () - by @KoloInDaCrib in [#193]
+  - When using `final myValue = 12;`, attempting to reassign the value throws an error.
+- Added support for properties, with getters and setters. () - by @KoloInDaCrib in [#191]
+  - When using `var myValue(get, set):Int;`, accessing and assigning `myValue` will instead call `get_myValue` and `set_myValue` respectively.
+- Added the ability to access static variables and methods of `abstract`s directly by name. () -  by @lemz1 in [#195]
 ## Changed
+- Polymod's scripting systems now utilize an internal, built-in fork of HScript, rather than a separate repository. This allows for new features and support to be added (such as new keywords and syntax) without having to require a specific non-standard version of the Haxelib.
+- Added improved error messages for the following cases:
+  - Attempting to access `this` from a scripted static function.
+  - Attempting to declare a field with a duplicate name (previously, this silently replaced the field, leading to weird bugs!).
+  - Attempting to access a blacklisted static or instance field.
+- Function calls now support an arbitrary number of arguments, up from eight. () - by @NotHyper-474 in [#278]
+- Cleaned up a lot of existing error messages to be more clear what they're doing.
+- If a mod is skipped because its API version is invalid, it will now output a `MOD_API_VERSION_MISMATCH` warning.
 ## Fixed
 - Fixed a Null Object Reference error that could occur if a scripted class attempts to extend a superclass which hasn't been imported.
-- Fixed an issue where Polymod would not interpret some boolean compilation flags correctly, resulting in enabled flags being ignored.
-- Resolve error "Type not found: T" caused by not properly deparameterizing scripted class types. (via @Geokureli)
+- Optimized the `HScriptedClass` macro to no longer require reflection when the script does not override the function being called.
+- When instantiating a `Map` or `Array`, the type of the variable will sometimes be parsed to ensure the correct underlying type is created.
+  - For example, `var myValue:Map<String, Dynamic> = [];` used to sometimes instantiate an Array value, causing errors.
+- Refactored and cleaned up asset exclusion.
+- Fixed issues with asset retrieval through Lime on HTML5.
+- Fixed the `list()` function implementation to make it more consistent with Lime's behavior.
+- Fixed an issue where attempting to list assets from a specific library would display all assets from all libraries instead.
+- Resolve a build error `Type not found: T` caused by not properly deparameterizing scripted class types. () - by @Geokureli in [#178]
+- `PolymodScriptClass.className` now returns a properly formatted value. () - by @cyn0x8 in [#202]
+- Fix an issue where `DefineUtil.getDefineBool` would always return false, even if a different default value was provided. () - by @NotHyper-474 in [#208]
 
 # [1.8.0] - 2024-07-26
 The version is the result of resolving practical needs that arose from using Polymod with [Friday Night Funkin'](https://github.com/FunkinCrew/Funkin) over the past year and a half!
