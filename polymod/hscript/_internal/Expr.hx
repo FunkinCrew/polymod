@@ -26,7 +26,7 @@ enum Const
 {
   CInt(v:Int);
   CFloat(f:Float);
-  CString(s:String);
+  CString(s:String, ?interpolated:Bool);
 }
 
 #if hscriptPos

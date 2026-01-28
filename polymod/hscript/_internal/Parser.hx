@@ -46,6 +46,15 @@ enum Token
   TPrepro(s:String);
 }
 
+// NOTE: Refers to string interpolation
+private enum InterpState
+{
+  Literal;
+  Interp;
+  Ident;
+  Expr(depth:Int, inQuote:Bool, ?quoteChar:Int);
+}
+
 class Parser
 {
   // config / variables
@@ -402,6 +411,12 @@ class Parser
         if (e == null) e = mk(EIdent(id));
         return parseExprNext(e);
       case TConst(c):
+        switch (c)
+        {
+          case CString(s, true):
+            return parseExprNext(interpolate(s));
+          default: // Fallback
+        }
         return parseExprNext(mk(EConst(c)));
       case TPOpen:
         tk = token();
@@ -1277,6 +1292,7 @@ class Parser
     readPos = 0;
     allowTypes = true;
     allowMetadata = true;
+    allowJSON = true;
     var decls = [];
     while (true)
     {
@@ -1585,11 +1601,15 @@ class Parser
     return StringTools.fastCodeAt(input, readPos++);
   }
 
-  function readString(until)
+  function readString(until):Const
   {
     var c = 0;
     var b = new StringBuf();
     var esc = false;
+    var interps = false;
+    var maybe = false;
+    var exprDepth = 0;
+    var qt = [false];
     var old = line;
     var s = input;
     #if hscriptPos
@@ -1651,14 +1671,195 @@ class Parser
         }
       }
       else if (c == 92) esc = true;
-      else if (c == until) break;
       else
       {
-        if (c == 10) line++;
+        if (c == until)
+        {
+          if (!interps || (!qt[exprDepth] && exprDepth == 0)) break;
+          qt[exprDepth] = !qt[exprDepth];
+        }
+
+        switch (c)
+        {
+          case 123 if (interps && maybe && !qt[exprDepth]):
+            qt[++exprDepth] = false;
+            maybe = false;
+          case 125 if (!qt[exprDepth] && exprDepth > 0):
+            exprDepth--;
+          case 36 if (until == 39):
+            interps = maybe = true;
+          case 10:
+            line++;
+          default:
+            maybe = false;
+        }
         b.addChar(c);
       }
     }
-    return b.toString();
+    return CString(b.toString(), interps);
+  }
+
+  function interpolate(str:String):Expr
+  {
+    var b:StringBuf = new StringBuf();
+    var parts:Array<Expr> = [];
+    var state:InterpState = Literal;
+    #if hscriptPos
+    var p1:Int = tokenMin;
+    #end
+
+    inline function pushBuf(i:Int)
+    {
+      if (b.length == 0) return;
+      parts.push(mk(EConst(CString(b.toString())), p1 + i - b.length, p1 + i));
+      b = new StringBuf();
+    }
+
+    inline function pushBufId(i:Int)
+    {
+      parts.push(mk(EIdent(b.toString()), p1 + i - b.length, p1 + i));
+      b = new StringBuf();
+    }
+
+    for (i in 0...str.length)
+    {
+      var c = StringTools.fastCodeAt(str, i);
+
+      switch (state)
+      {
+        case Literal:
+          if (c == '$'.code)
+          {
+            pushBuf(i);
+            state = Interp;
+            continue;
+          }
+        case Interp:
+          if (c == '{'.code)
+          {
+            state = Expr(1, false);
+            continue;
+          }
+          else if (idents[c])
+          {
+            state = Ident;
+          }
+          else
+          {
+            state = Literal;
+            if (c != '$'.code)
+            {
+              b.addChar('$'.code);
+            }
+          }
+        case Expr(depth, inQuote, quoteChar):
+          // Unlike readString, we don't care if we find a nested interpolated string
+          // we just assume parseString will recursively take care of it instead.
+
+          if (c == '"'.code || c == "'".code)
+          {
+            if (inQuote && c == quoteChar)
+            {
+              quoteChar = null;
+              inQuote = false;
+            }
+            else
+            {
+              quoteChar = c;
+              inQuote = true;
+            }
+
+            state = Expr(depth, inQuote, quoteChar);
+          }
+
+          if (c == '{'.code && !inQuote)
+          {
+            state = Expr(depth + 1, false, quoteChar);
+          }
+          else if (c == '}'.code && !inQuote)
+          {
+            if (depth-- > 1)
+            {
+              state = Expr(depth, inQuote, quoteChar);
+            }
+            else
+            {
+              if (b.length == 0)
+              {
+                error(ECustom('Expression cannot be empty'), p1 + i, p1 + i);
+              }
+
+              var oldInput:String = input;
+              var oldPos:Int = readPos;
+              var oldOffset:Int = offset;
+              var oldTokenMin:Int = tokenMin;
+              var oldTokenMax:Int = tokenMax;
+
+              parts.push(parseString('(${b.toString()})' #if hscriptPos, origin, p1 + i - b.length #end));
+
+              input = oldInput;
+              readPos = oldPos;
+              offset = oldOffset;
+              tokenMin = oldTokenMin;
+              tokenMax = oldTokenMax;
+              char = -1;
+
+              b = new StringBuf();
+              state = Literal;
+              continue;
+            }
+          }
+        case Ident:
+          if (!idents[c])
+          {
+            pushBufId(i);
+            state = Literal;
+          }
+      }
+      b.addChar(c);
+    }
+
+    switch (state)
+    {
+      case Literal:
+        pushBuf(str.length);
+      case Interp:
+        b.addChar('$'.code);
+        pushBuf(str.length);
+      case Expr(_, _, _):
+        error(EUnterminatedString, p1 + str.length, p1 + str.length);
+      case Ident:
+        pushBufId(str.length);
+    }
+
+    if (parts.length == 0) return mk(EConst(CString(str)));
+    else if (parts.length == 1)
+    {
+      function stringEnforceCheck(e:Expr)
+      {
+        switch (Tools.expr(e))
+        {
+          case EParent(e):
+            stringEnforceCheck(e);
+          case EBlock(e) if (e.length == 1):
+            stringEnforceCheck(e[0]);
+          case EConst(CString(_, _)): // No need to do anything.
+          default:
+            // Make sure it gets interpreted as a string
+            parts.unshift(mk(EConst(CString(''))));
+        }
+      }
+
+      stringEnforceCheck(parts[0]);
+    }
+
+    var ef:Expr = parts[0];
+    for (i in 1...parts.length)
+    {
+      ef = makeBinop('+', ef, parts[i]);
+    }
+
+    return ef;
   }
 
   function token()
@@ -1824,7 +2025,7 @@ class Parser
         case "]".code:
           return TBkClose;
         case "'".code, '"'.code:
-          return TConst(CString(readString(char)));
+          return TConst(readString(char));
         case "?".code:
           char = readChar();
           if (char == ".".code) return TQuestionDot;
