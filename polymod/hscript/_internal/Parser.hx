@@ -1553,7 +1553,10 @@ class Parser
     if (maybe(TPOpen))
     {
       while (!maybe(TPClose))
+      {
+        if (args.length > 0) ensure(TComma);
         args.push(parseEnumArg());
+      }
     }
 
     return {
