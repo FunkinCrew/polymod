@@ -114,6 +114,39 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
 		return resolveField(name);
 	}
 
+	public function fieldExists(name:String):Bool {
+		final KNOWN_FIELDS:Array<String> = [
+			"superClass", "createSuperClass", "findFunction", "callFunction"
+		];
+		if (KNOWN_FIELDS.contains(name)) return true;
+
+		// Check the script.
+
+		if (this.findFunction(name) != null) return true;
+		if (this.findVar(name) != null) return true;
+
+		// Else, we have to query the superclass.
+
+		if (this.superClass == null) return false;
+
+		// Anonymous structure
+		if (Type.getClass(this.superClass) == null) {
+			return Reflect.hasField(this.superClass, name);
+		}
+
+		// Scripts extending scripts
+		if (Std.isOfType(this.superClass, PolymodScriptClass)) {
+			var superScriptClass:PolymodAbstractScriptClass = cast(this.superClass, PolymodScriptClass);
+			// Yay recursion!
+			return superScriptClass.fieldExists(name);
+		}
+
+		// Script extends a class object, use standard reflection
+		if (hasClassObjectField(this.superClass, name)) return true;
+
+		return false;
+	}
+
 	@:op(a.b) public function fieldWrite(name:String, value:Dynamic):Dynamic
 	{
 		switch (name)
@@ -212,6 +245,15 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
 			Reflect.setProperty(o, field, value);
 			return true;
 		}
+		return false;
+	}
+
+	private static function hasClassObjectField(o:Dynamic, field:String):Bool
+	{
+		var fields = retrieveClassObjectFields(o);
+		if (fields.contains(field) || fields.contains('get_$field') || fields.contains('set_$field'))
+			return true;
+
 		return false;
 	}
 }
