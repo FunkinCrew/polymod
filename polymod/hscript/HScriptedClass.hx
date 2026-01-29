@@ -69,7 +69,7 @@ interface HScriptedClass
 	// public function scriptCall(funcName:String, funcArgs:Array<Dynamic>):Dynamic;
 
 	/**
-	 * Returns the value of a custom instancefield of the scripted class, by the given name.
+	 * Returns the value of a custom instance field of the scripted class, by the given name.
 	 * 
 	 * @param fieldName The name of the field to return.
 	 * @return The value of the field, if any.
@@ -84,4 +84,12 @@ interface HScriptedClass
 	 * @return The newly set value.
 	 */
 	// public function scriptSet(fieldName:String, value:Dynamic):Dynamic;
+
+	/**
+	 * Returns whether the field exists on a scripted class (or its superclass).
+	 * 
+	 * @param fieldName The name of the field to query.
+	 * @return Whether the field exists.
+	 */
+	// public function scriptHas(fieldName:String):Bool;
 }
