@@ -265,7 +265,7 @@ class PolymodScriptClassMacro
                     pos: Context.currentPos(),
                     name: fieldName,
                     access: [Access.APublic, Access.AStatic],
-                    kind: FProp(canGet ? 'get' : 'never', canSet ? 'set' : 'never', Context.toComplexType(field.type), null)
+                    kind: FProp(canGet ? 'get' : 'never', canSet ? 'set' : 'never', (macro: Dynamic), null)
                   });
 
                 if (canGet)
@@ -282,7 +282,7 @@ class PolymodScriptClassMacro
                           expr: macro
                           {
                             @:privateAccess
-                            return ${Context.parse(abstractPath + '.' + field.name, Context.currentPos())};
+                            return ${fieldExpr};
                           }
                         })
                     });
@@ -303,7 +303,7 @@ class PolymodScriptClassMacro
                           expr: macro
                           {
                             @:privateAccess
-                            return ${Context.parse(abstractPath + '.' + field.name, Context.currentPos())} = value;
+                            return ${fieldExpr} = value;
                           }
                         })
                     });
