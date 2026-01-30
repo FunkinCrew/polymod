@@ -179,8 +179,6 @@ class PolymodScriptClassMacro {
 					for (field in abstractImplType.statics.get()) {
 						switch (field.kind) {
 							case FVar(read, write):
-								trace(field.name, read, write);
-
 								var canGet:Bool = read == AccInline || read == AccNormal;
 								if (read == AccCall) {
 									var getter:Null<ClassField> = null;
@@ -239,8 +237,19 @@ class PolymodScriptClassMacro {
 									pos: Context.currentPos(),
 									name: fieldName,
 									access: [Access.APublic, Access.AStatic],
-									kind: FProp(canGet ? 'get' : 'never', canSet ? 'set' : 'never', Context.toComplexType(field.type), null)
+									kind: FProp(canGet ? 'get' : 'never', canSet ? 'set' : 'never', (macro: Dynamic), null)
 								});
+
+								var fieldExpr:Expr = null;
+								try {
+									// when this fails, this should mean that we are dealing with an enum abstract
+									// so we need to handle it differently
+									var fullPath:String = '${abstractType.module}.${abstractType.name}';
+									Context.getType(fullPath);
+									fieldExpr = Context.parse('${fullPath}.${field.name}', Context.currentPos());
+								} catch (_) {
+									fieldExpr = Context.getTypedExpr(field.expr());
+								}
 
 								if (canGet) {
 									fields.push({
@@ -252,7 +261,7 @@ class PolymodScriptClassMacro {
 											ret: null,
 											expr: macro {
 												@:privateAccess
-												return ${Context.parse(abstractPath + '.' + field.name, Context.currentPos())};
+												return ${fieldExpr};
 											}
 										})
 									});
@@ -268,7 +277,7 @@ class PolymodScriptClassMacro {
 											ret: null,
 											expr: macro {
 												@:privateAccess
-												return ${Context.parse(abstractPath + '.' + field.name, Context.currentPos())} = value;
+												return ${fieldExpr} = value;
 											}
 										})
 									});
