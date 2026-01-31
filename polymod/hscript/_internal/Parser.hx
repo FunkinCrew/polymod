@@ -1197,6 +1197,16 @@ class Parser
         while (true)
         {
           t = token();
+
+          // Skip modifiers to allow vars in typedefs to be parsed without issues
+          // Only handle field access when it gets implemented
+          switch(t)
+          {
+            case TId("public"), TId("private"):
+              t = token();
+            default:
+          }
+
           switch (t)
           {
             case TBrClose: break;
