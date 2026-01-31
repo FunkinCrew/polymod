@@ -1,11 +1,11 @@
 {
-	"title":"Sunflower",
-	"description":"This mod has a sunflower",
-	"author":"Lars A. Doucet",
-	"api_version":"1.1.1",
-	"mod_version":"1.0.0",
-	"dependencies": {
-		"mod1": "1.*"
-	},
-	"license":"CC BY 4.0,MIT"
+  "title": "Sunflower",
+  "description": "This mod has a sunflower",
+  "author": "Lars A. Doucet",
+  "api_version": "1.1.1",
+  "mod_version": "1.0.0",
+  "dependencies": {
+    "mod1": "1.*"
+  },
+  "license": "CC BY 4.0,MIT"
 }

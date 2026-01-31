@@ -105,7 +105,7 @@ A mod can add a completely new locale to an existing application which utilizes 
 <data>
     <data>
         <merge/>
-        <locale id="en-US" is_default="true" sort="0">	
+        <locale id="en-US" is_default="true" sort="0">
 	      	<contributors value="Lars Doucet, Level Up Labs"/>
 	      	<ui language="Language" region="Region" accept="Okay" />
 	      	<label id="en-US,en-GB,en-CA" language="English" region="United States"/>

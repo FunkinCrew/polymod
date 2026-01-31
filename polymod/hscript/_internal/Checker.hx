@@ -570,7 +570,8 @@ class Checker
         if (t.name == "hscript.TypeCheck") typeStr(args[1]); else t.name + makeArgs(args);
       case TAbstract(a, args): a.name + makeArgs(args);
       case TFun(args, ret): "(" + [
-          for (a in args) (a.opt ? "?" : "") + (a.name == "" ? "" : a.name + ":") + typeStr(a.t)
+          for (a in args)
+            (a.opt ? "?" : "") + (a.name == "" ? "" : a.name + ":") + typeStr(a.t)
         ].join(", ") + ") -> " + typeStr(ret);
       case TAnon(fields): "{" + [for (f in fields) (f.opt ? "?" : "") + f.name + ":" + typeStr(f.t)].join(", ") + "}";
       case TParam(name): name;

@@ -1,8 +1,8 @@
 {
-	"title":"Car Skin",
-	"description":"This mod reskins the car from the Advanced stage",
-	"author":"Eric",
-	"api_version":"0.1.0",
-	"mod_version":"1.0.0-alpha",
-	"license":"CC BY 4.0,MIT"
+  "title": "Car Skin",
+  "description": "This mod reskins the car from the Advanced stage",
+  "author": "Eric",
+  "api_version": "0.1.0",
+  "mod_version": "1.0.0-alpha",
+  "license": "CC BY 4.0,MIT"
 }

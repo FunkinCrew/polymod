@@ -45,20 +45,19 @@ class PolymodEnum
   private function getField(name:String):Null<EnumFieldDecl>
   {
     for (field in _e.fields)
+    {
+      if (field.name == name)
       {
-        if (field.name == name)
-        {
-          return field;
-        }
+        return field;
       }
-      return null;
+    }
+    return null;
   }
 
   public function toString():String
   {
     var result:String = '${_e.name}.${_value}';
-    if(_args.length > 0)
-      result += '(${_args.join(',')})';
+    if (_args.length > 0) result += '(${_args.join(',')})';
     return result;
   }
 }

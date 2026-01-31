@@ -1,15 +1,15 @@
 {
-	"version": "0.2.0",
-	"configurations": [
-        {
-            "name": "HashLink",
-            "request": "launch",
-            "type": "hl",
-            "cwd": "${workspaceFolder}",
-            "preLaunchTask": {
-                "type": "haxe",
-                "args": "active configuration"
-            }
-        }
-	]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "HashLink",
+      "request": "launch",
+      "type": "hl",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": {
+        "type": "haxe",
+        "args": "active configuration"
+      }
+    }
+  ]
 }

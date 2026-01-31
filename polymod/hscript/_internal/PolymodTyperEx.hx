@@ -31,14 +31,13 @@ class PolymodTyperEx extends Typer
     aliasPaths = new Map<String, String>();
     for (k => imp in PolymodScriptClass.importOverrides)
     {
-      if (imp == null)
-        blacklistImports.push(k);
+      if (imp == null) blacklistImports.push(k);
       else
         aliasPaths.set(k, Type.getClassName(imp));
     }
     for (k => imp in PolymodScriptClass.abstractClassImpls)
     {
-			aliasPaths.set(k, Type.getClassName(imp));
+      aliasPaths.set(k, Type.getClassName(imp));
     }
 
     defaultImports = new Map<String, CType>();

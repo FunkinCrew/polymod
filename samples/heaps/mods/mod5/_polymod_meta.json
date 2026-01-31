@@ -1,8 +1,8 @@
 {
-	"title":"Chocolate",
-	"description":"This mod has some chocolate",
-	"author":"Lars A. Doucet",
-	"api_version":"0.1.0",
-	"mod_version":"1.0.0-alpha",
-	"license":"CC BY 4.0,MIT"
+  "title": "Chocolate",
+  "description": "This mod has some chocolate",
+  "author": "Lars A. Doucet",
+  "api_version": "0.1.0",
+  "mod_version": "1.0.0-alpha",
+  "license": "CC BY 4.0,MIT"
 }

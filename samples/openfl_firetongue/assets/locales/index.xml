@@ -1,32 +1,27 @@
-<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8"?>
 <data>
-	
-	<file id="data" value="data.tsv"/>
-  <file id="mod" value="mod.tsv"/>
-	
+	<file id="data" value="data.tsv" />
+	<file id="mod" value="mod.tsv" />
 	<!--Add locale entries here.
-	
+
 	The locale id is the ISO 639-1 country language code with 2-letter country suffix:
 	http://en.wikipedia.org/wiki/ISO_639-1
-	
+
 	1) Add the locale entry
 	2) Add a corresponding folder with localization content matching the id
 	3) Add a corresponding flag image in the _flags folder matching the id
 	4) Add any labels you want to display the language text in the menu
 	-->
-	
 	<!--American English-->
 	<locale id="en-US" is_default="true" sort="0">
 		<ui language="Language" region="Region" accept="Okay" />
-		<label id="en-US,en-GB,en-CA" language="English" region="United States"/>
-		<label id="yr-HR" language="American English" region="Uni'ed States o' 'merica"/>
+		<label id="en-US,en-GB,en-CA" language="English" region="United States" />
+		<label id="yr-HR" language="American English" region="Uni'ed States o' 'merica" />
 	</locale>
-	
 	<!--Pirate Speak-->
-	<locale id="yr-HR" sort="1"> 
-		<ui language="Tongue" region="Stretch o' Ocean"/>
-		<label id="en-US,en-GB,en-CA" language="Pirate Speak" region="Seven Seas"/>
-		<label id="yr-HR" language="Pirate Speak, Matey" region="Seven Seas"/>
+	<locale id="yr-HR" sort="1">
+		<ui language="Tongue" region="Stretch o' Ocean" />
+		<label id="en-US,en-GB,en-CA" language="Pirate Speak" region="Seven Seas" />
+		<label id="yr-HR" language="Pirate Speak, Matey" region="Seven Seas" />
 	</locale>
-	
 </data>

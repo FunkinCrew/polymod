@@ -26,7 +26,7 @@ The version is the result of resolving practical needs that arose from using Pol
 - Added the config option `frameworkParams.coreAssetRedirect` which lets you use another directory as your primary `assets/` folder.
   - This is useful if you are hot reloading scripts or other data files!
 - Added the `loadScriptsAsync` parameter to `Polymod.init()` to load scripted classes asynchronously.
-- Reworked `_append` and `_merge` functionality for JSON. 
+- Reworked `_append` and `_merge` functionality for JSON.
   - `_append` now adds the keys of the provided JSON to the target JSON.
   - `_merge` now utilizes a [JSONPatch](https://jsonpatch.com/) file to modify the target JSON with operations.
     - This implementation of JSONPatch has been modified to allow for [JSONPath](https://goessner.net/articles/JsonPath/) strings in the `path` argument.
@@ -228,7 +228,7 @@ Version 1.4.2 includes a large number of bug fixes and tweaks to improve reliabi
   - These convenience functions perform the proper steps to reload Polymod. Note you may need to call `clearCache()` depending on your framework and your app's current state.
   - `loadMod()` and `loadMods()` enables an individual (or multiple) mods, by re-initializing the framework with the appropriate mods enabled.
   - `unloadMod()` and `unloadMods()` disables an individual (or multiple) mods, by re-initializing the framework with the appropriate mods disabled.
-  - `unloadAllMods()` disables all mods, by re-initializing the framework with no mods enabled. 
+  - `unloadAllMods()` disables all mods, by re-initializing the framework with no mods enabled.
     - Localized asset replacements will still work, but no user-defined mods will be loaded.
   - `disable()` fully disables Polymod, destroying the asset handler.
     - Neither user-defined mods nor localized asset replacements will work until you call `init()` again.
@@ -285,7 +285,7 @@ This release marks the migration of the project documentation to [polymod.io](ht
   - Added `FLIXEL` as a Framework value to manually select this backend.
   - Updated the framework detector to use the `FlixelBackend` over the `OpenFLBackend` when HaxeFlixel is being used.
 - Added a new function, `Polymod.clearCache()`, which triggers the backend to clear any cached assets from memory.
-  - This is useful if you want to ensure assets reload after a modlist or locale change. 
+  - This is useful if you want to ensure assets reload after a modlist or locale change.
 - Improved the Mod Metadata format with new and useful attributes.
   - These changes are backwards compatible; new fields are optional, and changed fields still support the existing format.
   - Added the `homepage` attribute to allow mods to provide a URL.

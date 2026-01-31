@@ -1,42 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <project>
 	<!-- NMML reference: https://gist.github.com/1763850 -->
-	
 	<!-- metadata, make sure 'package' is at least 3 segments (ie. com.mycompany.myproject) -->
 	<meta title="OpenFLSample" package="OpenFLSample" version="1.0.0" company="" />
-	
 	<!-- output -->
 	<app main="demo.Main" file="OpenFLSample" path="bin" />
-	
 	<window background="#008800" fps="60" />
 	<window width="800" height="480" unless="mobile" />
 	<window orientation="landscape" vsync="false" antialiasing="0" if="cpp" />
-	
 	<!-- classpath, haxe libs -->
 	<source path="src" />
 	<haxelib name="openfl" />
 	<haxelib name="polymod" />
-	<haxelib name="hscript"/>
-	
-  <haxeflag name="--dce no" />
-
+	<haxelib name="hscript" />
+	<haxeflag name="--dce no" />
 	<!-- assets -->
 	<icon path="assets/openfl.svg" />
 	<assets path="assets/img" rename="img" />
 	<assets path="assets/data" rename="data" />
-	
 	<!-- Settings for Polymod -->
-  <haxedef name="POLYMOD_SCRIPT_EXT"
-           value=".txt" /> <!-- You should probably change this to ".hscript" -->
-  <haxedef name="POLYMOD_DEBUG" value="true" />
-  <haxedef name="POLYMOD_SCRIPT_LIBRARY"
-           value="default" />
-  <haxedef name="POLYMOD_USE_NAMESPACE"
-           value="true" />
-  <haxedef name="POLYMOD_ROOT_PATH" value="data/scripts/" />
-
-
-  <!-- 
+	<haxedef name="POLYMOD_SCRIPT_EXT" value=".txt" /> <!-- You should probably change this to ".hscript" -->
+	<haxedef name="POLYMOD_DEBUG" value="true" />
+	<haxedef name="POLYMOD_SCRIPT_LIBRARY" value="default" />
+	<haxedef name="POLYMOD_USE_NAMESPACE" value="true" />
+	<haxedef name="POLYMOD_ROOT_PATH" value="data/scripts/" />
+	<!--
     There is a work in process function to make classes work in scripts.
     To use classes in scripts, enable this option.
   -->

@@ -26,8 +26,8 @@ The available options are:
 - `POLYMOD_SCRIPT_LIBRARY`: The asset library to load scripts from.
     - Defaults to `default`.
     - Only relevant for Lime and OpenFL/HaxeFlixel projects which utilize multiple asset libraries.
-- `POLYMOD_API_VERSION_MATCH`: Determines the precision required for 
-    - Possible values are `NONE` (no version matching required), `MATCH_MAJOR` (major version must match), `MATCH_MINOR` (major and minor version must match), or `MATCH_PATCH` (major, minor, and patch version must match). 
+- `POLYMOD_API_VERSION_MATCH`: Determines the precision required for
+    - Possible values are `NONE` (no version matching required), `MATCH_MAJOR` (major version must match), `MATCH_MINOR` (major and minor version must match), or `MATCH_PATCH` (major, minor, and patch version must match).
     - Defaults to `MATCH_PATCH`.
     - The default option is in place for compatibility reasons, you'll probably want to change it to `MATCH_MINOR` or higher.
 - `POLYMOD_APPEND_FOLDER`: Set this value to change the directory which append files are read from.
@@ -40,7 +40,7 @@ The available options are:
     - Defaults to `_polymod_pack.txt`
 - `POLYMOD_MOD_ICON_FILE`: Set this value to change the file Polymod uses for mod icons.
     - Defaults to `_polymod_icon.png`
-- `POLYMOD_MOD_IGNORE`: Set this value to change the list of files which Polymod ignores when loading mods. 
+- `POLYMOD_MOD_IGNORE`: Set this value to change the list of files which Polymod ignores when loading mods.
     - Use a comma separated list of file names.
     - Defaults to `LICENSE.txt,ASSET_LICENSE.txt,CODE_LICENSE.txt`
 
@@ -89,17 +89,17 @@ Polymod.init({
      * This lets you enforce a modding API for your application.
      * Any mod which is not compatible will gracefully fail to load, allowing you to notify the user that the mod needs to be updated.
      * Note that for a mod to be compatible, it must match in both major, minor, AND patch versions.
-     * 
+     *
      * You should set this to a reasonable value early on, then update it whenever you change how mods interact with your application,
      * including when you change directory structures or modify scripts in a way that introduces breaking changes.
-     * 
+     *
      * @see https://semver.org/
      */
     apiVersion: "1.0.0",
 
     /**
      * (optional) A function which takes a `PolymodError` as an argument.
-     * 
+     *
      * This is called whenever an error occurs within Polymod; if you do not provide a function to call here,
      * any failures will happen silently.
      */
@@ -107,7 +107,7 @@ Polymod.init({
 
     /**
      * (optional) Allows you to ensure a specific version of a mod is loaded by Polymod.
-     * 
+     *
      * If this array is provided, Polymod will check to see if each mod you attempt to load matches a particular version
      * (as in the mod's own version, not your game/app's modding API version).
      * If any of the mods aren't compatible with the specified version numbers,`errorCallback` will receive a `PARAM_MOD_VERSIONS` error.

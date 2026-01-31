@@ -1,13 +1,13 @@
 {
-	"search.exclude": {
-		"export/**/*.hx": true
-	},
-	"[haxe]": {
-		"editor.formatOnSave": true,
-		"editor.formatOnPaste": true,
-		"editor.codeActionsOnSave": {
-			"source.sortImports": true
-		}
-	},
-	"haxe.enableExtendedIndentation": true
+  "search.exclude": {
+    "export/**/*.hx": true
+  },
+  "[haxe]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
+    "editor.codeActionsOnSave": {
+      "source.sortImports": true
+    }
+  },
+  "haxe.enableExtendedIndentation": true
 }

@@ -1,15 +1,13 @@
-<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8"?>
 <data>
-
 	<!--Add pt-BR to American English-->
 	<locale>
-    <merge key="id" value="en-US"/>
-    <label id="pt-BR" language="Inglês" region="Estados Unidos"/>
+		<merge key="id" value="en-US" />
+		<label id="pt-BR" language="Inglês" region="Estados Unidos" />
 	</locale>
-
 	<!--Add pt-BR to American English-->
 	<locale>
-    <merge key="id" value="yr-HR"/>
-    <label id="pt-BR" language="Fala Pirata" region="Sete Mares"/>
+		<merge key="id" value="yr-HR" />
+		<label id="pt-BR" language="Fala Pirata" region="Sete Mares" />
 	</locale>
 </data>
