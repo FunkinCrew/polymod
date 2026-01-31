@@ -1,11 +1,11 @@
 if(flower.cooldown > 0)
 {
     flower.cooldown -= elapsed;
-    
+
     var p = (flower.maxCooldown-flower.cooldown)/flower.maxCooldown;
-    
+
     flower.alpha = 0.10 + (0.75 * p);
-    
+
     if(flower.cooldown <= 0)
     {
         flower.cooldown = 0;

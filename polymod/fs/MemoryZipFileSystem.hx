@@ -15,16 +15,16 @@ import polymod.util.Util;
 #if !html5
 class MemoryZipFileSystem extends StubFileSystem
 {
-	public function new(params:ZipFileSystemParams)
-	{
-		super(params);
-		Polymod.warning(FUNCTIONALITY_NOT_IMPLEMENTED, "This file system not supported for this platform, and is only intended for use in html5");
-	}
+  public function new(params:ZipFileSystemParams)
+  {
+    super(params);
+    Polymod.warning(FUNCTIONALITY_NOT_IMPLEMENTED, "This file system not supported for this platform, and is only intended for use in html5");
+  }
 
-	public function addZipFile(zipName:String, zipBytes:Bytes)
-	{
-		Polymod.warning(FUNCTIONALITY_NOT_IMPLEMENTED, "This file system not supported for this platform, and is only intended for use in html5");
-	}
+  public function addZipFile(zipName:String, zipBytes:Bytes)
+  {
+    Polymod.warning(FUNCTIONALITY_NOT_IMPLEMENTED, "This file system not supported for this platform, and is only intended for use in html5");
+  }
 }
 #else
 
@@ -35,76 +35,75 @@ class MemoryZipFileSystem extends StubFileSystem
  */
 class MemoryZipFileSystem extends MemoryFileSystem
 {
-	var pathIsCompressed:Map<String, Bool>;
+  var pathIsCompressed:Map<String, Bool>;
 
-	public function new(params:ZipFileSystemParams)
-	{
-		super(params);
-		pathIsCompressed = new Map();
-	}
+  public function new(params:ZipFileSystemParams)
+  {
+    super(params);
+    pathIsCompressed = new Map();
+  }
 
-	#if debug
-	/**
-	 * Prints the metadata of a ZIP file entry. Used for debugging.
-	 */
-	function printEntry(e:haxe.zip.Entry)
-	{
-		Polymod.debug('
-			datasize: ${e.dataSize},
-			data: ${e.data.length},
-			crc32: ${e.crc32},
-			filename: ${e.fileName},
-			filesize: ${e.fileSize}
-			fileTime: ${e.fileTime},
-			compressed: ${e.compressed},
-			extraFields: ${e.extraFields.toString()}');
-	}
-	#end
+  #if debug
+  /**
+   * Prints the metadata of a ZIP file entry. Used for debugging.
+   */
+  function printEntry(e:haxe.zip.Entry)
+  {
+    Polymod.debug('
+      datasize: ${e.dataSize},
+      data: ${e.data.length},
+      crc32: ${e.crc32},
+      filename: ${e.fileName},
+      filesize: ${e.fileSize}
+      fileTime: ${e.fileTime},
+      compressed: ${e.compressed},
+      extraFields: ${e.extraFields.toString()}');
+  }
+  #end
 
-	/**
-	 * Extracts the contents of a zip file (provided as bytes) and stores the contents in the MemoryFileSystem.
-	 * 
-	 * @see https://github.com/HaxeFoundation/haxe.org-comments/issues/41#issuecomment-845576836
-	 */
-	public function addZipFile(zipName:String, zipBytes:Bytes)
-	{
-		var bytesInput = new haxe.io.BytesInput(zipBytes);
-		var reader = new haxe.zip.Reader(bytesInput);
+  /**
+   * Extracts the contents of a zip file (provided as bytes) and stores the contents in the MemoryFileSystem.
+   *
+   * @see https://github.com/HaxeFoundation/haxe.org-comments/issues/41#issuecomment-845576836
+   */
+  public function addZipFile(zipName:String, zipBytes:Bytes)
+  {
+    var bytesInput = new haxe.io.BytesInput(zipBytes);
+    var reader = new haxe.zip.Reader(bytesInput);
 
-		var modId = Path.withoutExtension(zipName);
+    var modId = Path.withoutExtension(zipName);
 
-		// Read the zip file entries.
-		var entries:List<haxe.zip.Entry> = reader.read();
-		for (zipEntry in entries)
-		{
-			var entryData = zipEntry.data; // we'll store the data in compressed form and decompress it when getFileBytes is called
-			if (zipEntry.fileName.substring(zipEntry.fileName.lastIndexOf('/') + 1) == '' && zipEntry.data.toString() == '')
-			{
-				// This is a directory entry.
-			}
-			else
-			{
-				// This is a file entry! Register it in the MemoryFileSystem.
-				var filePath = haxe.io.Path.join([this.modRoot, modId, zipEntry.fileName]);
-				addFileBytes(filePath, entryData);
-				pathIsCompressed.set(filePath, zipEntry.compressed);
-			}
-		}
-	}
+    // Read the zip file entries.
+    var entries:List<haxe.zip.Entry> = reader.read();
+    for (zipEntry in entries)
+    {
+      var entryData = zipEntry.data; // we'll store the data in compressed form and decompress it when getFileBytes is called
+      if (zipEntry.fileName.substring(zipEntry.fileName.lastIndexOf('/') + 1) == '' && zipEntry.data.toString() == '')
+      {
+        // This is a directory entry.
+      }
+      else
+      {
+        // This is a file entry! Register it in the MemoryFileSystem.
+        var filePath = haxe.io.Path.join([this.modRoot, modId, zipEntry.fileName]);
+        addFileBytes(filePath, entryData);
+        pathIsCompressed.set(filePath, zipEntry.compressed);
+      }
+    }
+  }
 
-	override function getFileBytes(path:String):Bytes
-	{
-		var compressedBytes = super.getFileBytes(path);
+  override function getFileBytes(path:String):Bytes
+  {
+    var compressedBytes = super.getFileBytes(path);
 
-		if (pathIsCompressed.get(path) != null && pathIsCompressed.get(path))
-			return Util.unzipBytes(compressedBytes);
+    if (pathIsCompressed.get(path) != null && pathIsCompressed.get(path)) return Util.unzipBytes(compressedBytes);
 
-		return compressedBytes; // if it wasn't actually compressed
-	}
+    return compressedBytes; // if it wasn't actually compressed
+  }
 
-	public override function getMetadata(modId:String)
-	{
-		return super.getMetadata(modId);
-	}
+  public override function getMetadata(modId:String)
+  {
+    return super.getMetadata(modId);
+  }
 }
 #end

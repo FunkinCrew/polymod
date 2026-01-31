@@ -1,6 +1,6 @@
-<?xml version="1.0" encoding="utf-8" ?>  
-<data>  
+<?xml version="1.0" encoding="utf-8"?>
+<data>
 	<object value="hibiscus">
-		<merge key="id" id="2"/>
+		<merge key="id" id="2" />
 	</object>
-</data>  
+</data>

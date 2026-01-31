@@ -1,3 +1,1 @@
-[
-    { "op": "replace", "path": "/nested/object/array", "value": ["foo"] }
-]
+[{ "op": "replace", "path": "/nested/object/array", "value": ["foo"] }]

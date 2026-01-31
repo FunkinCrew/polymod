@@ -1,22 +1,22 @@
 {
-	"version": "0.2.0",
-	"configurations": [
-		{
-			"name": "Build + Debug",
-			"type": "lime",
-			"request": "launch"
-		},
-		{
-			"name": "Debug",
-			"type": "lime",
-			"request": "launch",
-			"preLaunchTask": null
-		},
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Build + Debug",
+      "type": "lime",
+      "request": "launch"
+    },
+    {
+      "name": "Debug",
+      "type": "lime",
+      "request": "launch",
+      "preLaunchTask": null
+    },
     {
       // Evaluate macros with debugging enabled
       "name": "Haxe Eval",
       "type": "haxe-eval",
       "request": "launch"
-    },
-	]
+    }
+  ]
 }

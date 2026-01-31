@@ -10,9 +10,9 @@
       "request": "launch"
     },
     {
-			"name": "Haxe Interpreter",
-			"type": "haxe-eval",
-			"request": "launch"
-		}
+      "name": "Haxe Interpreter",
+      "type": "haxe-eval",
+      "request": "launch"
+    }
   ]
 }

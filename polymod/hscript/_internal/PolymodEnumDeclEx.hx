@@ -4,7 +4,7 @@ import polymod.hscript._internal.Expr;
 
 typedef PolymodEnumDeclEx =
 {
-    > EnumDecl,
+  > EnumDecl,
 
-    @:optional var pkg:Array<String>;
+  @:optional var pkg:Array<String>;
 }

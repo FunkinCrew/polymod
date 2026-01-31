@@ -384,7 +384,8 @@ class JsInterp extends Interp
         return fstr;
       case ESwitch(e, cases, defaultExpr):
         var checks = [
-          for (c in cases) 'if( ${[for( v in c.values ) '$$v == ${exprValue(v)}'].join(" || ")} ) return ${exprValue(handleRBC(c.expr))};'
+          for (c in cases)
+            'if( ${[for( v in c.values ) '$$v == ${exprValue(v)}'].join(" || ")} ) return ${exprValue(handleRBC(c.expr))};'
         ];
         if (defaultExpr != null) checks.push('return ' + exprValue(defaultExpr));
         return '(($$v) => { ${[for (c in checks) c + ";"].join(" ")} })(${exprValue(e)})';

@@ -258,7 +258,7 @@ class PlayState extends FlxState
 	private function loadMods(dirs:Array<String>)
 	{
 		trace('Loading mods: ${dirs}');
-		
+
 		var modDir:String = '../../../mods';
 		#if mac
 		// account for <APPLICATION>.app/Contents/Resources

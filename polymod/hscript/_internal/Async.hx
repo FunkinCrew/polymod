@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package polymod.hscript._internal;
 
 import polymod.hscript._internal.Expr;
@@ -40,14 +41,18 @@ class Async
 
   public var asyncIdents:Map<String, Bool>;
 
-  static var nullExpr:Expr = #if hscriptPos
+  static var nullExpr:Expr =
+    #if hscriptPos
     {
       e: null,
       pmin: 0,
       pmax: 0,
       origin: "<null>",
       line: 0
-    } #else null #end;
+    }
+    #else
+    null
+    #end;
   static var nullId = mk(EIdent("null"), nullExpr);
 
   inline static function expr(e:Expr)
@@ -64,7 +69,10 @@ class Async
         pmax: inf.pmax,
         origin: inf.origin,
         line: inf.line
-      } #else e #end;
+      }
+    #else
+      e
+    #end;
   }
 
   /**

@@ -3,7 +3,6 @@
   <!-- These values are added to the project XML when you include this library. -->
   <haxelib name="thx.semver" />
   <!-- <haxelib name="hscript" /> This library is now OPTIONAL. -->
-
   <!--
     <haxeflag name="- -macro" value="polymod.hscript._internal.PolymodFinalMacro.locateAllFinals()" />
   -->

@@ -19,10 +19,8 @@ class PolymodFinalMacro
 
   public static macro function locateAllFinals():Void
   {
-    Context.onAfterTyping((types) ->
-    {
-      if (calledBefore)
-        return;
+    Context.onAfterTyping((types) -> {
+      if (calledBefore) return;
 
       var allFinals:Array<Expr> = [];
 
@@ -44,10 +42,7 @@ class PolymodFinalMacro
 
             if (finals.length == 0) continue;
 
-            var entryData = [
-              macro $v{classPath},
-              macro $v{finals}
-            ];
+            var entryData = [macro $v{classPath}, macro $v{finals}];
 
             allFinals.push(macro $a{entryData});
           default:
@@ -85,8 +80,7 @@ class PolymodFinalMacro
 
       for (element in metaData.finals)
       {
-        if (element.length != 2)
-          throw 'Malformed element in finals: ' + element;
+        if (element.length != 2) throw 'Malformed element in finals: ' + element;
 
         var classPath:String = element[0];
         var finals:Array<String> = element[1];

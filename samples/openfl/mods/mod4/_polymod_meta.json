@@ -1,8 +1,8 @@
 {
-	"title":"Food",
-	"description":"This mod has a pineapple, an apple, and a loaf of bread",
-	"author":"Lars A. Doucet",
-	"api_version":"1.1.0",
-	"mod_version":"1.0.0-alpha",
-	"license":"CC BY 4.0,MIT"
+  "title": "Food",
+  "description": "This mod has a pineapple, an apple, and a loaf of bread",
+  "author": "Lars A. Doucet",
+  "api_version": "1.1.0",
+  "mod_version": "1.0.0-alpha",
+  "license": "CC BY 4.0,MIT"
 }

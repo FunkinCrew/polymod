@@ -1,28 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <project>
 	<!-- NMML reference: https://gist.github.com/1763850 -->
-	
 	<!-- metadata, make sure 'package' is at least 3 segments (ie. com.mycompany.myproject) -->
 	<meta title="OpenFLSample" package="OpenFLSample" version="1.0.0" company="" />
-	
 	<!-- output -->
 	<app main="Main" file="OpenFLSample" path="bin" />
-	
 	<window background="#FFFFFF" fps="60" />
 	<window width="800" height="600" unless="mobile" />
 	<window orientation="landscape" vsync="false" antialiasing="0" if="cpp" />
-	
 	<!-- classpath, haxe libs -->
 	<source path="src" />
 	<haxelib name="openfl" />
 	<haxelib name="polymod" />
-	
 	<!-- assets -->
 	<icon path="assets/openfl.svg" />
 	<assets path="assets/img" rename="img" />
 	<assets path="assets/data" rename="data" />
-	
-  <!-- Settings for Polymod -->  
-  <haxedef name="POLYMOD_DEBUG" value="true" />
-	
+	<!-- Settings for Polymod -->
+	<haxedef name="POLYMOD_DEBUG" value="true" />
 </project>

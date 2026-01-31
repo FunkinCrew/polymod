@@ -38,7 +38,7 @@ class BrokenStage extends Stage {
     if (carSprite != null) {
 
       carSprite.x += carSpeed;
-      
+
       if (carSprite.x > 330 || carSprite.x < 50) {
         trace('Bounce!');
         carSpeed *= -1;

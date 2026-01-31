@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package polymod.hscript._internal;
 
 import polymod.hscript._internal.Expr.Error;
@@ -162,7 +163,8 @@ class Macro
         for (f in fields)
         {
           var meta = f.meta == null ? [] : [
-            for (m in f.meta) {name: m.name, params: m.params == null ? [] : [for (e in m.params) convert(e)], pos: p}
+            for (m in f.meta)
+              {name: m.name, params: m.params == null ? [] : [for (e in m.params) convert(e)], pos: p}
           ];
           tf.push(
             {
@@ -276,7 +278,8 @@ class Macro
           ETernary(convert(cond), convert(e1), convert(e2));
         case ESwitch(e, cases, edef):
           ESwitch(convert(e), [
-            for (c in cases) {values: [for (v in c.values) convert(v)], expr: convert(c.expr)}
+            for (c in cases)
+              {values: [for (v in c.values) convert(v)], expr: convert(c.expr)}
           ], edef == null ? null : convert(edef));
         case EMeta(m, params, esub):
           var mpos = #if (!macro && hscriptPos)
