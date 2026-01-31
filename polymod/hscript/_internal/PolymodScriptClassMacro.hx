@@ -389,7 +389,6 @@ class PolymodScriptClassMacro
 
         var abstractPath:String = element[0];
         var abstractImplPath:String = element[1];
-        // var abstractType:Class<Dynamic> = cast Type.resolveClass(abstractPath);
         #if js
         // trace('Resolving using JS method');
         var abstractImplType:Class<Dynamic> = resolveClass(abstractPath);
@@ -404,7 +403,7 @@ class PolymodScriptClassMacro
 
         if (abstractImplType == null)
         {
-          throw 'Could not resolve ' + abstractImplPath;
+          // trace('POLYMOD ABSTRACTS: Could not resolve $abstractImplPath');
         }
         #end
 

@@ -337,7 +337,7 @@ class PolymodInterpEx extends Interp
           continue;
         }
 
-        Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import ${imp.fullPath}', clsPath);
+        Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import ${imp.fullPath}. Check to ensure the module exists and is spelled correctly.', clsPath);
       }
 
       // Check if the scripted classes extend the right type.
@@ -351,7 +351,7 @@ class PolymodInterpEx extends Interp
           case CTPath(path, params):
             if (params != null && params.length > 0)
             {
-              Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not extend ${superClassPath}, do not include type parameters in super class name', clsPath);
+              Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not extend ${superClassPath}, do not include type parameters in super class name.', clsPath);
             }
 
           default:
@@ -359,7 +359,7 @@ class PolymodInterpEx extends Interp
         }
 
         // Default
-        Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not extend ${superClassPath}, is the type imported?', clsPath);
+        Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not extend ${superClassPath}. Make sure the type to extend has been imported.', clsPath);
       }
       else
       {
@@ -2044,8 +2044,15 @@ class PolymodInterpEx extends Interp
           {
             // We used a macro to map each abstract to its implementation.
             importedClass.cls = PolymodScriptClass.abstractClassImpls.get(importedClass.fullPath);
-            // trace('RESOLVED ABSTRACT CLASS ${importedClass.fullPath} -> ${Type.getClassName(importedClass.cls)}');
-            // trace(Type.getClassFields(importedClass.cls));
+
+						if (importedClass.cls == null) {
+							trace('UNRESOLVED ABSTRACT CLASS ${importedClass.fullPath}');
+							Polymod.warning(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Abstract type ${importedClass.fullPath} could not be resolved. Try using the underlying type instead.', origin);
+						} else {
+	            trace('RESOLVED ABSTRACT CLASS ${importedClass.fullPath} -> ${Type.getClassName(importedClass.cls)}');
+	            trace(Type.getClassFields(importedClass.cls));
+						}
+
           }
           else if (_scriptEnumDescriptors.exists(importedClass.fullPath))
           {
