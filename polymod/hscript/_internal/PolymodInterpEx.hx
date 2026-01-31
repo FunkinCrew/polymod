@@ -559,7 +559,6 @@ class PolymodInterpEx extends Interp
 		{
 		#end
 			// These overrides are used to handle specific cases where problems occur.
-
 			case EVar(name, type, expression):
 				// Fix to ensure local variables are committed properly.
 				declared.push({n: name, old: locals.get(name)});
@@ -612,8 +611,8 @@ class PolymodInterpEx extends Interp
 				}
 			case EFunction(params, fexpr, name, _):
 				// Fix to ensure callback functions catch thrown errors.
-				var capturedLocals = duplicate(locals);
-				var me = this;
+				// Using a clone to prevent locals getting wiped out.
+				var clone = this.clone();
 				var hasOpt = false, minParams = 0;
 				for (p in params)
 				{
@@ -664,27 +663,24 @@ class PolymodInterpEx extends Interp
 						}
 						args = args2;
 					}
-					var old = me.locals;
-					var depth = me.depth;
-					me.depth++;
-					me.locals = me.duplicate(capturedLocals);
+
+					clone.depth++;
+
 					for (i in 0...params.length)
 					{
-						me.locals.set(params[i].name, {r: args[i]});
+						clone.locals.set(params[i].name, {r: args[i]});
 					}
 					var r = null;
-					var oldDecl = declared.length;
+
 					if (inTry)
 					{
 						// True if the SCRIPT wraps the function in a try/catch block.
 						try
 						{
-							r = me.exprReturn(fexpr);
+							r = clone.exprReturn(fexpr);
 						}
 						catch (e:Dynamic)
 						{
-							me.locals = old;
-							me.depth = depth;
 							#if neko
 							neko.Lib.rethrow(e);
 							#else
@@ -697,7 +693,7 @@ class PolymodInterpEx extends Interp
 						// There is no try/catch block. We can add some custom error handling.
 						try
 						{
-							r = me.exprReturn(fexpr);
+							r = clone.exprReturn(fexpr);
 						}
 						catch (err:PolymodExprEx.ErrorEx)
 						{
@@ -714,9 +710,6 @@ class PolymodInterpEx extends Interp
 							throw err;
 						}
 					}
-					restore(oldDecl);
-					me.locals = old;
-					me.depth = depth;
 					return r;
 				};
 
@@ -734,7 +727,7 @@ class PolymodInterpEx extends Interp
 						declared.push({n: name, old: locals.get(name)});
 						var ref = {r: newFun};
 						locals.set(name, ref);
-						capturedLocals.set(name, ref); // allow self-recursion
+						clone.locals.set(name, ref); // allow self-recursion
 					}
 				}
 				return newFun;
@@ -1966,6 +1959,34 @@ class PolymodInterpEx extends Interp
 				case DTypedef(_):
 			}
 		}
+	}
+
+	public function clone():PolymodInterpEx
+	{
+		var _clone = new PolymodInterpEx(this.targetCls, this._proxy);
+
+		// Copy over the values, but exclude the trace function.
+		for (k => v in this.variables)
+		{
+			if (k != "trace") _clone.variables.set(k, v);
+		}
+
+		for (k => v in this.locals)
+		{
+			_clone.locals.set(k, v);
+		}
+
+		for (v in this.declared)
+		{
+			if (!_clone.declared.contains(v)) _clone.declared.push(v);
+		}
+
+		_clone._nextCallObject = this._nextCallObject;
+		_clone._classDeclOverride = this._classDeclOverride;
+		_clone.depth = this.depth;
+		_clone.curExpr = this.curExpr;
+		_clone.inTry = this.inTry;
+		return _clone;
 	}
 }
 
