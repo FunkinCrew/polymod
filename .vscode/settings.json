@@ -1,7 +1,81 @@
 {
+  // Formatting by language
   "[haxe]": {
-    "editor.formatOnSave": false,
-    "editor.formatOnPaste": false
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
+    "editor.codeActionsOnSave": { "source.organizeImports": "never" },
+    "editor.defaultFormatter": "nadako.vshaxe",
+    "editor.tabSize": 2
   },
-  "lime.projectFile": "samples/openfl_hscript_class/project.xml",
+  "[json]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[jsonc]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // XML Formatting
+  "xml.format.enabled": true,
+  "xml.format.legacy": false,
+  "xml.format.emptyElements": "collapse",
+  "xml.preferences.quoteStyle": "double",
+  "xml.format.enforceQuoteStyle": "preferred",
+  "xml.format.preserveAttributeLineBreaks": false,
+  "xml.format.preservedNewlines": 0,
+  "xml.format.splitAttributes": "preserve",
+  "xml.format.joinCDATALines": true,
+  "xml.format.preserveEmptyContent": false,
+  "xml.format.joinCommentLines": false,
+  "xml.format.joinContentLines": false,
+  "xml.format.spaceBeforeEmptyCloseTag": true,
+  "xml.format.xsiSchemaLocationSplit": "onPair",
+  "xml.format.splitAttributesIndentSize": 2,
+  "xml.format.closingBracketNewLine": false,
+  "xml.format.preserveSpace": [
+    "xsl:text",
+    "xsl:comment",
+    "xsl:processing-instruction",
+    "literallayout",
+    "programlisting",
+    "screen",
+    "synopsis",
+    "pre",
+    "xd:pre"
+  ],
+  "xml.format.maxLineWidth": 0,
+  "xml.format.grammarAwareFormatting": true,
+
+  // General formatting
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": false,
+  "files.trimTrailingWhitespace": true,
+  "editor.detectIndentation": true,
+  "editor.insertSpaces": true,
+  "editor.tabSize": 2,
+  "prettier.tabWidth": 2,
+  "files.eol": "\n",
+  "haxe.displayPort": "auto",
+  "haxe.enableCompilationServer": true,
+  "haxe.enableServerView": true,
+  "haxe.displayServer": { "arguments": ["-v"] },
+
+  // File extensions
+  "files.associations": {
+    "*.hxp": "haxe",
+    "*.hscript": "haxe",
+    "*.haxe": "haxe",
+    "*.hxs": "haxe",
+    "*.hxc": "haxe"
+  },
+
+  // Haxe Checkstyle
+  "haxecheckstyle.externalSourceRoots": [],
+  "haxecheckstyle.configurationFile": "checkstyle.json",
+  "haxecheckstyle.codeSimilarityBufferSize": 100,
+
+  "lime.projectFile": "samples/openfl_hscript_class/project.xml"
 }
