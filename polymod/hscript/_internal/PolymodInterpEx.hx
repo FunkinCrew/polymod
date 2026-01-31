@@ -1,10 +1,10 @@
 package polymod.hscript._internal;
 
 import polymod.hscript._internal.Expr;
-import polymod.hscript._internal.Printer;
-import polymod.hscript._internal.PolymodExprEx;
 import polymod.hscript._internal.PolymodClassDeclEx.PolymodClassImport;
 import polymod.hscript._internal.PolymodClassDeclEx.PolymodStaticClassReference;
+import polymod.hscript._internal.PolymodExprEx;
+import polymod.hscript._internal.Printer;
 import polymod.util.Util;
 
 using StringTools;
@@ -214,10 +214,18 @@ class PolymodInterpEx extends Interp
 		}
 	}
 
-	override function resetVariables() {
+	override function resetVariables():Void {
 		super.resetVariables();
+		
 		variables.set("Math", Math);
 		variables.set("Std", Std);
+		
+		variables.set("Array", Array);
+		variables.set("Bool", Bool);
+		variables.set("Dynamic", Dynamic);
+		variables.set("Float", Float);
+		variables.set("Int", Int);
+		variables.set("String", String);
 	}
 
 	public function clearScriptClassDescriptors():Void {
