@@ -396,6 +396,26 @@ class HScriptedClassMacro
 			})
 		};
 
+		var function_staticScriptHas:Field = {
+			name: 'staticScriptHas',
+			doc: 'Determines if a static field of a scripted class exists or not.',
+			access: [APublic],
+			meta: null,
+			pos: cls.pos,
+			kind: FFun({
+				args: [
+					{name: 'fieldName', type: macro :String}
+				],
+				params: null,
+				ret: macro :Bool,
+				expr: macro
+				{
+					@:privateAccess
+					return _asc._interp.getScriptClassStaticFieldDecl(_asc.fullyQualifiedName, fieldName) != null;
+				},
+			}),
+		};
+
 		return [
 			var__asc,
 			function_listScriptClasses,
@@ -405,7 +425,8 @@ class HScriptedClassMacro
 			function_scriptHas,
 			function_scriptStaticCall,
 			function_scriptStaticGet,
-			function_scriptStaticSet
+			function_scriptStaticSet,
+			function_staticScriptHas
 		];
 	}
 
