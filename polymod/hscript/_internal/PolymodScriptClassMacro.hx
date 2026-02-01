@@ -185,6 +185,7 @@ class PolymodScriptClassMacro {
 									 for (f in abstractImplType.statics.get()) {
 										if (f.name == 'get_${field.name}'){
 											getter = f;
+											break;
 										}
 									}
 
@@ -209,6 +210,7 @@ class PolymodScriptClassMacro {
 									 for (f in abstractImplType.statics.get()){
 										if (f.name == 'set_${field.name}'){
 											setter = f;
+											break;
 										}
 									}
 
