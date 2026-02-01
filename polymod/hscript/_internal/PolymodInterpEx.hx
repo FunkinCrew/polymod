@@ -2145,11 +2145,8 @@ public function clone():PolymodInterpEx
 {
   var _clone = new PolymodInterpEx(this.targetCls, this._proxy);
 
-  // Copy over the values, but exclude the trace function.
-  for (k => v in this.variables)
-  {
-    if (k != "trace") _clone.variables.set(k, v);
-  }
+  // Pass the variables by reference
+  _clone.variables = this.variables;
 
   for (k => v in this.locals)
   {
