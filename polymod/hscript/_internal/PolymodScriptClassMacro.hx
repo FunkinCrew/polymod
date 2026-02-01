@@ -206,6 +206,7 @@ class PolymodScriptClassMacro
                     if (f.name == 'get_${field.name}')
                     {
                       getter = f;
+											break;
                     }
                   }
 
@@ -234,6 +235,7 @@ class PolymodScriptClassMacro
                     if (f.name == 'set_${field.name}')
                     {
                       setter = f;
+											break;
                     }
                   }
 
