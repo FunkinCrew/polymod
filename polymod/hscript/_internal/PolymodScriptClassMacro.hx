@@ -341,8 +341,6 @@ class PolymodScriptClassMacro
   {
     var metaData = Meta.getType(PolymodScriptClassMacro);
 
-		// trace('Got metaData: ' + metaData);
-
     if (metaData.hscriptedClasses != null)
     {
       // trace('Got hscriptedClasses: ' + metaData.hscriptedClasses);
@@ -392,7 +390,6 @@ class PolymodScriptClassMacro
         var abstractPath:String = element[0];
         var abstractImplPath:String = element[1];
         #if js
-        // trace('Resolving using JS method');
         var abstractImplType:Class<Dynamic> = resolveClass(abstractPath);
 
         if (abstractImplType == null)
