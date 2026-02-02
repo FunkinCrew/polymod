@@ -18,6 +18,11 @@ using StringTools;
 class PolymodScriptClassMacro
 {
   /**
+   * The name for the Haxe resource that stores the abstract static field paths.
+   */
+  static inline final ABSTRACT_STATICS_RES_NAME:String = 'PolymodScriptClassMacro_AbstractStatics';
+
+  /**
    * Returns a `Map<String, Class<Dynamic>>` which maps superclass paths to scripted classes.
    * So `class ScriptedStage extends Stage implements HScriptable` will be `"Stage" -> ScriptedStage`
    *
@@ -94,7 +99,7 @@ class PolymodScriptClassMacro
 
     var hscriptedClassEntries:Array<Expr> = [];
     var abstractImplEntries:Array<Expr> = [];
-    var abstractStaticEntries:Array<Expr> = [];
+    var abstractStaticEntries:Array<{}> = [];
     var typedefEntries:Array<Expr> = [];
 
     var startTime:Float = Sys.time();
@@ -215,12 +220,13 @@ class PolymodScriptClassMacro
               continue;
             }
 
-            var staticEntryData = [
-              macro $v{key},
-              macro $v{staticFieldToClass[key]},
-            ];
+            var staticEntryData =
+              {
+                fieldPath: key,
+                reflectClassPath: staticFieldToClass[key]
+              };
 
-            abstractStaticEntries.push(macro $a{staticEntryData});
+            abstractStaticEntries.push(staticEntryData);
           }
         default:
           continue;
@@ -243,10 +249,12 @@ class PolymodScriptClassMacro
     polymodScriptClassClassType.meta.add('hscriptedClasses', hscriptedClassEntries, Context.currentPos());
     polymodScriptClassClassType.meta.remove('abstractImpls');
     polymodScriptClassClassType.meta.add('abstractImpls', abstractImplEntries, Context.currentPos());
-    polymodScriptClassClassType.meta.remove('abstractStatics');
-    polymodScriptClassClassType.meta.add('abstractStatics', abstractStaticEntries, Context.currentPos());
     polymodScriptClassClassType.meta.remove('typedefs');
     polymodScriptClassClassType.meta.add('typedefs', typedefEntries, Context.currentPos());
+
+    // It can get VERY BIG so we have to resort to store it as a resource instead.
+    var absStaticsData:String = haxe.Serializer.run(abstractStaticEntries);
+    Context.addResource(ABSTRACT_STATICS_RES_NAME, haxe.io.Bytes.ofString(absStaticsData));
   }
 
   static var iteration:Int = 0;
@@ -511,33 +519,36 @@ class PolymodScriptClassMacro
 
   public static function fetchAbstractStatics():Map<String, Class<Dynamic>>
   {
-    var metaData = Meta.getType(PolymodScriptClassMacro);
+    var resDataContent:Null<String> = haxe.Resource.getString(ABSTRACT_STATICS_RES_NAME);
+    if (resDataContent == null)
+    {
+      throw '"$ABSTRACT_STATICS_RES_NAME" resource not found!';
+    }
+    var abstractStatics:Array<{fieldPath:String, reflectClassPath:String}> = cast haxe.Unserializer.run(resDataContent);
 
-    if (metaData.abstractStatics != null)
+    if (abstractStatics != null)
     {
       var result:Map<String, Class<Dynamic>> = [];
 
       // Each element is formatted as `[abstractPathImpl.fieldName, reflectClass]`.
 
-      for (element in metaData.abstractStatics)
+      for (element in abstractStatics)
       {
-        if (element.length != 2)
+        if ((element.fieldPath?.length ?? 0) == 0 || (element.reflectClassPath?.length ?? 0) == 0)
         {
           throw 'Malformed element in abstractStatics: ' + element;
         }
 
-        var fieldPath:String = element[0];
-        var reflectClassPath:String = element[1];
-        var reflectClass:Class<Dynamic> = cast Type.resolveClass(reflectClassPath);
+        var reflectClass:Class<Dynamic> = cast Type.resolveClass(element.reflectClassPath);
 
-        result.set(fieldPath, reflectClass);
+        result.set(element.fieldPath, reflectClass);
       }
 
       return result;
     }
     else
     {
-      throw 'No abstractStatics found in PolymodScriptClassMacro!';
+      throw 'No abstractStatics found in "${ABSTRACT_STATICS_RES_NAME}" resource!';
     }
   }
 
