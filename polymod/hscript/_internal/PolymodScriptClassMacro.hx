@@ -73,6 +73,10 @@ class PolymodScriptClassMacro
     var abstractImplEntries:Array<Expr> = [];
     var abstractStaticEntries:Array<Expr> = [];
 
+		Context.info('PolymodScriptClassMacro: Processing abstracts...', Context.currentPos());
+
+		var startTime:Float = Sys.time();
+
     for (type in allTypes)
     {
       switch (type)
@@ -153,7 +157,11 @@ class PolymodScriptClassMacro
       }
     }
 
-    Context.info('PolymodScriptClassMacro: Registering ${hscriptedClassEntries.length} HScriptedClasses, ${abstractImplEntries.length} abstract impls, ${abstractStaticEntries.length} abstract statics', Context.currentPos());
+		var endTime:Float = Sys.time();
+
+		var duration:Float = endTime - startTime;
+
+    Context.info('PolymodScriptClassMacro: Registered ${hscriptedClassEntries.length} HScriptedClasses, ${abstractImplEntries.length} abstract impls, ${abstractStaticEntries.length} abstract statics in ${duration} sec.', Context.currentPos());
 
     var polymodScriptClassClassType:ClassType = MacroUtil.getClassType('polymod.hscript._internal.PolymodScriptClassMacro');
     polymodScriptClassClassType.meta.remove('hscriptedClasses');
@@ -170,6 +178,10 @@ class PolymodScriptClassMacro
   static function onAfterTyping(types:Array<ModuleType>):Void
   {
     var fields:Array<Field> = [];
+
+		Context.info('PolymodScriptClassMacro: Processing abstract static fields...', Context.currentPos());
+
+		var startTime:Float = Sys.time();
 
     for (type in types)
     {
@@ -336,6 +348,12 @@ class PolymodScriptClassMacro
         kind: TDClass(null, [], false, false, false),
         fields: fields
       });
+
+		var endTime:Float = Sys.time();
+
+		var duration:Float = endTime - startTime;
+
+		Context.info('PolymodScriptClassMacro: Processed ${fields.length} static fields in ${duration} sec (iteration #${iteration}).', Context.currentPos());
 
     iteration++;
   }
