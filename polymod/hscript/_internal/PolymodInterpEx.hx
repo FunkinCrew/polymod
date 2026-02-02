@@ -589,11 +589,10 @@ class PolymodInterpEx extends Interp
     #if hscriptPos
     curExpr = e;
     switch (e.e)
-    {
     #else
     switch (e)
-    {
     #end
+    {
       // These overrides are used to handle specific cases where problems occur.
       case EVar(name, type, expression):
         // Fix to ensure local variables are committed properly.
@@ -954,11 +953,10 @@ class PolymodInterpEx extends Interp
     #if hscriptPos
     curExpr = e;
     switch (e.e)
-    {
     #else
     switch (e)
-    {
     #end
+    {
       case EArrayDecl(arr):
         // Initialize an array (or map) from a declaration.
         var hasElements = arr.length > 0;
@@ -1028,1144 +1026,1144 @@ class PolymodInterpEx extends Interp
 
     // Fallthrough.
     return this.expr(e);
-} function exprMap(entries:Array<Expr>):Dynamic
-{
-  if (entries.length == 0) return super.makeMap([], []);
-
-  var keys = [];
-  var values = [];
-  for (e in entries)
-  {
-    switch (Tools.expr(e))
-    {
-      case EBinop("=>", eKey, eValue):
-        // Look for map entries.
-        keys.push(expr(eKey));
-        values.push(expr(eValue));
-      default:
-        // Complain about anything else.
-        // This error message has been modified to provide more information.
-        #if hscriptPos
-        curExpr = e;
-        #end
-        var error = 'Invalid expression in map initialization (expected key=>value, got ${Printer.toString(e)})';
-        errorEx(ECustom(error));
-    }
   }
 
-  return super.makeMap(keys, values);
-}
-
-function makeMapEmpty(keyType:CType):Dynamic
-{
-  switch (keyType)
+  function exprMap(entries:Array<Expr>):Dynamic
   {
-    case CTPath(path, params):
-      if (path.length > 0)
+    if (entries.length == 0) return super.makeMap([], []);
+
+    var keys = [];
+    var values = [];
+    for (e in entries)
+    {
+      switch (Tools.expr(e))
       {
-        var last = path[path.length - 1];
-        switch (last)
+        case EBinop("=>", eKey, eValue):
+          // Look for map entries.
+          keys.push(expr(eKey));
+          values.push(expr(eValue));
+        default:
+          // Complain about anything else.
+          // This error message has been modified to provide more information.
+          #if hscriptPos
+          curExpr = e;
+          #end
+          var error = 'Invalid expression in map initialization (expected key=>value, got ${Printer.toString(e)})';
+          errorEx(ECustom(error));
+      }
+    }
+
+    return super.makeMap(keys, values);
+  }
+
+  function makeMapEmpty(keyType:CType):Dynamic
+  {
+    switch (keyType)
+    {
+      case CTPath(path, params):
+        if (path.length > 0)
         {
-          case "Int":
-            return new Map<Int, Dynamic>();
-          case "String":
-            return new Map<String, Dynamic>();
-          default:
-            // TODO: Properly handle distinguishing Enum maps from Object maps.
-            return new Map<{}, Dynamic>();
+          var last = path[path.length - 1];
+          switch (last)
+          {
+            case "Int":
+              return new Map<Int, Dynamic>();
+            case "String":
+              return new Map<String, Dynamic>();
+            default:
+              // TODO: Properly handle distinguishing Enum maps from Object maps.
+              return new Map<{}, Dynamic>();
+          }
         }
-      }
-    default:
-      // Whatever.
-      error(ECustom('Invalid key type for empty map initialization (${new Printer().typeToString(keyType)}).'));
-  }
-  return super.makeMap([], []);
-}
-
-function exprArray(entries:Array<Expr>):Dynamic
-{
-  // Create an Array<Dynamic>
-  var a = new Array();
-  for (e in entries)
-    a.push(expr(e));
-  return a;
-}
-
-function getIdent(e:Expr):Null<String>
-{
-  #if hscriptPos
-  switch (e.e)
-  {
-  #else
-  switch (e)
-  {
-  #end
-    case EIdent(v):
-      return v;
-    default:
-      return null;
-  }
-} override function makeIterator(v:Dynamic):Iterator<Dynamic>
-{
-  if (v == null) errorEx(EInvalidIterator(v));
-  if (v.iterator != null)
-  {
-    try
-    {
-      v = v.iterator();
+      default:
+        // Whatever.
+        error(ECustom('Invalid key type for empty map initialization (${new Printer().typeToString(keyType)}).'));
     }
-    catch (e:Dynamic) {};
-  }
-  if (Std.isOfType(v, Array))
-  {
-    v = new ArrayIterator(v);
-  }
-  if (v.hasNext == null || v.next == null)
-  {
-    errorEx(EInvalidIterator(v));
-  }
-  return v;
-}
-
-/**
- * Call a given function on a given target with the given arguments.
- * @param target The object to call the function on.
- *   If null, defaults to `this`.
- * @param fun The function to call.
- * @param args The arguments to apply to that function.
- * @return The result of the function call.
- */
-override function call(target:Dynamic, fun:Dynamic, args:Array<Dynamic>):Dynamic
-{
-  // Calling fn() in hscript won't resolve an object first. Thus, we need to change it to use this.fn() instead.
-  if (target == null && _nextCallObject != null)
-  {
-    target = _nextCallObject;
+    return super.makeMap([], []);
   }
 
-  if (fun == null)
+  function exprArray(entries:Array<Expr>):Dynamic
   {
-    errorEx(EInvalidAccess(fun));
+    // Create an Array<Dynamic>
+    var a = new Array();
+    for (e in entries)
+      a.push(expr(e));
+    return a;
   }
 
-  if (target != null && target == _proxy)
+  function getIdent(e:Expr):Null<String>
   {
-    // If we are calling this.fn(), special handling is needed to prevent the local scope from being destroyed.
-    // By checking `target == _proxy`, we handle BOTH fn() and this.fn().
-    // super.fn() is exempt since it is not scripted.
-    return callThis(fun, args);
-  }
-  else
-  {
-    try
+    switch (#if hscriptPos e.e #else e #end)
     {
-      var result = Reflect.callMethod(target, fun, args);
-      _nextCallObject = null;
-      return result;
+      case EIdent(v):
+        return v;
+      default:
+        return null;
     }
-    catch (e:Dynamic)
-    {
-      _nextCallObject = null;
+  }
 
-      if (Std.isOfType(e, PolymodExprEx.ErrorEx) || Std.isOfType(e, polymod.hscript._internal.Expr.Error))
+  override function makeIterator(v:Dynamic):Iterator<Dynamic>
+  {
+    if (v == null) errorEx(EInvalidIterator(v));
+    if (v.iterator != null)
+    {
+      try
       {
-        throw e;
+        v = v.iterator();
       }
-      return errorEx(EScriptCallThrow(e));
+      catch (e:Dynamic) {};
     }
-    return null;
-  }
-}
-
-/**
- * Call a given function on the current proxy with the given arguments.
- * Ensures that the local scope is not destroyed.
- * @param fun The function to call.
- * @param args The arguments to apply to that function.
- * @return The result of the function call.
- */
-function callThis(fun:Dynamic, args:Array<Dynamic>):Dynamic
-{
-  // If we are calling this.fn(), special handling is needed to prevent the local scope from being destroyed.
-  // Store the local scope.
-  var capturedLocals = this.duplicate(locals);
-  var capturedDeclared = this.declared;
-  var capturedDepth = this.depth;
-
-  this.depth++;
-
-  // Call the function.
-  try
-  {
-    var result = Reflect.callMethod(_proxy, fun, args);
-
-    // Restore the local scope.
-    this.locals = capturedLocals;
-    this.declared = capturedDeclared;
-    this.depth = capturedDepth;
-
-    return result;
-  }
-  catch (e:Dynamic)
-  {
-    // Restore the local scope.
-    this.locals = capturedLocals;
-    this.declared = capturedDeclared;
-    this.depth = capturedDepth;
-
-    if (Std.isOfType(e, PolymodExprEx.ErrorEx) || Std.isOfType(e, polymod.hscript._internal.Expr.Error))
+    if (Std.isOfType(v, Array))
     {
-      throw e;
+      v = new ArrayIterator(v);
+    }
+    if (v.hasNext == null || v.next == null)
+    {
+      errorEx(EInvalidIterator(v));
+    }
+    return v;
+  }
+
+  /**
+   * Call a given function on a given target with the given arguments.
+   * @param target The object to call the function on.
+   *   If null, defaults to `this`.
+   * @param fun The function to call.
+   * @param args The arguments to apply to that function.
+   * @return The result of the function call.
+   */
+  override function call(target:Dynamic, fun:Dynamic, args:Array<Dynamic>):Dynamic
+  {
+    // Calling fn() in hscript won't resolve an object first. Thus, we need to change it to use this.fn() instead.
+    if (target == null && _nextCallObject != null)
+    {
+      target = _nextCallObject;
     }
 
-    return errorEx(EScriptCallThrow(e));
-  }
-}
-
-override function execute(expr:Expr):Dynamic
-{
-  // If this function is being called (and not executeEx),
-  // PolymodScriptClass is not being used to call the expression.
-  // This happens during callbacks and in some other niche cases.
-  // In this case, we know the parent caller doesn't have error handling!
-  // That means we have to do it here.
-  try
-  {
-    return super.execute(expr);
-  }
-  catch (err:PolymodExprEx.ErrorEx)
-  {
-    PolymodScriptClass.reportErrorEx(err, getClassFullyQualifiedName());
-    return null;
-  }
-  catch (err:Expr.Error)
-  {
-    PolymodScriptClass.reportError(err, getClassFullyQualifiedName());
-    return null;
-  }
-  catch (err:Dynamic)
-  {
-    throw err;
-  }
-}
-
-public function executeEx(expr:Expr):Dynamic
-{
-  // Directly call execute (assume error handling happens higher).
-  return super.execute(expr);
-}
-
-override function get(o:Dynamic, f:String):Dynamic
-{
-  if (o == null) errorEx(ENullObjectReference(f));
-
-  var oCls:String = Util.getTypeName(Type.typeof(o));
-
-  // Check if the field is a blacklisted static field.
-  if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
-  {
-    errorEx(EBlacklistedField(f));
-    return null;
-  }
-
-  // If not, check if it is a blacklisted instance field.
-  if (oCls.length > 0)
-  {
-    if (PolymodScriptClass.blacklistedInstanceFields.exists(oCls) && PolymodScriptClass.blacklistedInstanceFields.get(oCls).contains(f))
+    if (fun == null)
     {
-      errorEx(EBlacklistedField(f));
-      return null;
+      errorEx(EInvalidAccess(fun));
     }
-  }
 
-  // Otherwise, we assume the field is fine to use.
-  if (Std.isOfType(o, PolymodStaticClassReference))
-  {
-    var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
-
-    return ref.getField(f);
-  }
-  else if (Std.isOfType(o, PolymodScriptClass))
-  {
-    var proxy:PolymodAbstractScriptClass = cast(o, PolymodScriptClass);
-    if (proxy._interp.variables.exists(f))
+    if (target != null && target == _proxy)
     {
-      return proxy._interp.variables.get(f);
-    }
-    else if (proxy.superClass != null && proxy.superHasField(f))
-    {
-      if (Std.isOfType(proxy.superClass, PolymodScriptClass))
-      {
-        var superClass:PolymodAbstractScriptClass = cast(proxy.superClass, PolymodScriptClass);
-        return superClass.fieldRead(f);
-      }
-
-      return Reflect.getProperty(proxy.superClass, f);
+      // If we are calling this.fn(), special handling is needed to prevent the local scope from being destroyed.
+      // By checking `target == _proxy`, we handle BOTH fn() and this.fn().
+      // super.fn() is exempt since it is not scripted.
+      return callThis(fun, args);
     }
     else
     {
       try
       {
-        return proxy.resolveField(f);
+        var result = Reflect.callMethod(target, fun, args);
+        _nextCallObject = null;
+        return result;
       }
-      catch (e:Dynamic) {}
+      catch (e:Dynamic)
+      {
+        _nextCallObject = null;
 
-      // If we're here, the field doesn't exist on the proxy.
-      errorEx(EUnknownVariable(f));
-    }
-  }
-  else if (Std.isOfType(o, HScriptedClass))
-  {
-    if (o.scriptGet != null)
-    {
-      return o.scriptGet(f);
-    }
-
-    errorEx(EInvalidScriptedVarGet(f));
-
-    // var result = Reflect.getProperty(o, f);
-    // To save a bit of performance, we only query for the existence of the property
-    // if the value is reported as null, AND only in debug builds.
-
-    // #if debug
-    // if (!Reflect.hasField(o, f))
-    // {
-    // 	  var propertyList = Type.getInstanceFields(Type.getClass(o));
-    // 	  if (propertyList.indexOf(f) == -1)
-    // 	  {
-    // 	  	errorEx(EInvalidScriptedVarGet(f));
-    // 	  }
-    // }
-    // #end
-    // return result;
-  }
-
-  var abstractKey:String = Type.getClassName(o) + '.' + f;
-  if (PolymodScriptClass.abstractClassStatics.exists(abstractKey))
-  {
-    return Reflect.getProperty(PolymodScriptClass.abstractClassStatics[abstractKey], abstractKey.replace('.', '_'));
-  }
-
-  // Default behavior
-  if (Reflect.hasField(o, f))
-  {
-    return Reflect.field(o, f);
-  }
-  else
-  {
-    try
-    {
-      return Reflect.getProperty(o, f);
-    }
-    catch (e:Dynamic)
-    {
-      return Reflect.field(o, f);
-    }
-  }
-  // return super.get(o, f);
-}
-
-override function set(o:Dynamic, f:String, v:Dynamic):Dynamic
-{
-  if (o == null) errorEx(ENullObjectReference(f));
-
-  var oCls:String = Util.getTypeName(Type.typeof(o));
-
-  // Check if the field is a blacklisted static field.
-  if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
-  {
-    Polymod.error(SCRIPT_CLASS_FIELD_BLACKLISTED, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.');
-    return null;
-  }
-
-  // If not, check if it is a blacklisted instance field.
-  if (oCls.length > 0)
-  {
-    if (PolymodScriptClass.blacklistedInstanceFields.exists(oCls) && PolymodScriptClass.blacklistedInstanceFields.get(oCls).contains(f))
-    {
-      Polymod.error(SCRIPT_CLASS_FIELD_BLACKLISTED, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.');
+        if (Std.isOfType(e, PolymodExprEx.ErrorEx) || Std.isOfType(e, polymod.hscript._internal.Expr.Error))
+        {
+          throw e;
+        }
+        return errorEx(EScriptCallThrow(e));
+      }
       return null;
     }
   }
 
-  // Otherwise, we assume the field is fine to use.
-  if (Std.isOfType(o, PolymodStaticClassReference))
+  /**
+   * Call a given function on the current proxy with the given arguments.
+   * Ensures that the local scope is not destroyed.
+   * @param fun The function to call.
+   * @param args The arguments to apply to that function.
+   * @return The result of the function call.
+   */
+  function callThis(fun:Dynamic, args:Array<Dynamic>):Dynamic
   {
-    var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
+    // If we are calling this.fn(), special handling is needed to prevent the local scope from being destroyed.
+    // Store the local scope.
+    var capturedLocals = this.duplicate(locals);
+    var capturedDeclared = this.declared;
+    var capturedDepth = this.depth;
 
-    return ref.setField(f, v);
-  }
-  else if (Std.isOfType(o, PolymodScriptClass))
-  {
-    var proxy:PolymodScriptClass = cast(o, PolymodScriptClass);
-    if (proxy._interp.variables.exists(f))
-    {
-      proxy._interp.variables.set(f, v);
-    }
-    else if (proxy.superClass != null && proxy.superHasField(f))
-    {
-      if (Std.isOfType(proxy.superClass, PolymodScriptClass))
-      {
-        var superClass:PolymodAbstractScriptClass = cast(proxy.superClass, PolymodScriptClass);
-        return superClass.fieldWrite(f, v);
-      }
+    this.depth++;
 
-      Reflect.setProperty(proxy.superClass, f, v);
-    }
-    else
-    {
-      errorEx(EUnknownVariable(f));
-    }
-    return v;
-  }
-  else if (Std.isOfType(o, HScriptedClass))
-  {
-    if (o.scriptSet != null)
-    {
-      return o.scriptSet(f, v);
-    }
-
-    errorEx(EInvalidScriptedVarSet(f));
-
-    // Reflect.setProperty(o, f, v);
-    // return v;
-  }
-
-  try
-  {
-    Reflect.setProperty(o, f, v);
-  }
-  catch (e)
-  {
-    errorEx(EInvalidAccess(f));
-  }
-  return v;
-}
-
-private var _nextCallObject:Dynamic = null;
-
-override function exprReturn(expr:Expr):Dynamic
-{
-  return super.exprReturn(expr);
-  // catch (err:Expr.Error)
-  // {
-  // 	#if hscriptPos
-  // 	throw err;
-  // 	#else
-  // 	throw err;
-  // 	#end
-  // }
-}
-
-override function resolve(id:String):Dynamic
-{
-  _nextCallObject = null;
-  if (id == "super")
-  {
-    if (_proxy == null)
-    {
-      errorEx(EInvalidInStaticContext("super"));
-    }
-    else if (_proxy.superClass == null)
-    {
-      if (_proxy._c.extend == null) errorEx(EClassInvalidSuper);
-      return Reflect.makeVarArgs(_proxy.createSuperClass);
-    }
-    else
-    {
-      return _proxy.superClass;
-    }
-  }
-  else if (id == "this")
-  {
-    if (_proxy != null)
-    {
-      return _proxy;
-    }
-    else
-    {
-      errorEx(EInvalidInStaticContext("this"));
-    }
-  }
-  else if (id == "null")
-  {
-    return null;
-  }
-
-  if (locals.exists(id))
-  {
-    // NOTE: id may exist but be null
-    return locals.get(id).r;
-  }
-  if (variables.exists(id))
-  {
-    // NOTE: id may exist but be null
-    return variables.get(id);
-  }
-
-  // OVERRIDE CHANGE: Allow access to modules for calling static functions.
-
-  // Attempt to access an import.
-  if (getClassDecl() != null)
-  {
-    // This scripted class has imports.
-
-    var importedClass:PolymodClassImport = getClassDecl().imports.get(id);
-    if (importedClass != null)
-    {
-      if (importedClass.cls != null) return importedClass.cls;
-      if (importedClass.enm != null) return importedClass.enm;
-
-      // Resolve imported scripted classes.
-      var result = PolymodStaticClassReference.tryBuild(importedClass.fullPath);
-      if (result != null) return result;
-
-      // If we are here, there is an imported class whose value is null, and it isn't a scripted class.
-      // This means that we are attempting to access a BLACKLISTED module.
-      errorEx(EBlacklistedModule(importedClass.fullPath));
-    }
-  }
-
-  // Allow access to scripted classes for calling static functions.
-
-  if (getClassDecl().name == id)
-  {
-    // Self-referencing
-    return new PolymodStaticClassReference(getClassDecl());
-  }
-  else
-  {
-    // Try to retrieve a scripted class with this name in the same package.
-    if (getClassDecl().pkg != null && getClassDecl().pkg.length > 0)
-    {
-      var localClassId = getClassDecl().pkg.join('.') + "." + id;
-      var result = PolymodStaticClassReference.tryBuild(localClassId);
-      if (result != null) return result;
-    }
-
-    // Try to retrieve a scripted class with this name in the base package.
-    var result = PolymodStaticClassReference.tryBuild(id);
-    if (result != null) return result;
-  }
-
-  var prop:Dynamic;
-  // We are calling a LOCAL function from the same module.
-  // We first check if any of the child classes has overriden the scripted function
-  if (_proxy != null && _proxy.topASC?.hasScriptFunction(id) ?? false)
-  {
-    _nextCallObject = _proxy.topASC;
-    return _proxy.topASC.resolveField(id);
-  }
-  if (_proxy != null && _proxy.findFunction(id, true) != null)
-  {
-    _nextCallObject = _proxy;
-    return _proxy.resolveField(id);
-  }
-  else if (_proxy != null && _proxy.superHasField(id))
-  {
-    _nextCallObject = _proxy.superClass;
-
-    if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
-    {
-      var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
-      return superClass.fieldRead(id);
-    }
-
-    return Reflect.getProperty(_proxy.superClass, id);
-  }
-  else if (_proxy != null && _proxy.hasPurgedScriptFunction(id))
-  {
-    errorEx(EPurgedFunction(id));
-  }
-  else if (_proxy != null)
-  {
+    // Call the function.
     try
     {
-      var r = _proxy.resolveField(id);
-      _nextCallObject = _proxy;
-      return r;
+      var result = Reflect.callMethod(_proxy, fun, args);
+
+      // Restore the local scope.
+      this.locals = capturedLocals;
+      this.declared = capturedDeclared;
+      this.depth = capturedDepth;
+
+      return result;
     }
     catch (e:Dynamic)
     {
-      // Skip and fall through to the next case.
+      // Restore the local scope.
+      this.locals = capturedLocals;
+      this.declared = capturedDeclared;
+      this.depth = capturedDepth;
+
+      if (Std.isOfType(e, PolymodExprEx.ErrorEx) || Std.isOfType(e, polymod.hscript._internal.Expr.Error))
+      {
+        throw e;
+      }
+
+      return errorEx(EScriptCallThrow(e));
     }
   }
 
-  if (getClassDecl() != null)
+  override function execute(expr:Expr):Dynamic
   {
-    // We are retrieving an adjacent field from a static context.
-    var cls = getClassDecl();
-    var name = cls.name;
-    if (cls.pkg != null && cls.pkg.length > 0)
-    {
-      name = cls.pkg.join('.') + "." + name;
-    }
-    return PolymodScriptClass.getScriptClassStaticField(name, id);
-  }
-
-  // If we're here, the field definitely doesn't exist.
-  errorEx(EUnknownVariable(id));
-
-  return null;
-}
-
-public function addModule(moduleContents:String, ?origin:String = "hscript")
-{
-  var parser = new PolymodParserEx();
-  var decls = parser.parseModule(moduleContents, origin);
-  registerModules(decls, origin);
-}
-
-/**
- * Call a static function of a scripted class.
- * @param clsName The full classpath of the scripted class.
- * @param fnName The name of the function to call.
- * @param args The arguments to pass to the function.
- * @return The return value of the function.
- */
-public function callScriptClassStaticFunction(clsName:String, fnName:String, args:Array<Dynamic> = null):Dynamic
-{
-  var fn:Null<FunctionDecl> = null;
-  var imports:Map<String, PolymodClassImport> = [];
-
-  var cls:Null<PolymodClassDeclEx> = _scriptClassDescriptors.get(clsName);
-  if (cls != null)
-  {
-    imports = cls.imports;
-
-    // TODO: Optimize with a cache?
-    for (f in cls.staticFields)
-    {
-      if (f.name == fnName)
-      {
-        switch (f.kind)
-        {
-          case KFunction(func):
-            fn = func;
-          case _:
-        }
-      }
-    }
-  }
-  else
-  {
-    Polymod.error(SCRIPT_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.');
-    return null;
-  }
-
-  if (fn != null)
-  {
-    // Populate function arguments.
-
-    // previousValues is used to restore variables after they are shadowed in the local scope.
-    var previousClassDecl = _classDeclOverride;
-    var previousValues:Map<String, Dynamic> = [];
-    var i = 0;
-    for (a in fn.args)
-    {
-      var value:Dynamic = null;
-
-      if (args != null && i < args.length)
-      {
-        value = args[i];
-      }
-      else if (a.value != null)
-      {
-        value = this.expr(a.value);
-      }
-
-      // NOTE: We assign these as variables rather than locals because those get wiped when we enter the function.
-      if (this.variables.exists(a.name))
-      {
-        previousValues.set(a.name, this.variables.get(a.name));
-      }
-      this.variables.set(a.name, value);
-      i++;
-    }
-
-    this._classDeclOverride = cls;
-
-    var result:Dynamic = null;
+    // If this function is being called (and not executeEx),
+    // PolymodScriptClass is not being used to call the expression.
+    // This happens during callbacks and in some other niche cases.
+    // In this case, we know the parent caller doesn't have error handling!
+    // That means we have to do it here.
     try
     {
-      result = this.exprReturn(fn.expr);
+      return super.execute(expr);
     }
     catch (err:PolymodExprEx.ErrorEx)
     {
-      PolymodScriptClass.reportErrorEx(err, clsName, fnName);
-      // A script error occurred while executing the script function.
-      // Purge the function from the cache so it is not called again.
-      // purgeStaticFunction(fnName);
+      PolymodScriptClass.reportErrorEx(err, getClassFullyQualifiedName());
       return null;
     }
     catch (err:Expr.Error)
     {
-      PolymodScriptClass.reportError(err, clsName, fnName);
-      // A script error occurred while executing the script function.
-      // Purge the function from the cache so it is not called again.
-      // purgeStaticFunction(fnName);
+      PolymodScriptClass.reportError(err, getClassFullyQualifiedName());
+      return null;
+    }
+    catch (err:Dynamic)
+    {
+      throw err;
+    }
+  }
+
+  public function executeEx(expr:Expr):Dynamic
+  {
+    // Directly call execute (assume error handling happens higher).
+    return super.execute(expr);
+  }
+
+  override function get(o:Dynamic, f:String):Dynamic
+  {
+    if (o == null) errorEx(ENullObjectReference(f));
+
+    var oCls:String = Util.getTypeName(Type.typeof(o));
+
+    // Check if the field is a blacklisted static field.
+    if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
+    {
+      errorEx(EBlacklistedField(f));
       return null;
     }
 
-    // Restore previous values.
-    for (a in fn.args)
+    // If not, check if it is a blacklisted instance field.
+    if (oCls.length > 0)
     {
-      if (previousValues.exists(a.name))
+      if (PolymodScriptClass.blacklistedInstanceFields.exists(oCls) && PolymodScriptClass.blacklistedInstanceFields.get(oCls).contains(f))
       {
-        this.variables.set(a.name, previousValues.get(a.name));
+        errorEx(EBlacklistedField(f));
+        return null;
+      }
+    }
+
+    // Otherwise, we assume the field is fine to use.
+    if (Std.isOfType(o, PolymodStaticClassReference))
+    {
+      var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
+
+      return ref.getField(f);
+    }
+    else if (Std.isOfType(o, PolymodScriptClass))
+    {
+      var proxy:PolymodAbstractScriptClass = cast(o, PolymodScriptClass);
+      if (proxy._interp.variables.exists(f))
+      {
+        return proxy._interp.variables.get(f);
+      }
+      else if (proxy.superClass != null && proxy.superHasField(f))
+      {
+        if (Std.isOfType(proxy.superClass, PolymodScriptClass))
+        {
+          var superClass:PolymodAbstractScriptClass = cast(proxy.superClass, PolymodScriptClass);
+          return superClass.fieldRead(f);
+        }
+
+        return Reflect.getProperty(proxy.superClass, f);
       }
       else
       {
-        this.variables.remove(a.name);
+        try
+        {
+          return proxy.resolveField(f);
+        }
+        catch (e:Dynamic) {}
+
+        // If we're here, the field doesn't exist on the proxy.
+        errorEx(EUnknownVariable(f));
       }
     }
-    this._classDeclOverride = previousClassDecl;
+    else if (Std.isOfType(o, HScriptedClass))
+    {
+      if (o.scriptGet != null)
+      {
+        return o.scriptGet(f);
+      }
 
-    return result;
+      errorEx(EInvalidScriptedVarGet(f));
+
+      // var result = Reflect.getProperty(o, f);
+      // To save a bit of performance, we only query for the existence of the property
+      // if the value is reported as null, AND only in debug builds.
+
+      // #if debug
+      // if (!Reflect.hasField(o, f))
+      // {
+      // 	  var propertyList = Type.getInstanceFields(Type.getClass(o));
+      // 	  if (propertyList.indexOf(f) == -1)
+      // 	  {
+      // 	  	errorEx(EInvalidScriptedVarGet(f));
+      // 	  }
+      // }
+      // #end
+      // return result;
+    }
+
+    var abstractKey:String = Type.getClassName(o) + '.' + f;
+    if (PolymodScriptClass.abstractClassStatics.exists(abstractKey))
+    {
+      return Reflect.getProperty(PolymodScriptClass.abstractClassStatics[abstractKey], abstractKey.replace('.', '_'));
+    }
+
+    // Default behavior
+    if (Reflect.hasField(o, f))
+    {
+      return Reflect.field(o, f);
+    }
+    else
+    {
+      try
+      {
+        return Reflect.getProperty(o, f);
+      }
+      catch (e:Dynamic)
+      {
+        return Reflect.field(o, f);
+      }
+    }
+    // return super.get(o, f);
   }
-  else
+
+  override function set(o:Dynamic, f:String, v:Dynamic):Dynamic
   {
-    Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-      'Error while calling static function ${clsName}.${fnName}(): EInvalidAccess' + '\n' +
-      'Static function "${fnName}" does not exist! Define it or call the correct function.');
+    if (o == null) errorEx(ENullObjectReference(f));
+
+    var oCls:String = Util.getTypeName(Type.typeof(o));
+
+    // Check if the field is a blacklisted static field.
+    if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
+    {
+      Polymod.error(SCRIPT_CLASS_FIELD_BLACKLISTED, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.');
+      return null;
+    }
+
+    // If not, check if it is a blacklisted instance field.
+    if (oCls.length > 0)
+    {
+      if (PolymodScriptClass.blacklistedInstanceFields.exists(oCls) && PolymodScriptClass.blacklistedInstanceFields.get(oCls).contains(f))
+      {
+        Polymod.error(SCRIPT_CLASS_FIELD_BLACKLISTED, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.');
+        return null;
+      }
+    }
+
+    // Otherwise, we assume the field is fine to use.
+    if (Std.isOfType(o, PolymodStaticClassReference))
+    {
+      var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
+
+      return ref.setField(f, v);
+    }
+    else if (Std.isOfType(o, PolymodScriptClass))
+    {
+      var proxy:PolymodScriptClass = cast(o, PolymodScriptClass);
+      if (proxy._interp.variables.exists(f))
+      {
+        proxy._interp.variables.set(f, v);
+      }
+      else if (proxy.superClass != null && proxy.superHasField(f))
+      {
+        if (Std.isOfType(proxy.superClass, PolymodScriptClass))
+        {
+          var superClass:PolymodAbstractScriptClass = cast(proxy.superClass, PolymodScriptClass);
+          return superClass.fieldWrite(f, v);
+        }
+
+        Reflect.setProperty(proxy.superClass, f, v);
+      }
+      else
+      {
+        errorEx(EUnknownVariable(f));
+      }
+      return v;
+    }
+    else if (Std.isOfType(o, HScriptedClass))
+    {
+      if (o.scriptSet != null)
+      {
+        return o.scriptSet(f, v);
+      }
+
+      errorEx(EInvalidScriptedVarSet(f));
+
+      // Reflect.setProperty(o, f, v);
+      // return v;
+    }
+
+    try
+    {
+      Reflect.setProperty(o, f, v);
+    }
+    catch (e)
+    {
+      errorEx(EInvalidAccess(f));
+    }
+    return v;
+  }
+
+  private var _nextCallObject:Dynamic = null;
+
+  override function exprReturn(expr:Expr):Dynamic
+  {
+    return super.exprReturn(expr);
+    // catch (err:Expr.Error)
+    // {
+    // 	#if hscriptPos
+    // 	throw err;
+    // 	#else
+    // 	throw err;
+    // 	#end
+    // }
+  }
+
+  override function resolve(id:String):Dynamic
+  {
+    _nextCallObject = null;
+    if (id == "super")
+    {
+      if (_proxy == null)
+      {
+        errorEx(EInvalidInStaticContext("super"));
+      }
+      else if (_proxy.superClass == null)
+      {
+        if (_proxy._c.extend == null) errorEx(EClassInvalidSuper);
+        return Reflect.makeVarArgs(_proxy.createSuperClass);
+      }
+      else
+      {
+        return _proxy.superClass;
+      }
+    }
+    else if (id == "this")
+    {
+      if (_proxy != null)
+      {
+        return _proxy;
+      }
+      else
+      {
+        errorEx(EInvalidInStaticContext("this"));
+      }
+    }
+    else if (id == "null")
+    {
+      return null;
+    }
+
+    if (locals.exists(id))
+    {
+      // NOTE: id may exist but be null
+      return locals.get(id).r;
+    }
+    if (variables.exists(id))
+    {
+      // NOTE: id may exist but be null
+      return variables.get(id);
+    }
+
+    // OVERRIDE CHANGE: Allow access to modules for calling static functions.
+
+    // Attempt to access an import.
+    if (getClassDecl() != null)
+    {
+      // This scripted class has imports.
+
+      var importedClass:PolymodClassImport = getClassDecl().imports.get(id);
+      if (importedClass != null)
+      {
+        if (importedClass.cls != null) return importedClass.cls;
+        if (importedClass.enm != null) return importedClass.enm;
+
+        // Resolve imported scripted classes.
+        var result = PolymodStaticClassReference.tryBuild(importedClass.fullPath);
+        if (result != null) return result;
+
+        // If we are here, there is an imported class whose value is null, and it isn't a scripted class.
+        // This means that we are attempting to access a BLACKLISTED module.
+        errorEx(EBlacklistedModule(importedClass.fullPath));
+      }
+    }
+
+    // Allow access to scripted classes for calling static functions.
+
+    if (getClassDecl().name == id)
+    {
+      // Self-referencing
+      return new PolymodStaticClassReference(getClassDecl());
+    }
+    else
+    {
+      // Try to retrieve a scripted class with this name in the same package.
+      if (getClassDecl().pkg != null && getClassDecl().pkg.length > 0)
+      {
+        var localClassId = getClassDecl().pkg.join('.') + "." + id;
+        var result = PolymodStaticClassReference.tryBuild(localClassId);
+        if (result != null) return result;
+      }
+
+      // Try to retrieve a scripted class with this name in the base package.
+      var result = PolymodStaticClassReference.tryBuild(id);
+      if (result != null) return result;
+    }
+
+    // We are calling a LOCAL function from the same module.
+    // We first check if any of the child classes has overriden the scripted function
+    if (_proxy != null && _proxy.topASC?.hasScriptFunction(id) ?? false)
+    {
+      _nextCallObject = _proxy.topASC;
+      return _proxy.topASC.resolveField(id);
+    }
+    if (_proxy != null && _proxy.findFunction(id, true) != null)
+    {
+      _nextCallObject = _proxy;
+      return _proxy.resolveField(id);
+    }
+    else if (_proxy != null && _proxy.superHasField(id))
+    {
+      _nextCallObject = _proxy.superClass;
+
+      if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
+      {
+        var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
+        return superClass.fieldRead(id);
+      }
+
+      return Reflect.getProperty(_proxy.superClass, id);
+    }
+    else if (_proxy != null && _proxy.hasPurgedScriptFunction(id))
+    {
+      errorEx(EPurgedFunction(id));
+    }
+    else if (_proxy != null)
+    {
+      try
+      {
+        var r = _proxy.resolveField(id);
+        _nextCallObject = _proxy;
+        return r;
+      }
+      catch (e:Dynamic)
+      {
+        // Skip and fall through to the next case.
+      }
+    }
+
+    if (getClassDecl() != null)
+    {
+      // We are retrieving an adjacent field from a static context.
+      var cls = getClassDecl();
+      var name = cls.name;
+      if (cls.pkg != null && cls.pkg.length > 0)
+      {
+        name = cls.pkg.join('.') + "." + name;
+      }
+      return PolymodScriptClass.getScriptClassStaticField(name, id);
+    }
+
+    // If we're here, the field definitely doesn't exist.
+    errorEx(EUnknownVariable(id));
+
     return null;
   }
-}
 
-public function hasScriptClassStaticFunction(clsName:String, fnName:String):Bool
-{
-  var imports:Map<String, PolymodClassImport> = [];
-
-  var cls:Null<PolymodClassDeclEx> = _scriptClassDescriptors.get(clsName);
-  if (cls != null)
+  public function addModule(moduleContents:String, ?origin:String = "hscript")
   {
-    imports = cls.imports;
+    var parser = new PolymodParserEx();
+    var decls = parser.parseModule(moduleContents, origin);
+    registerModules(decls, origin);
+  }
 
-    // TODO: Optimize with a cache?
-    for (f in cls.staticFields)
+  /**
+   * Call a static function of a scripted class.
+   * @param clsName The full classpath of the scripted class.
+   * @param fnName The name of the function to call.
+   * @param args The arguments to pass to the function.
+   * @return The return value of the function.
+   */
+  public function callScriptClassStaticFunction(clsName:String, fnName:String, args:Array<Dynamic> = null):Dynamic
+  {
+    var fn:Null<FunctionDecl> = null;
+    var imports:Map<String, PolymodClassImport> = [];
+
+    var cls:Null<PolymodClassDeclEx> = _scriptClassDescriptors.get(clsName);
+    if (cls != null)
     {
-      if (f.name == fnName)
+      imports = cls.imports;
+
+      // TODO: Optimize with a cache?
+      for (f in cls.staticFields)
       {
-        switch (f.kind)
+        if (f.name == fnName)
         {
-          case KFunction(func):
-            return true;
-          case _:
+          switch (f.kind)
+          {
+            case KFunction(func):
+              fn = func;
+            case _:
+          }
         }
       }
     }
+    else
+    {
+      Polymod.error(SCRIPT_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.');
+      return null;
+    }
+
+    if (fn != null)
+    {
+      // Populate function arguments.
+
+      // previousValues is used to restore variables after they are shadowed in the local scope.
+      var previousClassDecl = _classDeclOverride;
+      var previousValues:Map<String, Dynamic> = [];
+      var i = 0;
+      for (a in fn.args)
+      {
+        var value:Dynamic = null;
+
+        if (args != null && i < args.length)
+        {
+          value = args[i];
+        }
+        else if (a.value != null)
+        {
+          value = this.expr(a.value);
+        }
+
+        // NOTE: We assign these as variables rather than locals because those get wiped when we enter the function.
+        if (this.variables.exists(a.name))
+        {
+          previousValues.set(a.name, this.variables.get(a.name));
+        }
+        this.variables.set(a.name, value);
+        i++;
+      }
+
+      this._classDeclOverride = cls;
+
+      var result:Dynamic = null;
+      try
+      {
+        result = this.exprReturn(fn.expr);
+      }
+      catch (err:PolymodExprEx.ErrorEx)
+      {
+        PolymodScriptClass.reportErrorEx(err, clsName, fnName);
+        // A script error occurred while executing the script function.
+        // Purge the function from the cache so it is not called again.
+        // purgeStaticFunction(fnName);
+        return null;
+      }
+      catch (err:Expr.Error)
+      {
+        PolymodScriptClass.reportError(err, clsName, fnName);
+        // A script error occurred while executing the script function.
+        // Purge the function from the cache so it is not called again.
+        // purgeStaticFunction(fnName);
+        return null;
+      }
+
+      // Restore previous values.
+      for (a in fn.args)
+      {
+        if (previousValues.exists(a.name))
+        {
+          this.variables.set(a.name, previousValues.get(a.name));
+        }
+        else
+        {
+          this.variables.remove(a.name);
+        }
+      }
+      this._classDeclOverride = previousClassDecl;
+
+      return result;
+    }
+    else
+    {
+      Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
+        'Error while calling static function ${clsName}.${fnName}(): EInvalidAccess' + '\n' +
+        'Static function "${fnName}" does not exist! Define it or call the correct function.');
+      return null;
+    }
   }
-  else
+
+  public function hasScriptClassStaticFunction(clsName:String, fnName:String):Bool
   {
-    Polymod.error(SCRIPT_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.');
+    var imports:Map<String, PolymodClassImport> = [];
+
+    var cls:Null<PolymodClassDeclEx> = _scriptClassDescriptors.get(clsName);
+    if (cls != null)
+    {
+      imports = cls.imports;
+
+      // TODO: Optimize with a cache?
+      for (f in cls.staticFields)
+      {
+        if (f.name == fnName)
+        {
+          switch (f.kind)
+          {
+            case KFunction(func):
+              return true;
+            case _:
+          }
+        }
+      }
+    }
+    else
+    {
+      Polymod.error(SCRIPT_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.');
+      return false;
+    }
+
     return false;
   }
 
-  return false;
-}
-
-public function getScriptClassStaticField(clsName:String, fieldName:String):Dynamic
-{
-  var prefixedName = clsName + '#' + fieldName;
-  var fieldDecl = getScriptClassStaticFieldDecl(clsName, fieldName);
-
-  if (fieldDecl != null)
+  public function getScriptClassStaticField(clsName:String, fieldName:String):Dynamic
   {
-    if (!this.variables.exists(prefixedName))
+    var prefixedName = clsName + '#' + fieldName;
+    var fieldDecl = getScriptClassStaticFieldDecl(clsName, fieldName);
+
+    if (fieldDecl != null)
     {
-      switch (fieldDecl.kind)
+      if (!this.variables.exists(prefixedName))
       {
-        case KFunction(fn):
-          var result = buildScriptClassStaticFunction(clsName, fieldName);
-          this.variables.set(prefixedName, result);
-          return result;
-        case KVar(v):
-          if (v.get != null)
-          {
-            switch (v.get)
-            {
-              case 'get':
-                var getterFunc = 'get_${fieldName}';
-                if (hasScriptClassStaticFunction(clsName, getterFunc))
-                {
-                  return callScriptClassStaticFunction(clsName, getterFunc, []);
-                }
-                else
-                {
-                  throw 'Could not resolve getter for property ${prefixedName}';
-                }
-              case 'default':
-                var result = this.expr(v.expr);
-                this.variables.set(prefixedName, result);
-                return result;
-              default:
-                throw 'Could not resolve getter for property ${prefixedName}';
-            }
-          }
-          else if (v.expr != null)
-          {
-            var result = this.expr(v.expr);
+        switch (fieldDecl.kind)
+        {
+          case KFunction(fn):
+            var result = buildScriptClassStaticFunction(clsName, fieldName);
             this.variables.set(prefixedName, result);
             return result;
-          }
-          else
-          {
-            throw 'Could not resolve field declaration for ${prefixedName}';
-          }
-        default:
-          throw 'Could not resolve field kind for ${prefixedName}';
+          case KVar(v):
+            if (v.get != null)
+            {
+              switch (v.get)
+              {
+                case 'get':
+                  var getterFunc = 'get_${fieldName}';
+                  if (hasScriptClassStaticFunction(clsName, getterFunc))
+                  {
+                    return callScriptClassStaticFunction(clsName, getterFunc, []);
+                  }
+                  else
+                  {
+                    throw 'Could not resolve getter for property ${prefixedName}';
+                  }
+                case 'default':
+                  var result = this.expr(v.expr);
+                  this.variables.set(prefixedName, result);
+                  return result;
+                default:
+                  throw 'Could not resolve getter for property ${prefixedName}';
+              }
+            }
+            else if (v.expr != null)
+            {
+              var result = this.expr(v.expr);
+              this.variables.set(prefixedName, result);
+              return result;
+            }
+            else
+            {
+              throw 'Could not resolve field declaration for ${prefixedName}';
+            }
+          default:
+            throw 'Could not resolve field kind for ${prefixedName}';
+        }
+      }
+      else
+      {
+        return this.variables.get(prefixedName);
       }
     }
     else
     {
-      return this.variables.get(prefixedName);
+      errorEx(EInvalidAccess(fieldName));
+      return null;
     }
   }
-  else
+
+  private inline function buildScriptClassStaticFunction(clsName:String, fieldName:String):Dynamic
   {
-    errorEx(EInvalidAccess(fieldName));
-    return null;
+    return Reflect.makeVarArgs(function(args:Array<Dynamic>):Dynamic {
+      return callScriptClassStaticFunction(clsName, fieldName, args);
+    });
   }
-}
 
-private inline function buildScriptClassStaticFunction(clsName:String, fieldName:String):Dynamic
-{
-  return Reflect.makeVarArgs(function(args:Array<Dynamic>):Dynamic {
-    return callScriptClassStaticFunction(clsName, fieldName, args);
-  });
-}
-
-public function setScriptClassStaticField(clsName:String, fieldName:String, value:Dynamic):Dynamic
-{
-  var prefixedName = clsName + '#' + fieldName;
-  var fieldDecl = getScriptClassStaticFieldDecl(clsName, fieldName);
-  if (fieldDecl != null)
+  public function setScriptClassStaticField(clsName:String, fieldName:String, value:Dynamic):Dynamic
   {
-    if (!this.variables.exists(prefixedName))
+    var prefixedName = clsName + '#' + fieldName;
+    var fieldDecl = getScriptClassStaticFieldDecl(clsName, fieldName);
+    if (fieldDecl != null)
     {
-      switch (fieldDecl.kind)
+      if (!this.variables.exists(prefixedName))
       {
-        case KFunction(_fn):
-          throw 'Cannot override function ${prefixedName}';
-        case KVar(v):
-          if (v.set != null)
-          {
-            switch (v.set)
+        switch (fieldDecl.kind)
+        {
+          case KFunction(_fn):
+            throw 'Cannot override function ${prefixedName}';
+          case KVar(v):
+            if (v.set != null)
             {
-              case 'set':
-                var setterFunc = 'set_${fieldName}';
-                if (hasScriptClassStaticFunction(clsName, setterFunc))
-                {
-                  return callScriptClassStaticFunction(clsName, setterFunc, [value]);
-                }
-                else
-                {
+              switch (v.set)
+              {
+                case 'set':
+                  var setterFunc = 'set_${fieldName}';
+                  if (hasScriptClassStaticFunction(clsName, setterFunc))
+                  {
+                    return callScriptClassStaticFunction(clsName, setterFunc, [value]);
+                  }
+                  else
+                  {
+                    throw 'Could not resolve setter for property ${prefixedName}';
+                  }
+                case 'default':
+                  this.variables.set(prefixedName, value);
+                  return value;
+                default:
                   throw 'Could not resolve setter for property ${prefixedName}';
-                }
-              case 'default':
-                this.variables.set(prefixedName, value);
-                return value;
-              default:
-                throw 'Could not resolve setter for property ${prefixedName}';
+              }
+            }
+            else
+            {
+              this.variables.set(prefixedName, value);
+              return value;
+            }
+        }
+      }
+      else
+      {
+        this.variables.set(prefixedName, value);
+        return value;
+      }
+    }
+    else
+    {
+      errorEx(EInvalidAccess(fieldName));
+      return null;
+    }
+  }
+
+  /**
+   * Retrieve a static field declaration of a scripted class.
+   * @param clsName The full classpath of the scripted class.
+   * @param fieldName The name of the field to retrieve.
+   * @return The value of the field.
+   */
+  public function getScriptClassStaticFieldDecl(clsName:String, fieldName:String):Null<FieldDecl>
+  {
+    if (_scriptClassDescriptors.exists(clsName))
+    {
+      var cls = _scriptClassDescriptors.get(clsName);
+      var staticFields = cls.staticFields;
+
+      // TODO: Optimize with a cache?
+      for (f in staticFields)
+      {
+        if (f.name == fieldName)
+        {
+          return f;
+        }
+      }
+
+      // Fallthrough.
+      return null;
+    }
+    else
+    {
+      Polymod.error(SCRIPT_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.');
+      return null;
+    }
+  }
+
+  public function registerModules(module:Array<ModuleDecl>, ?origin:String = "hscript")
+  {
+    var pkg:Array<String> = null;
+    var imports:Map<String, PolymodClassImport> = [];
+    var importsToValidate:Map<String, PolymodClassImport> = [];
+    var usings:Map<String, PolymodClassImport> = [];
+
+    for (importPath in PolymodScriptClass.defaultImports.keys())
+    {
+      var splitPath = importPath.split(".");
+      var clsName = splitPath[splitPath.length - 1];
+
+      imports.set(clsName,
+        {
+          name: clsName,
+          pkg: splitPath.slice(0, splitPath.length - 1),
+          fullPath: importPath,
+          cls: PolymodScriptClass.defaultImports.get(importPath),
+        });
+    }
+
+    for (decl in module)
+    {
+      switch (decl)
+      {
+        case DPackage(path):
+          pkg = path;
+        case DImport(path, _, name):
+          var clsName = path[path.length - 1];
+          if (name != null) clsName = name;
+
+          if (imports.exists(clsName))
+          {
+            if (imports.get(clsName) == null)
+            {
+              Polymod.error(SCRIPT_CLASS_MODULE_BLACKLISTED, 'Scripted class ${clsName} is blacklisted and cannot be used in scripts.', origin);
+            }
+            else
+            {
+              Polymod.warning(SCRIPT_CLASS_MODULE_ALREADY_IMPORTED, 'Scripted class ${clsName} has already been imported.', origin);
+            }
+            continue;
+          }
+
+          var importedClass:PolymodClassImport =
+            {
+              name: clsName,
+              pkg: path.slice(0, path.length - 1),
+              fullPath: path.join("."),
+              cls: null,
+              enm: null
+            };
+
+          if (PolymodScriptClass.importOverrides.exists(importedClass.fullPath))
+          {
+            // importOverrides can exist but be null (if it was set to null).
+            // If so, that means the class is blacklisted.
+
+            importedClass.cls = PolymodScriptClass.importOverrides.get(importedClass.fullPath);
+          }
+          else if (PolymodScriptClass.abstractClassImpls.exists(importedClass.fullPath))
+          {
+            // We used a macro to map each abstract to its implementation.
+            importedClass.cls = PolymodScriptClass.abstractClassImpls.get(importedClass.fullPath);
+            trace('RESOLVED ABSTRACT CLASS ${importedClass.fullPath} -> ${Type.getClassName(importedClass.cls)}');
+            trace(Type.getClassFields(importedClass.cls));
+          }
+          else if (_scriptEnumDescriptors.exists(importedClass.fullPath))
+          {
+            // do nothing
+          }
+          else
+          {
+            var resultCls:Class<Dynamic> = Type.resolveClass(importedClass.fullPath);
+
+            // If the class is not found, try to find it as an enum.
+            var resultEnm:Enum<Dynamic> = null;
+            if (resultCls == null) resultEnm = Type.resolveEnum(importedClass.fullPath);
+
+            // If the class is still not found, skip this import entirely.
+            if (resultCls == null && resultEnm == null)
+            {
+              // Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import class ${importedClass.fullPath}', origin);
+              // this could be a scripted class or enum that hasn't been registered yet
+              importsToValidate.set(importedClass.name, importedClass);
+              continue;
+            }
+            else if (resultCls != null)
+            {
+              importedClass.cls = resultCls;
+            }
+            else if (resultEnm != null)
+            {
+              importedClass.enm = resultEnm;
             }
           }
-          else
+
+          Polymod.debug('Imported class ${importedClass.name} from ${importedClass.fullPath}');
+          imports.set(importedClass.name, importedClass);
+        case DUsing(path):
+          var clsName = path[path.length - 1];
+
+          if (usings.exists(clsName))
           {
-            this.variables.set(prefixedName, value);
-            return value;
-          }
-      }
-    }
-    else
-    {
-      this.variables.set(prefixedName, value);
-      return value;
-    }
-  }
-  else
-  {
-    errorEx(EInvalidAccess(fieldName));
-    return null;
-  }
-}
-
-/**
- * Retrieve a static field declaration of a scripted class.
- * @param clsName The full classpath of the scripted class.
- * @param fieldName The name of the field to retrieve.
- * @return The value of the field.
- */
-public function getScriptClassStaticFieldDecl(clsName:String, fieldName:String):Null<FieldDecl>
-{
-  if (_scriptClassDescriptors.exists(clsName))
-  {
-    var cls = _scriptClassDescriptors.get(clsName);
-    var staticFields = cls.staticFields;
-
-    // TODO: Optimize with a cache?
-    for (f in staticFields)
-    {
-      if (f.name == fieldName)
-      {
-        return f;
-      }
-    }
-
-    // Fallthrough.
-    return null;
-  }
-  else
-  {
-    Polymod.error(SCRIPT_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.');
-    return null;
-  }
-}
-
-public function registerModules(module:Array<ModuleDecl>, ?origin:String = "hscript")
-{
-  var pkg:Array<String> = null;
-  var imports:Map<String, PolymodClassImport> = [];
-  var importsToValidate:Map<String, PolymodClassImport> = [];
-  var usings:Map<String, PolymodClassImport> = [];
-
-  for (importPath in PolymodScriptClass.defaultImports.keys())
-  {
-    var splitPath = importPath.split(".");
-    var clsName = splitPath[splitPath.length - 1];
-
-    imports.set(clsName,
-      {
-        name: clsName,
-        pkg: splitPath.slice(0, splitPath.length - 1),
-        fullPath: importPath,
-        cls: PolymodScriptClass.defaultImports.get(importPath),
-      });
-  }
-
-  for (decl in module)
-  {
-    switch (decl)
-    {
-      case DPackage(path):
-        pkg = path;
-      case DImport(path, _, name):
-        var clsName = path[path.length - 1];
-        if (name != null) clsName = name;
-
-        if (imports.exists(clsName))
-        {
-          if (imports.get(clsName) == null)
-          {
-            Polymod.error(SCRIPT_CLASS_MODULE_BLACKLISTED, 'Scripted class ${clsName} is blacklisted and cannot be used in scripts.', origin);
-          }
-          else
-          {
-            Polymod.warning(SCRIPT_CLASS_MODULE_ALREADY_IMPORTED, 'Scripted class ${clsName} has already been imported.', origin);
-          }
-          continue;
-        }
-
-        var importedClass:PolymodClassImport =
-          {
-            name: clsName,
-            pkg: path.slice(0, path.length - 1),
-            fullPath: path.join("."),
-            cls: null,
-            enm: null
-          };
-
-        if (PolymodScriptClass.importOverrides.exists(importedClass.fullPath))
-        {
-          // importOverrides can exist but be null (if it was set to null).
-          // If so, that means the class is blacklisted.
-
-          importedClass.cls = PolymodScriptClass.importOverrides.get(importedClass.fullPath);
-        }
-        else if (PolymodScriptClass.abstractClassImpls.exists(importedClass.fullPath))
-        {
-          // We used a macro to map each abstract to its implementation.
-          importedClass.cls = PolymodScriptClass.abstractClassImpls.get(importedClass.fullPath);
-          trace('RESOLVED ABSTRACT CLASS ${importedClass.fullPath} -> ${Type.getClassName(importedClass.cls)}');
-          trace(Type.getClassFields(importedClass.cls));
-        }
-        else if (_scriptEnumDescriptors.exists(importedClass.fullPath))
-        {
-          // do nothing
-        }
-        else
-        {
-          var resultCls:Class<Dynamic> = Type.resolveClass(importedClass.fullPath);
-
-          // If the class is not found, try to find it as an enum.
-          var resultEnm:Enum<Dynamic> = null;
-          if (resultCls == null) resultEnm = Type.resolveEnum(importedClass.fullPath);
-
-          // If the class is still not found, skip this import entirely.
-          if (resultCls == null && resultEnm == null)
-          {
-            // Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import class ${importedClass.fullPath}', origin);
-            // this could be a scripted class or enum that hasn't been registered yet
-            importsToValidate.set(importedClass.name, importedClass);
-            continue;
-          }
-          else if (resultCls != null)
-          {
-            importedClass.cls = resultCls;
-          }
-          else if (resultEnm != null)
-          {
-            importedClass.enm = resultEnm;
-          }
-        }
-
-        Polymod.debug('Imported class ${importedClass.name} from ${importedClass.fullPath}');
-        imports.set(importedClass.name, importedClass);
-      case DUsing(path):
-        var clsName = path[path.length - 1];
-
-        if (usings.exists(clsName))
-        {
-          if (usings.get(clsName) == null)
-          {
-            Polymod.error(SCRIPT_CLASS_MODULE_BLACKLISTED, 'Scripted class ${clsName} is blacklisted and cannot be used in scripts.', origin);
-          }
-          else
-          {
-            Polymod.warning(SCRIPT_CLASS_MODULE_ALREADY_IMPORTED, 'Scripted class ${clsName} has already been used.', origin);
-          }
-          continue;
-        }
-
-        var importedClass:PolymodClassImport =
-          {
-            name: clsName,
-            pkg: path.slice(0, path.length - 1),
-            fullPath: path.join("."),
-            cls: null,
-            enm: null
-          };
-
-        if (PolymodScriptClass.importOverrides.exists(importedClass.fullPath))
-        {
-          // importOverrides can exist but be null (if it was set to null).
-          // If so, that means the class is blacklisted.
-
-          importedClass.cls = PolymodScriptClass.importOverrides.get(importedClass.fullPath);
-        }
-        else if (PolymodScriptClass.abstractClassImpls.exists(importedClass.fullPath))
-        {
-          // We used a macro to map each abstract to its implementation.
-          importedClass.cls = PolymodScriptClass.abstractClassImpls.get(importedClass.fullPath);
-          trace('RESOLVED ABSTRACT CLASS ${importedClass.fullPath} -> ${Type.getClassName(importedClass.cls)}');
-          trace(Type.getClassFields(importedClass.cls));
-        }
-        else if (_scriptEnumDescriptors.exists(importedClass.fullPath))
-        {
-          // do nothing
-        }
-        else
-        {
-          var resultCls:Class<Dynamic> = Type.resolveClass(importedClass.fullPath);
-
-          // If the class is still not found, skip this import entirely.
-          if (resultCls == null)
-          {
-            // Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import class ${importedClass.fullPath}', origin);
-            // this could be a scripted class that hasn't been registered yet
-            importsToValidate.set(importedClass.name, importedClass);
-            continue;
-          }
-          else
-          {
-            importedClass.cls = resultCls;
-          }
-        }
-
-        Polymod.debug('Using class ${importedClass.name} from ${importedClass.fullPath}');
-        usings.set(importedClass.name, importedClass);
-      case DClass(c):
-        var instanceFields = [];
-        var staticFields = [];
-        for (f in c.fields)
-        {
-          if (f.access.contains(AStatic))
-          {
-            staticFields.push(f);
-          }
-          else
-          {
-            instanceFields.push(f);
-          }
-        }
-
-        var classDecl:PolymodClassDeclEx =
-          {
-            imports: imports,
-            importsToValidate: importsToValidate,
-            usings: usings,
-            pkg: pkg,
-            name: c.name,
-            params: c.params,
-            meta: c.meta,
-            isPrivate: c.isPrivate,
-            extend: c.extend,
-            implement: c.implement,
-            fields: instanceFields,
-            isExtern: c.isExtern,
-            staticFields: staticFields,
-          };
-        registerScriptClass(classDecl);
-      case DEnum(e):
-        if (pkg != null)
-        {
-          imports.set(e.name,
+            if (usings.get(clsName) == null)
             {
-              name: e.name,
-              pkg: pkg,
-              fullPath: pkg.join(".") + "." + e.name,
+              Polymod.error(SCRIPT_CLASS_MODULE_BLACKLISTED, 'Scripted class ${clsName} is blacklisted and cannot be used in scripts.', origin);
+            }
+            else
+            {
+              Polymod.warning(SCRIPT_CLASS_MODULE_ALREADY_IMPORTED, 'Scripted class ${clsName} has already been used.', origin);
+            }
+            continue;
+          }
+
+          var importedClass:PolymodClassImport =
+            {
+              name: clsName,
+              pkg: path.slice(0, path.length - 1),
+              fullPath: path.join("."),
               cls: null,
-              enm: null,
-            });
-        }
+              enm: null
+            };
 
-        var enumDecl:PolymodEnumDeclEx =
+          if (PolymodScriptClass.importOverrides.exists(importedClass.fullPath))
           {
-            pkg: pkg,
-            name: e.name,
-            fields: e.fields,
-          };
+            // importOverrides can exist but be null (if it was set to null).
+            // If so, that means the class is blacklisted.
 
-        registerScriptEnum(enumDecl);
-      case DTypedef(_):
+            importedClass.cls = PolymodScriptClass.importOverrides.get(importedClass.fullPath);
+          }
+          else if (PolymodScriptClass.abstractClassImpls.exists(importedClass.fullPath))
+          {
+            // We used a macro to map each abstract to its implementation.
+            importedClass.cls = PolymodScriptClass.abstractClassImpls.get(importedClass.fullPath);
+            trace('RESOLVED ABSTRACT CLASS ${importedClass.fullPath} -> ${Type.getClassName(importedClass.cls)}');
+            trace(Type.getClassFields(importedClass.cls));
+          }
+          else if (_scriptEnumDescriptors.exists(importedClass.fullPath))
+          {
+            // do nothing
+          }
+          else
+          {
+            var resultCls:Class<Dynamic> = Type.resolveClass(importedClass.fullPath);
+
+            // If the class is still not found, skip this import entirely.
+            if (resultCls == null)
+            {
+              // Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import class ${importedClass.fullPath}', origin);
+              // this could be a scripted class that hasn't been registered yet
+              importsToValidate.set(importedClass.name, importedClass);
+              continue;
+            }
+            else
+            {
+              importedClass.cls = resultCls;
+            }
+          }
+
+          Polymod.debug('Using class ${importedClass.name} from ${importedClass.fullPath}');
+          usings.set(importedClass.name, importedClass);
+        case DClass(c):
+          var instanceFields = [];
+          var staticFields = [];
+          for (f in c.fields)
+          {
+            if (f.access.contains(AStatic))
+            {
+              staticFields.push(f);
+            }
+            else
+            {
+              instanceFields.push(f);
+            }
+          }
+
+          var classDecl:PolymodClassDeclEx =
+            {
+              imports: imports,
+              importsToValidate: importsToValidate,
+              usings: usings,
+              pkg: pkg,
+              name: c.name,
+              params: c.params,
+              meta: c.meta,
+              isPrivate: c.isPrivate,
+              extend: c.extend,
+              implement: c.implement,
+              fields: instanceFields,
+              isExtern: c.isExtern,
+              staticFields: staticFields,
+            };
+          registerScriptClass(classDecl);
+        case DEnum(e):
+          if (pkg != null)
+          {
+            imports.set(e.name,
+              {
+                name: e.name,
+                pkg: pkg,
+                fullPath: pkg.join(".") + "." + e.name,
+                cls: null,
+                enm: null,
+              });
+          }
+
+          var enumDecl:PolymodEnumDeclEx =
+            {
+              pkg: pkg,
+              name: e.name,
+              fields: e.fields,
+            };
+
+          registerScriptEnum(enumDecl);
+        case DTypedef(_):
+      }
     }
   }
+
+  public function clone():PolymodInterpEx
+  {
+    var _clone = new PolymodInterpEx(this.targetCls, this._proxy);
+
+    // Pass the variables by reference
+    _clone.variables = this.variables;
+
+    for (k => v in this.locals)
+    {
+      _clone.locals.set(k, v);
+    }
+
+    for (v in this.declared)
+    {
+      if (!_clone.declared.contains(v)) _clone.declared.push(v);
+    }
+
+    _clone._nextCallObject = this._nextCallObject;
+    _clone._classDeclOverride = this._classDeclOverride;
+    _clone.depth = this.depth;
+    _clone.curExpr = this.curExpr;
+    _clone.inTry = this.inTry;
+    return _clone;
+  }
 }
 
-public function clone():PolymodInterpEx
-{
-  var _clone = new PolymodInterpEx(this.targetCls, this._proxy);
-
-  // Pass the variables by reference
-  _clone.variables = this.variables;
-
-  for (k => v in this.locals)
-  {
-    _clone.locals.set(k, v);
-  }
-
-  for (v in this.declared)
-  {
-    if (!_clone.declared.contains(v)) _clone.declared.push(v);
-  }
-
-  _clone._nextCallObject = this._nextCallObject;
-  _clone._classDeclOverride = this._classDeclOverride;
-  _clone.depth = this.depth;
-  _clone.curExpr = this.curExpr;
-  _clone.inTry = this.inTry;
-  return _clone;
-}
-} private class ArrayIterator<T>
+private class ArrayIterator<T>
 {
   var a:Array<T>;
   var pos:Int;

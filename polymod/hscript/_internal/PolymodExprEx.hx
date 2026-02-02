@@ -29,44 +29,44 @@ class ErrorEx
 }
 
 enum ErrorDefEx
-{
 #else
 enum ErrorEx
-{
 #end
+{
+  // Original error types.
+  EInvalidChar(c:Int);
+  EUnexpected(s:String);
+  EUnterminatedString;
+  EUnterminatedComment;
+  EInvalidPreprocessor(msg:String);
+  EUnknownVariable(v:String);
+  EInvalidIterator(v:String);
+  EInvalidOp(op:String);
+  EInvalidAccess(f:String);
+  // Polymod-specific error types.
+  EInvalidModule(m:String);
+  EBlacklistedModule(m:String);
+  EBlacklistedField(f:String);
+  EPurgedFunction(f:String); // Function can't be called because it previously threw an uncaught exception
+  ENullObjectReference(f:String); // Accessing a field of "null"
+  EInvalidScriptedFnAccess(f:String);
+  EInvalidScriptedVarGet(v:String);
+  EInvalidScriptedVarSet(v:String);
+  EInvalidFinalSet(f:String);
+  EInvalidPropGet(p:String); // Accessing a never/null getter
+  EInvalidPropSet(p:String); // Accessing a never/null setter
+  EPropVarNotReal(p:String); // Getter/setter accessing a (get/never,set/never) property within itself without "@:isVar"
+  EInvalidInStaticContext(v:String); // Accessing "this" or "super" in a static function
+  EClassSuperNotCalled;
+  EClassUnresolvedSuperclass(c:String, r:String); // superclass and reason
+  EClassInvalidSuper; // Accessing "super" in a parentless class
+  EScriptThrow(v:Dynamic); // Script called "throw"
+  EScriptCallThrow(v:Dynamic); // Script called a function which threw
+  // Fallback error type.
+  ECustom(msg:String);
+}
 
-// Original error types.
-EInvalidChar(c:Int);
-EUnexpected(s:String);
-EUnterminatedString;
-EUnterminatedComment;
-EInvalidPreprocessor(msg:String);
-EUnknownVariable(v:String);
-EInvalidIterator(v:String);
-EInvalidOp(op:String);
-EInvalidAccess(f:String);
-// Polymod-specific error types.
-EInvalidModule(m:String);
-EBlacklistedModule(m:String);
-EBlacklistedField(f:String);
-EPurgedFunction(f:String); // Function can't be called because it previously threw an uncaught exception
-ENullObjectReference(f:String); // Accessing a field of "null"
-EInvalidScriptedFnAccess(f:String);
-EInvalidScriptedVarGet(v:String);
-EInvalidScriptedVarSet(v:String);
-EInvalidFinalSet(f:String);
-EInvalidPropGet(p:String); // Accessing a never/null getter
-EInvalidPropSet(p:String); // Accessing a never/null setter
-EPropVarNotReal(p:String); // Getter/setter accessing a (get/never,set/never) property within itself without "@:isVar"
-EInvalidInStaticContext(v:String); // Accessing "this" or "super" in a static function
-EClassSuperNotCalled;
-EClassUnresolvedSuperclass(c:String, r:String); // superclass and reason
-EClassInvalidSuper; // Accessing "super" in a parentless class
-EScriptThrow(v:Dynamic); // Script called "throw"
-EScriptCallThrow(v:Dynamic); // Script called a function which threw
-// Fallback error type.
-ECustom(msg:String);
-} class ErrorExUtil
+class ErrorExUtil
 {
   public static function toErrorEx(err:Expr.Error):ErrorEx
   {

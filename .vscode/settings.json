@@ -73,6 +73,7 @@
   },
 
   // Haxe Checkstyle
+  "haxecheckstyle.sourceFolders": ["polymod"],
   "haxecheckstyle.externalSourceRoots": [],
   "haxecheckstyle.configurationFile": "checkstyle.json",
   "haxecheckstyle.codeSimilarityBufferSize": 100,
