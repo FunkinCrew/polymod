@@ -1,8 +1,9 @@
 package polymod.hscript._internal;
 
 import polymod.hscript._internal.Expr;
-import polymod.hscript._internal.PolymodClassDeclEx.PolymodClassImport;
-import polymod.hscript._internal.PolymodClassDeclEx.PolymodStaticClassReference;
+import polymod.hscript._internal.Expr.ClassDecl;
+import polymod.hscript._internal.Expr.ClassImport;
+import polymod.hscript._internal.PolymodStaticClassReference;
 import polymod.hscript._internal.PolymodExprEx;
 import polymod.hscript._internal.Printer;
 import polymod.util.Util;
@@ -22,11 +23,11 @@ class PolymodInterpEx extends Interp
 
   private var _proxy:PolymodAbstractScriptClass = null;
 
-  var _classDeclOverride:PolymodClassDeclEx = null;
+  var _classDeclOverride:ClassDecl = null;
 
   var _propTrack:Map<String, Bool> = [];
 
-  function getClassDecl():PolymodClassDeclEx
+  function getClassDecl():ClassDecl
   {
     if (_classDeclOverride != null)
     {
@@ -103,7 +104,7 @@ class PolymodInterpEx extends Interp
     @:privateAccess
     if (getClassDecl()?.imports != null && getClassDecl().imports.exists(cl))
     {
-      var importedClass:PolymodClassImport = getClassDecl().imports.get(cl);
+      var importedClass:ClassImport = getClassDecl().imports.get(cl);
       if (_scriptClassDescriptors.exists(importedClass.fullPath))
       {
         // OVERRIDE CHANGE: Create a PolymodScriptClass instead of a ScriptClass
@@ -213,9 +214,9 @@ class PolymodInterpEx extends Interp
     }
   }
 
-  private static var _scriptClassDescriptors:Map<String, PolymodClassDeclEx> = new Map<String, PolymodClassDeclEx>();
+  private static var _scriptClassDescriptors:Map<String, ClassDecl> = new Map<String, ClassDecl>();
 
-  private static function registerScriptClass(c:PolymodClassDeclEx)
+  private static function registerScriptClass(c:ClassDecl)
   {
     var name = Util.getFullClassName(c);
 
@@ -1510,7 +1511,7 @@ class PolymodInterpEx extends Interp
     {
       // This scripted class has imports.
 
-      var importedClass:PolymodClassImport = getClassDecl().imports.get(id);
+      var importedClass:ClassImport = getClassDecl().imports.get(id);
       if (importedClass != null)
       {
         if (importedClass.cls != null) return importedClass.cls;
@@ -1625,9 +1626,9 @@ class PolymodInterpEx extends Interp
   public function callScriptClassStaticFunction(clsName:String, fnName:String, args:Array<Dynamic> = null):Dynamic
   {
     var fn:Null<FunctionDecl> = null;
-    var imports:Map<String, PolymodClassImport> = [];
+    var imports:Map<String, ClassImport> = [];
 
-    var cls:Null<PolymodClassDeclEx> = _scriptClassDescriptors.get(clsName);
+    var cls:Null<ClassDecl> = _scriptClassDescriptors.get(clsName);
     if (cls != null)
     {
       imports = cls.imports;
@@ -1735,9 +1736,9 @@ class PolymodInterpEx extends Interp
 
   public function hasScriptClassStaticFunction(clsName:String, fnName:String):Bool
   {
-    var imports:Map<String, PolymodClassImport> = [];
+    var imports:Map<String, ClassImport> = [];
 
-    var cls:Null<PolymodClassDeclEx> = _scriptClassDescriptors.get(clsName);
+    var cls:Null<ClassDecl> = _scriptClassDescriptors.get(clsName);
     if (cls != null)
     {
       imports = cls.imports;
@@ -1925,9 +1926,9 @@ class PolymodInterpEx extends Interp
   public function registerModules(module:Array<ModuleDecl>, ?origin:String = "hscript")
   {
     var pkg:Array<String> = null;
-    var imports:Map<String, PolymodClassImport> = [];
-    var importsToValidate:Map<String, PolymodClassImport> = [];
-    var usings:Map<String, PolymodClassImport> = [];
+    var imports:Map<String, ClassImport> = [];
+    var importsToValidate:Map<String, ClassImport> = [];
+    var usings:Map<String, ClassImport> = [];
 
     for (importPath in PolymodScriptClass.defaultImports.keys())
     {
@@ -1966,7 +1967,7 @@ class PolymodInterpEx extends Interp
             continue;
           }
 
-          var importedClass:PolymodClassImport =
+          var importedClass:ClassImport =
             {
               name: clsName,
               pkg: path.slice(0, path.length - 1),
@@ -2037,7 +2038,7 @@ class PolymodInterpEx extends Interp
             continue;
           }
 
-          var importedClass:PolymodClassImport =
+          var importedClass:ClassImport =
             {
               name: clsName,
               pkg: path.slice(0, path.length - 1),
@@ -2099,7 +2100,7 @@ class PolymodInterpEx extends Interp
             }
           }
 
-          var classDecl:PolymodClassDeclEx =
+          var classDecl:ClassDecl =
             {
               imports: imports,
               importsToValidate: importsToValidate,

@@ -190,7 +190,7 @@ class HScriptedClassMacro
             ret: Context.toComplexType(Context.getType(clsTypeName)),
             expr: macro
             {
-              var clsRef = polymod.hscript._internal.PolymodClassDeclEx.PolymodStaticClassReference.tryBuild(clsName);
+              var clsRef = polymod.hscript._internal.PolymodStaticClassReference.tryBuild(clsName);
 
               if (clsRef == null)
               {

@@ -11,6 +11,7 @@ class PolymodParserEx extends Parser
   public override function parseModule(content:String, ?origin:String = "hscript", ?position = 0)
   {
     var decls:Array<ModuleDecl> = super.parseModule(content, origin, position);
+
     #if hscript_typer
     PolymodTyperEx.allModules.push(
       {
@@ -19,6 +20,7 @@ class PolymodParserEx extends Parser
         origin: origin,
       });
     #end
+
     return decls;
   }
 }

@@ -12,7 +12,7 @@ import polymod.format.ParseRules.CSVParseFormat;
 import polymod.format.ParseRules.TextFileFormat;
 import polymod.format.ParseRules;
 import polymod.fs.PolymodFileSystem.IFileSystem;
-import polymod.hscript._internal.PolymodClassDeclEx;
+import polymod.hscript._internal.Expr.ClassDecl;
 #if unifill
 import unifill.Unifill;
 #end
@@ -726,7 +726,7 @@ class Util
    * @param clsDecl The class declaration.
    * @return String
    */
-  public static function getFullClassName(clsDecl:PolymodClassDeclEx):String
+  public static function getFullClassName(clsDecl:ClassDecl):String
   {
     return (clsDecl.pkg != null ? (clsDecl.pkg.join(".") + ".") : "") + clsDecl.name;
   }

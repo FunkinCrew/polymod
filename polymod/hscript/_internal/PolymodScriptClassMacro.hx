@@ -77,8 +77,9 @@ class PolymodScriptClassMacro
     {
       switch (type)
       {
-        // Class instances
         case TInst(t, _params):
+          // Check classes to see if they implement `HScriptedClass`, and do additional processing.
+
           var classType:ClassType = t.get();
           var classPath:String = '${classType.pack.concat([classType.name]).join(".")}';
 
@@ -88,8 +89,6 @@ class PolymodScriptClassMacro
           }
           else if (MacroUtil.implementsInterface(classType, hscriptedClassType))
           {
-            // Context.info('${classPath} implements HScriptedClass? YEAH', Context.currentPos());
-            // TODO: Do we need to parameterize?
             var superClass:Null<ClassType> = classType.superClass != null ? classType.superClass.t.get() : null;
 
             if (superClass == null) throw 'No superclass for ' + classPath;
@@ -97,13 +96,14 @@ class PolymodScriptClassMacro
             var superClassPath:String = '${superClass.pack.concat([superClass.name]).join(".")}';
             var entryData = [
               macro $v{superClassPath},
-              // TODO: How do we do reification to get a class?
               macro $v{classPath}
             ];
             hscriptedClassEntries.push(macro $a{entryData});
           }
-          else {}
+
         case TAbstract(t, _params):
+          // Perform additional processing on abstracts classes to ensure they can be accessed at runtime.
+
           var abstractPath:String = t.toString();
           if (abstractPath == 'flixel.util.FlxColor')
           {

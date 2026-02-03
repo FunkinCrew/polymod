@@ -157,13 +157,95 @@ typedef ModuleType =
   var isPrivate:Bool;
 }
 
+/**
+ * A scripted class declaration, with a package declaration, imports, and potentially static fields.
+ */
 typedef ClassDecl =
 {
   > ModuleType,
+  /**
+   * The type being extended by the scripted class
+   */
   var extend:Null<CType>;
+
+  /**
+   * The interfaces being implemented by the scripted class
+   */
   var implement:Array<CType>;
+
+  /**
+   * The static fields of the scripted class
+   */
+  var staticFields:Array<FieldDecl>;
+
+  /**
+   * The instance fields of the scripted class
+   */
   var fields:Array<FieldDecl>;
+
+  /**
+   * Whether the class was declared with the `extern` keyword
+   */
   var isExtern:Bool;
+
+  /**
+   * The package that the scripted class belongs to
+   */
+  var pkg:Array<String>;
+
+  /**
+   * The classes imported by the scripted class
+   * This gets resolved at interpretation time to save performance and improve sandboxing
+   */
+  var imports:Map<String, ClassImport>;
+
+  /**
+   * The static extensions used by the scripted class
+   * For example, `using StringTools` lets you call `String.replace` on a string directly.
+   */
+  var usings:Map<String, ClassImport>;
+
+  /**
+   * A list of imports that have yet to be validated
+   *
+   * Scripted classes that import other scripted classes might be parsed before the class they import,
+   * so imports have to be done in two passes.
+   */
+  var importsToValidate:Map<String, ClassImport>;
+}
+
+/**
+ * An imported class or enumeration.
+ */
+typedef ClassImport =
+{
+  /**
+   * The name of the imported class
+   */
+  var name:String;
+
+  /**
+   * The package that the imported class belongs to
+   */
+  var pkg:Array<String>;
+
+  /**
+   * The full path of the imported class, including the package
+   */
+  var fullPath:String; // pkg.pkg.pkg.name
+
+  /**
+   * The underlying class that was imported.
+   * Will be `null` if this is an enum instead (see `enm`),
+   * or the class the script tried to import was BLACKLISTED.
+   */
+  var ?cls:Class<Dynamic>;
+
+  /**
+   * The underlying enum that was imported.
+   * Will be `null` if this is an enum instead (see `enm`).
+   */
+  var ?enm:Enum<Dynamic>;
 }
 
 typedef EnumDecl =
