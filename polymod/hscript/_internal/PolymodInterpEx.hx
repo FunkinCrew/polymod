@@ -2070,6 +2070,9 @@ class PolymodInterpEx extends Interp
             // We used a macro to map each abstract to its implementation.
             importedClass.abs = PolymodScriptClass.abstractClassImpls.get(importedClass.fullPath);
           }
+          else if (PolymodScriptClass.typedefs.exists(importedClass.fullPath)) {
+            importedClass.cls = PolymodScriptClass.typedefs.get(importedClass.fullPath);
+          }
           else if (_scriptEnumDescriptors.exists(importedClass.fullPath))
           {
             // do nothing

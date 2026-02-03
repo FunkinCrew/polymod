@@ -144,6 +144,30 @@ class PolymodScriptClass
   }
 
   /**
+   * Define a list of `typeName -> Class` which provides a reference to each typedef,
+   * since typedefs can't be normally resolved at runtime.
+   */
+  public static var typedefs(get, never):Map<String, Class<Dynamic>>;
+  static var _typedefs:Map<String, Class<Dynamic>> = null;
+
+  static function get_typedefs():Map<String, Class<Dynamic>>
+  {
+    if (_typedefs == null)
+    {
+      _typedefs = new Map<String, Class<Dynamic>>();
+
+      var baseTypedefs:Map<String, Class<Dynamic>> = PolymodScriptClassMacro.listTypedefs();
+
+      for (key => value in baseTypedefs)
+      {
+        _typedefs.set(key, value);
+      }
+    }
+
+    return _typedefs;
+  }
+
+  /**
    * Register a scripted class by retrieving the script from the given path.
    */
   static function registerScriptClassByPath(path:String):Void
