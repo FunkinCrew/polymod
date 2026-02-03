@@ -177,7 +177,12 @@ class PolymodStaticAbstractReference {
       throw 'Could not resolve abstract class ${absName}.';
     }
 
-    return Type.createInstance(this.absImpl, args);
+    var ctor = Reflect.field(this.absImpl, '_new');
+    if (ctor == null) {
+      throw 'Could not find constructor for abstract class ${absName}';
+    }
+
+    return Reflect.callMethod(this.absImpl, ctor, args);
   }
 
   /**
