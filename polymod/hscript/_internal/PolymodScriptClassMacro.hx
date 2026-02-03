@@ -69,6 +69,20 @@ class PolymodScriptClassMacro
     return macro polymod.hscript._internal.PolymodScriptClassMacro.fetchAbstractStatics();
   }
 
+  /**
+   * @return An expression containing a map of each typedef name to
+   *  the underlying class type.
+   */
+  public static macro function listTypedefs():ExprOf<Map<String, Class<Dynamic>>> {
+    if (!onGenerateCallbackRegistered)
+    {
+      onGenerateCallbackRegistered = true;
+      haxe.macro.Context.onGenerate(onGenerate);
+    }
+
+    return macro polymod.hscript._internal.PolymodScriptClassMacro.fetchTypedefs();
+  }
+
   #if macro
   static var onGenerateCallbackRegistered:Bool = false;
   static var onAfterTypingCallbackRegistered:Bool = false;
@@ -81,8 +95,7 @@ class PolymodScriptClassMacro
     var hscriptedClassEntries:Array<Expr> = [];
     var abstractImplEntries:Array<Expr> = [];
     var abstractStaticEntries:Array<Expr> = [];
-
-    Context.info('PolymodScriptClassMacro: Processing abstracts...', Context.currentPos());
+    var typedefEntries:Array<Expr> = [];
 
     var startTime:Float = Sys.time();
 
@@ -113,8 +126,64 @@ class PolymodScriptClassMacro
             ];
             hscriptedClassEntries.push(macro $a{entryData});
           }
-          else {}
+
+        case TType(t, _params):
+          var typedefType:DefType = t.get();
+          var typedefPath:String = t.toString();
+          var typedefTarget:Type = Context.followWithAbstracts(type);
+
+          switch (typedefTarget) {
+            case TAnonymous(_):
+              // Ignore typedefs to anonymous structures.
+              continue;
+            case TDynamic(_):
+              // Ignore typedefs to Dynamic.
+              continue;
+            case TFun(_args, _ret):
+              // Ignore typedefs to functions.
+              continue;
+
+            case TAbstract(t, _params):
+              var targetPath:String = t.toString();
+
+              var entryData = [
+                macro $v{typedefPath},
+                macro $v{targetPath}
+              ];
+
+              typedefEntries.push(macro $a{entryData});
+
+            case TEnum(t, _params):
+              var targetEnum:EnumType = t.get();
+              var targetEnumPath:String = '${targetEnum.pack.concat([targetEnum.name]).join(".")}';
+
+              var entryData = [
+                macro $v{typedefPath},
+                macro $v{targetEnumPath}
+              ];
+
+              typedefEntries.push(macro $a{entryData});
+
+            case TInst(t, _params):
+              var targetClass:ClassType = t.get();
+              var targetClassPath:String = '${targetClass.pack.concat([targetClass.name]).join(".")}';
+
+              var entryData = [
+                macro $v{typedefPath},
+                macro $v{targetClassPath}
+              ];
+
+              typedefEntries.push(macro $a{entryData});
+
+
+            default:
+              // Unknown typedef target type?
+              trace('TYPEDEF: ${typedefPath} -> ${typedefTarget}');
+          }
+
         case TAbstract(t, _params):
+          // Parse abstracts to cache their static values to allow scripts to access them later.
+
           var abstractPath:String = t.toString();
           var abstractType = t.get();
           var abstractImpl = abstractType.impl?.get();
@@ -162,7 +231,12 @@ class PolymodScriptClassMacro
 
     var duration:Float = endTime - startTime;
 
-    Context.info('PolymodScriptClassMacro: Registered ${hscriptedClassEntries.length} HScriptedClasses, ${abstractImplEntries.length} abstract impls, ${abstractStaticEntries.length} abstract statics in ${duration} sec.', Context.currentPos());
+    Context.info('PolymodScriptClassMacro: '
+      + 'Registered ${hscriptedClassEntries.length} HScriptedClasses, '
+      + '${abstractImplEntries.length} abstract impls, '
+      + '${abstractStaticEntries.length} abstract statics, '
+      + '${typedefEntries.length} typedefs '
+      + 'in ${duration} sec.', Context.currentPos());
 
     var polymodScriptClassClassType:ClassType = MacroUtil.getClassType('polymod.hscript._internal.PolymodScriptClassMacro');
     polymodScriptClassClassType.meta.remove('hscriptedClasses');
@@ -171,6 +245,8 @@ class PolymodScriptClassMacro
     polymodScriptClassClassType.meta.add('abstractImpls', abstractImplEntries, Context.currentPos());
     polymodScriptClassClassType.meta.remove('abstractStatics');
     polymodScriptClassClassType.meta.add('abstractStatics', abstractStaticEntries, Context.currentPos());
+    polymodScriptClassClassType.meta.remove('typedefs');
+    polymodScriptClassClassType.meta.add('typedefs', typedefEntries, Context.currentPos());
   }
 
   static var iteration:Int = 0;
@@ -462,6 +538,36 @@ class PolymodScriptClassMacro
     else
     {
       throw 'No abstractStatics found in PolymodScriptClassMacro!';
+    }
+  }
+
+  public static function fetchTypedefs():Map<String, Class<Dynamic>>
+  {
+    var metaData = Meta.getType(PolymodScriptClassMacro);
+
+    if (metaData.typedefs != null)
+    {
+      var result:Map<String, Class<Dynamic>> = [];
+
+      for (element in metaData.typedefs)
+      {
+        if (element.length != 2)
+        {
+          throw 'Malformed element in typedefs: ' + element;
+        }
+
+        var fieldPath:String = element[0];
+        var reflectClassPath:String = element[1];
+        var reflectClass:Class<Dynamic> = cast Type.resolveClass(reflectClassPath);
+
+        result.set(fieldPath, reflectClass);
+      }
+
+      return result;
+    }
+    else
+    {
+      throw 'No typedefs found in PolymodScriptClassMacro!';
     }
   }
 
