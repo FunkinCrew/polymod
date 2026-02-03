@@ -32,7 +32,7 @@ class PolymodScriptClassMacro
     return macro polymod.hscript._internal.PolymodScriptClassMacro.fetchHScriptedClasses();
   }
 
-  public static macro function listAbstractImpls():ExprOf<Map<String, Class<Dynamic>>>
+  public static macro function listAbstractImpls():ExprOf<Map<String, AbstractImplEntry>>
   {
     if (!onGenerateCallbackRegistered)
     {
@@ -73,9 +73,9 @@ class PolymodScriptClassMacro
     var abstractImplEntries:Array<Expr> = [];
     var abstractStaticEntries:Array<Expr> = [];
 
-		Context.info('PolymodScriptClassMacro: Processing abstracts...', Context.currentPos());
+    Context.info('PolymodScriptClassMacro: Processing abstracts...', Context.currentPos());
 
-		var startTime:Float = Sys.time();
+    var startTime:Float = Sys.time();
 
     for (type in allTypes)
     {
@@ -109,57 +109,51 @@ class PolymodScriptClassMacro
           else {}
         case TAbstract(t, _params):
           var abstractPath:String = t.toString();
-          if (abstractPath == 'flixel.util.FlxColor')
-          {
-            var abstractType = t.get();
-            var abstractImpl = abstractType.impl.get();
-            var abstractImplPath:String = abstractType.impl?.toString() ?? '';
+          var abstractType = t.get();
+          var abstractImpl = abstractType.impl?.get();
 
-            if (abstractImpl == null) {
-              // If the abstract doesn't have an implementation, it's usually an extern or something, so we always want to ignore it.
+          if (abstractImpl == null) {
+            // If the abstract doesn't have an implementation, it's usually an extern or something, so we always want to ignore it.
+            continue;
+          }
+
+          var abstractImplPath:String = abstractType.impl?.toString() ?? '';
+
+          var entryData = [macro $v{abstractPath}, macro $v{abstractImplPath}];
+
+          abstractImplEntries.push(macro $a{entryData});
+
+          for (field in abstractImpl.statics.get()) {
+            switch (field.type) {
+              case TAbstract(_, _):
+                //
+              case TType(_, _):
+                //
+                default:
+                continue;
+            }
+
+            var key:String = '${abstractImplPath}.${field.name}';
+
+            if (!staticFieldToClass.exists(key)) {
               continue;
             }
 
-            var entryData = [macro $v{abstractPath}, macro $v{abstractImplPath}];
+            var staticEntryData = [
+              macro $v{key},
+              macro $v{staticFieldToClass[key]},
+            ];
 
-            abstractImplEntries.push(macro $a{entryData});
-
-					for (field in abstractImpl.statics.get()) {
-						switch (field.type) {
-							case TAbstract(_, _):
-								//
-							case TType(_, _):
-								//
-								default:
-								continue;
-						}
-
-						var key:String = '${abstractImplPath}.${field.name}';
-
-						if (!staticFieldToClass.exists(key)) {
-							continue;
-						}
-
-						var staticEntryData = [
-							macro $v{key},
-							macro $v{staticFieldToClass[key]},
-						];
-
-              abstractStaticEntries.push(macro $a{staticEntryData});
-            }
-
-            // Try to apply RTTI?
-            abstractType.meta.add(':rtti', [], Context.currentPos());
-            abstractImpl.meta.add(':rtti', [], Context.currentPos());
+            abstractStaticEntries.push(macro $a{staticEntryData});
           }
         default:
           continue;
       }
     }
 
-		var endTime:Float = Sys.time();
+    var endTime:Float = Sys.time();
 
-		var duration:Float = endTime - startTime;
+    var duration:Float = endTime - startTime;
 
     Context.info('PolymodScriptClassMacro: Registered ${hscriptedClassEntries.length} HScriptedClasses, ${abstractImplEntries.length} abstract impls, ${abstractStaticEntries.length} abstract statics in ${duration} sec.', Context.currentPos());
 
@@ -179,9 +173,9 @@ class PolymodScriptClassMacro
   {
     var fields:Array<Field> = [];
 
-		Context.info('PolymodScriptClassMacro: Processing abstract static fields...', Context.currentPos());
+    Context.info('PolymodScriptClassMacro: Processing abstract static fields...', Context.currentPos());
 
-		var startTime:Float = Sys.time();
+    var startTime:Float = Sys.time();
 
     for (type in types)
     {
@@ -191,145 +185,136 @@ class PolymodScriptClassMacro
           var abstractPath = a.toString();
           var abstractType = a.get();
 
-					if (abstractPath != 'flixel.util.FlxColor') {
-						continue;
-					}
+          if (abstractType.impl == null) {
+            // Only a few classes end up here, generally ones that are implemented directly in code.
+            // Includes like StdTypes.Float, StdTypes.Dynamic, StdTypes.Void, cpp.Int16, cpp.SizeT, Class, Enum
+            continue;
+          } else {
+            var abstractImplPath = abstractType.impl.toString();
+            var abstractImplType = abstractType.impl.get();
+            var abstractImplStatics:Array<ClassField> = abstractImplType.statics.get();
 
-					if (abstractType.impl == null) {
-						// Only a few classes end up here, generally ones that are implemented directly in code.
-						// Includes like StdTypes.Float, StdTypes.Dynamic, StdTypes.Void, cpp.Int16, cpp.SizeT, Class, Enum
-						continue;
-					} else {
-	          var abstractImplPath = abstractType.impl.toString();
-	          var abstractImplType = abstractType.impl.get();
-						var abstractImplStatics = abstractImplType.statics.get();
-						var underlyingType = abstractType.type;
-
-	          for (field in abstractImplStatics)
-          {
-	            switch (field.kind)
+            for (field in abstractImplStatics)
             {
-	              case FVar(read, write):
-                trace(field.name, read, write);
-
-	                var canGet:Bool = read == AccInline || read == AccNormal;
-	                if (read == AccCall)
-                {
-	                  var getter:Null<ClassField> = null;
-	                  for (f in abstractImplStatics)
+              switch (field.kind)
+              {
+                case FVar(read, write):
+                  var canGet:Bool = read == AccInline || read == AccNormal;
+                  if (read == AccCall)
                   {
-	                    if (f.name == 'get_${field.name}')
+                    var getter:Null<ClassField> = null;
+                    for (f in abstractImplStatics)
                     {
-	                      getter = f;
-												break;
-	                    }
-	                  }
-
-	                  if (getter == null)
-                  {
-	                    throw 'Getter is null?';
-	                  }
-
-                  switch (getter.type)
-                  {
-                    case TFun(args, _):
-                      if (args.length != 0) continue;
-                    default:
-                      throw 'Getter has an unknown type?';
-                  }
-
-	                  canGet = true;
-	                }
-
-                var canSet:Bool = write == AccNormal;
-                if (write == AccCall)
-                {
-                  var setter:Null<ClassField> = null;
-                  for (f in abstractImplType.statics.get())
-                  {
-                    if (f.name == 'set_${field.name}')
-                    {
-                      setter = f;
-											break;
+                      if (f.name == 'get_${field.name}')
+                      {
+                        getter = f;
+                        break;
+                      }
                     }
+
+                    if (getter == null)
+                    {
+                      throw 'Getter is null?';
+                    }
+
+                    switch (getter.type)
+                    {
+                      case TFun(args, _):
+                        if (args.length != 0) continue;
+                      default:
+                        throw 'Getter has an unknown type?';
+                    }
+
+                    canGet = true;
                   }
 
-	                  if (setter == null)
+                  var canSet:Bool = write == AccNormal;
+                  if (write == AccCall)
                   {
-	                    throw 'Setter is null?';
-	                  }
+                    var setter:Null<ClassField> = null;
+                    for (f in abstractImplType.statics.get())
+                    {
+                      if (f.name == 'set_${field.name}')
+                      {
+                        setter = f;
+                        break;
+                      }
+                    }
 
-                  switch (setter.type)
-                  {
-                    case TFun(args, _):
-                      if (args.length != 1) continue;
-                    default:
-                      throw 'Setter has an unknown type?';
+                    if (setter == null)
+                    {
+                      throw 'Setter is null?';
+                    }
+
+                    switch (setter.type)
+                    {
+                      case TFun(args, _):
+                        if (args.length != 1) continue;
+                      default:
+                        throw 'Setter has an unknown type?';
+                    }
+
+                    canSet = true;
                   }
 
-	                  canSet = true;
-	                }
+                  if (canGet) {
+                    var fieldName:String = '${abstractImplPath.replace('.', '_')}_${field.name}';
 
-									if (canGet) {
-										var fieldName:String = '${abstractImplPath.replace('.', '_')}_${field.name}';
+                    fields.push(
+                    {
+                      pos: Context.currentPos(),
+                      name: fieldName,
+                      access: [Access.APublic, Access.AStatic],
+                      kind: FProp(canGet ? 'get' : 'never', canSet ? 'set' : 'never', (macro: Dynamic), null)
+                    });
 
-		                fields.push(
-                  {
-		                    pos: Context.currentPos(),
-		                    name: fieldName,
-		                    access: [Access.APublic, Access.AStatic],
-		                    kind: FProp(canGet ? 'get' : 'never', canSet ? 'set' : 'never', (macro: Dynamic), null)
-		                  });
+                    var fieldExpr:Expr = null;
+                    try {
+                      // when this fails, this should mean that we are dealing with an enum abstract
+                      // so we need to handle it differently
+                      var fullPath:String = '${abstractType.module}.${abstractType.name}';
+                      Context.getType(fullPath);
+                      fieldExpr = Context.parse('${fullPath}.${field.name}', Context.currentPos());
+                    } catch (_) {
+                      fieldExpr = Context.getTypedExpr(field.expr());
+                    }
 
-										var fieldExpr:Expr = null;
-										try {
-											// when this fails, this should mean that we are dealing with an enum abstract
-											// so we need to handle it differently
-											var fullPath:String = '${abstractType.module}.${abstractType.name}';
-											Context.getType(fullPath);
-											fieldExpr = Context.parse('${fullPath}.${field.name}', Context.currentPos());
-										} catch (_) {
-											fieldExpr = Context.getTypedExpr(field.expr());
-										}
+                    if (canGet) {
+                      fields.push({
+                        pos: Context.currentPos(),
+                        name: 'get_${fieldName}',
+                        access: [Access.APublic, Access.AStatic],
+                        kind: FFun({
+                          args: [],
+                          ret: null,
+                          expr: macro { @:privateAccess return ${fieldExpr}; }
+                        })
+                      });
+                    }
 
-										if (canGet) {
-											fields.push({
-												pos: Context.currentPos(),
-												name: 'get_${fieldName}',
-												access: [Access.APublic, Access.AStatic],
-												kind: FFun({
-													args: [],
-													ret: null,
-													expr: macro {
-														@:privateAccess
-														return ${fieldExpr};
-													}
-												})
-											});
-										}
+                    if (canSet) {
+                      fields.push({
+                        pos: Context.currentPos(),
+                        name: 'set_${fieldName}',
+                        access: [Access.APublic, Access.AStatic],
+                        kind: FFun({
+                          args: [{name: 'value'}],
+                          ret: null,
+                          expr: macro { @:privateAccess return ${fieldExpr} = value; }
+                        })
+                      });
+                    }
 
-										if (canSet) {
-											fields.push({
-												pos: Context.currentPos(),
-												name: 'set_${fieldName}',
-												access: [Access.APublic, Access.AStatic],
-												kind: FFun({
-													args: [{name: 'value'}],
-													ret: null,
-													expr: macro {
-														@:privateAccess
-														return ${fieldExpr} = value;
-													}
-												})
-											});
-										}
+                    staticFieldToClass.set('${abstractImplPath}.${field.name}', 'polymod.hscript._internal.AbstractStaticMembers_${iteration}');
+                  }
 
-		                staticFieldToClass.set('${abstractImplPath}.${field.name}', 'polymod.hscript._internal.AbstractStaticMembers_${iteration}');
-									}
+                case FMethod(k):
+                  // Skip methods, since we will be able to access the implementation class directly via Reflection.
+                  continue;
 
-	              default:
-	                continue;
-							}
+                default:
+                  continue;
+              }
             }
           }
         default:
@@ -351,11 +336,11 @@ class PolymodScriptClassMacro
         fields: fields
       });
 
-		var endTime:Float = Sys.time();
+    var endTime:Float = Sys.time();
 
-		var duration:Float = endTime - startTime;
+    var duration:Float = endTime - startTime;
 
-		Context.info('PolymodScriptClassMacro: Processed ${fields.length} static fields in ${duration} sec (iteration #${iteration}).', Context.currentPos());
+    Context.info('PolymodScriptClassMacro: Processed ${fields.length} static fields in ${duration} sec (iteration #${iteration}).', Context.currentPos());
 
     iteration++;
   }
@@ -373,16 +358,16 @@ class PolymodScriptClassMacro
 
       for (element in metaData.hscriptedClasses)
       {
-		if (element.length != 2)
+        if (element.length != 2)
         {
-		  throw 'Malformed element in hscriptedClasses: ' + element;
-		}
+          throw 'Malformed element in hscriptedClasses: ' + element;
+        }
 
-		var superClassPath:String = element[0];
-		var classPath:String = element[1];
+        var superClassPath:String = element[0];
+        var classPath:String = element[1];
         var classType:Class<Dynamic> = cast Type.resolveClass(classPath);
-		result.set(superClassPath, classType);
-	  }
+        result.set(superClassPath, classType);
+      }
 
       return result;
     }
@@ -392,13 +377,13 @@ class PolymodScriptClassMacro
     }
   }
 
-  public static function fetchAbstractImpls():Map<String, Class<Dynamic>>
+  public static function fetchAbstractImpls():Map<String, AbstractImplEntry>
   {
     var metaData = Meta.getType(PolymodScriptClassMacro);
 
     if (metaData.abstractImpls != null)
     {
-      var result:Map<String, Class<Dynamic>> = [];
+      var result:Map<String, AbstractImplEntry> = [];
 
       // Each element is formatted as `[abstractPath, abstractImplPath]`.
 
@@ -419,16 +404,20 @@ class PolymodScriptClassMacro
           throw 'Could not resolve ' + abstractPath;
         }
         #else
-        // trace('Resolving using native method');
         var abstractImplType:Class<Dynamic> = cast Type.resolveClass(abstractImplPath);
 
         if (abstractImplType == null)
         {
-          // trace('POLYMOD ABSTRACTS: Could not resolve $abstractImplPath');
+          // If the abstract type was found at compile time, but couldn't resolve at runtime,
+          // it probably got optimized out.
+          // We'll have to construct a PolymodStaticAbstractReference for it later.
         }
         #end
 
-        result.set(abstractPath, abstractImplType);
+        result.set(abstractPath, {
+          cls: abstractImplType,
+          clsName: abstractImplPath
+        });
       }
 
       return result;
@@ -484,3 +473,8 @@ class PolymodScriptClassMacro
   }
   #end
 }
+
+typedef AbstractImplEntry = {
+  cls: Class<Dynamic>,
+  clsName:String,
+};
