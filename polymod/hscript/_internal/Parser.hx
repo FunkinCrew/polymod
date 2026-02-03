@@ -52,7 +52,7 @@ private enum InterpState
   Literal;
   Interp;
   Ident;
-  Expr(depth:Int, inQuote:Bool, ?quoteChar:Int);
+  Expr(depth:Int, ?quoteChar:Int);
 }
 
 class Parser
@@ -1737,7 +1737,7 @@ class Parser
         case Interp:
           if (c == '{'.code)
           {
-            state = Expr(1, false);
+            state = Expr(1);
             continue;
           }
           else if (idents[c])
@@ -1752,35 +1752,33 @@ class Parser
               b.addChar('$'.code);
             }
           }
-        case Expr(depth, inQuote, quoteChar):
+        case Expr(depth, quoteChar):
           // Unlike readString, we don't care if we find a nested interpolated string
           // we just assume parseString will recursively take care of it instead.
 
           if (c == '"'.code || c == "'".code)
           {
-            if (inQuote && c == quoteChar)
+            if (quoteChar != null && c == quoteChar)
             {
               quoteChar = null;
-              inQuote = false;
             }
             else
             {
               quoteChar = c;
-              inQuote = true;
             }
 
-            state = Expr(depth, inQuote, quoteChar);
+            state = Expr(depth, quoteChar);
           }
 
-          if (c == '{'.code && !inQuote)
+          if (c == '{'.code && quoteChar == null)
           {
-            state = Expr(depth + 1, false, quoteChar);
+            state = Expr(depth + 1);
           }
-          else if (c == '}'.code && !inQuote)
+          else if (c == '}'.code && quoteChar == null)
           {
             if (depth-- > 1)
             {
-              state = Expr(depth, inQuote, quoteChar);
+              state = Expr(depth);
             }
             else
             {
@@ -1826,7 +1824,7 @@ class Parser
       case Interp:
         b.addChar('$'.code);
         pushBuf(str.length);
-      case Expr(_, _, _):
+      case Expr(_, _):
         error(EUnterminatedString, p1 + str.length, p1 + str.length);
       case Ident:
         pushBufId(str.length);
