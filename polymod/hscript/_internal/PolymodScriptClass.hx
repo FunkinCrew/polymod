@@ -93,21 +93,26 @@ class PolymodScriptClass
    * and map them to internal implementation classes.
    * We use this to access the functions of these abstracts.
    */
-  public static var abstractClassImpls(get, never):Map<String, Class<Dynamic>>;
+  public static var abstractClassImpls(get, never):Map<String, PolymodStaticAbstractReference>;
 
-  static var _abstractClassImpls:Map<String, Class<Dynamic>> = null;
+  static var _abstractClassImpls:Map<String, PolymodStaticAbstractReference> = null;
 
-  static function get_abstractClassImpls():Map<String, Class<Dynamic>>
+  static function get_abstractClassImpls():Map<String, PolymodStaticAbstractReference>
   {
     if (_abstractClassImpls == null)
     {
-      _abstractClassImpls = new Map<String, Class<Dynamic>>();
+      _abstractClassImpls = new Map<String, PolymodStaticAbstractReference>();
 
-      var baseAbstractClassImpls:Map<String, Class<Dynamic>> = PolymodScriptClassMacro.listAbstractImpls();
+      var baseAbstractClassImpls:Map<String, {
+        cls: Class<Dynamic>,
+        clsName:String,
+      }> = PolymodScriptClassMacro.listAbstractImpls();
 
       for (key => value in baseAbstractClassImpls)
       {
-        _abstractClassImpls.set(key, value);
+        if (value == null) continue;
+
+        _abstractClassImpls.set(key, new PolymodStaticAbstractReference(key, value.cls, value.clsName));
       }
     }
 
