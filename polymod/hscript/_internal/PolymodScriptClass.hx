@@ -54,7 +54,7 @@ class PolymodScriptClass
   /**
    * Register a scripted class by parsing the text of that script.
    */
-  static function registerScriptClassByString(body:String, path:String = null):Void
+  static function registerScriptClassByString(body:String, ?path:String):Void
   {
     scriptInterp.addModule(body, path == null ? 'hscriptClass' : 'hscriptClass($path)');
   }
@@ -118,6 +118,10 @@ class PolymodScriptClass
     return _abstractClassImpls;
   }
 
+  /**
+   * Define a list of `fieldName -> Class` pointing to the generated class containing a reference
+   * to each static field of each abstract.
+   */
   public static var abstractClassStatics(get, never):Map<String, Class<Dynamic>>;
   static var _abstractClassStatics:Map<String, Class<Dynamic>> = null;
 
