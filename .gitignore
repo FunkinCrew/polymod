@@ -6,3 +6,4 @@ samples/*/bin/
 samples/*/dump/
 samples/nme/Export/
 samples/openfl_hscript/pages/
+.DS_STORE
