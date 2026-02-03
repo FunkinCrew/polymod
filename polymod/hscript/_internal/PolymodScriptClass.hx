@@ -1,11 +1,12 @@
 package polymod.hscript._internal;
 
 import haxe.ds.ObjectMap;
+import polymod.hscript._internal.Expr.ClassDecl;
+import polymod.hscript._internal.Expr.ClassImport;
 import polymod.hscript._internal.Expr.FieldDecl;
 import polymod.hscript._internal.Expr.FunctionDecl;
 import polymod.hscript._internal.Expr.VarDecl;
 import polymod.hscript._internal.Printer;
-import polymod.hscript._internal.PolymodClassDeclEx;
 import polymod.util.Util;
 
 using StringTools;
@@ -291,7 +292,7 @@ class PolymodScriptClass
     return listScriptClassesExtending(Type.getClassName(cls));
   }
 
-  static function getSuperClasses(classDecl:PolymodClassDeclEx):Array<String>
+  static function getSuperClasses(classDecl:ClassDecl):Array<String>
   {
     if (classDecl.extend == null)
     {
@@ -310,7 +311,7 @@ class PolymodScriptClass
     };
 
     // Check if the superclass is a scripted class.
-    var classDescriptor:PolymodClassDeclEx = PolymodInterpEx.findScriptClassDescriptor(fullSuperClsName);
+    var classDescriptor:ClassDecl = PolymodInterpEx.findScriptClassDescriptor(fullSuperClsName);
 
     if (classDescriptor != null)
     {
@@ -332,7 +333,7 @@ class PolymodScriptClass
 
       if (classDecl.imports.exists(baseSuperClsName))
       {
-        var importedClass:PolymodClassImport = classDecl.imports.get(baseSuperClsName);
+        var importedClass:ClassImport = classDecl.imports.get(baseSuperClsName);
         if (importedClass != null && importedClass.cls == null)
         {
           // importedClass was defined but `cls` was null. This class must have been blacklisted.
@@ -395,7 +396,7 @@ class PolymodScriptClass
   /**
    * INSTANCE METHODS
    */
-  public function new(c:PolymodClassDeclEx, args:Array<Dynamic>)
+  public function new(c:ClassDecl, args:Array<Dynamic>)
   {
     var targetClass:Class<Dynamic> = null;
     switch (c.extend)
@@ -414,7 +415,7 @@ class PolymodScriptClass
         }
         else if (c.imports.exists(clsName))
         {
-          var importedClass:PolymodClassImport = c.imports.get(clsName);
+          var importedClass:ClassImport = c.imports.get(clsName);
           if (importedClass != null && importedClass.cls != null)
           {
             targetClass = importedClass.cls;
@@ -809,7 +810,7 @@ class PolymodScriptClass
     return fn != null;
   }
 
-  private var _c:PolymodClassDeclEx;
+  private var _c:ClassDecl;
   private var _interp:PolymodInterpEx;
 
   public var superClass:Dynamic = null;
@@ -1023,7 +1024,7 @@ class PolymodScriptClass
    * @param clsDecl The class to retrieve functions from.
    * @param usingCache The map to populate.
    */
-  public static function buildExtensionFunctionCache(clsDecl:PolymodClassDeclEx, usingCache:Map<String, Array<Dynamic>->Dynamic>):Void
+  public static function buildExtensionFunctionCache(clsDecl:ClassDecl, usingCache:Map<String, Array<Dynamic>->Dynamic>):Void
   {
     for (_ => u in clsDecl.usings)
     {

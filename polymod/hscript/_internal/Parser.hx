@@ -1445,6 +1445,12 @@ class Parser
             fields: fields,
             isPrivate: isPrivate,
             isExtern: isExtern,
+
+            pkg: [],
+            imports: [],
+            importsToValidate: [],
+            usings: [],
+            staticFields: [],
           });
       case "typedef":
         var name = getIdent();
