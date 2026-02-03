@@ -108,15 +108,21 @@ class PolymodInterpEx extends Interp
       // Ignore importedClass.enm as enums cannot be instantiated.
 
       // Importing a blacklisted module creates an import with a `null` class, so we check for that here.
-      var c = importedClass.cls;
-      if (c == null)
-      {
-        error(EBlacklistedModule(importedClass.fullPath));
+      var abs = importedClass.abs;
+      if (abs != null) {
+        try {
+          return abs.instantiate(args);
+        } catch (e) {
+          errorEx(EInvalidModule(importedClass.fullPath));
+        }
       }
-      else
-      {
-        return Type.createInstance(c, args);
+
+      var cls = importedClass.cls;
+      if (cls != null) {
+        return Type.createInstance(cls, args);
       }
+
+      errorEx(EBlacklistedModule(importedClass.fullPath));
     }
 
     // Attempt to resolve the class without overrides.

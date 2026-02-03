@@ -175,11 +175,17 @@ class PolymodStaticAbstractReference {
    * The name of the abstract class, as it was imported.
    */
   public var absName:String;
+
   /**
    * The internal class that implements the abstract class's static functions,
    * if it exists.
    */
   public var absImpl:Null<Class<Dynamic>>;
+
+  /**
+   * The path of the implementation class.
+   * Used for resolving static fields cached at macro time.
+   */
   public var absImplPath:String;
 
   public function new(absName:String, absImpl:Null<Class<Dynamic>>, absImplPath:String)
@@ -187,6 +193,20 @@ class PolymodStaticAbstractReference {
     this.absName = absName;
     this.absImpl = absImpl;
     this.absImplPath = absImplPath;
+  }
+
+  /**
+   * Instantiate an instance of the underlying implementation  class.
+   * @param args The arguments to pass to the constructor.
+   * @return The resulting instance.
+   * @throws ex Thrown if the underlying implementation class is not available.
+   */
+  public function instantiate(args:Array<Dynamic>):Dynamic {
+    if (this.absImpl == null) {
+      throw 'Could not resolve abstract class ${absName}.';
+    }
+
+    return Type.createInstance(this.absImpl, args);
   }
 
   /**
