@@ -346,7 +346,7 @@ class PolymodScriptClassMacro
                     canSet = true;
                   }
 
-                  if (canGet) {
+                  if (canGet || canSet) {
                     var fieldName:String = '${abstractImplPath.replace('.', '_')}_${field.name}';
 
                     fields.push(
