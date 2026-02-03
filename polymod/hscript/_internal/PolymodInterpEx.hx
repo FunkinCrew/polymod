@@ -3,6 +3,7 @@ package polymod.hscript._internal;
 import polymod.hscript._internal.Expr;
 import polymod.hscript._internal.Expr.ClassDecl;
 import polymod.hscript._internal.Expr.ClassImport;
+import polymod.hscript._internal.PolymodClassDeclEx.PolymodStaticAbstractReference;
 import polymod.hscript._internal.PolymodStaticClassReference;
 import polymod.hscript._internal.Printer;
 import polymod.util.Util;
@@ -136,6 +137,11 @@ class PolymodInterpEx extends Interp
     {
       // Force call super function.
       return super.fcall(o, '__super_${f}', args);
+    }
+    else if (Std.isOfType(o, PolymodStaticAbstractReference))
+    {
+      var ref:PolymodStaticAbstractReference = cast(o, PolymodStaticAbstractReference);
+      return ref.callFunction(f, args);
     }
     else if (Std.isOfType(o, PolymodStaticClassReference))
     {
@@ -1303,7 +1309,13 @@ class PolymodInterpEx extends Interp
     }
 
     // Otherwise, we assume the field is fine to use.
-    if (Std.isOfType(o, PolymodStaticClassReference))
+    if (Std.isOfType(o, PolymodStaticAbstractReference))
+    {
+      var ref:PolymodStaticAbstractReference = cast(o, PolymodStaticAbstractReference);
+
+      return ref.getField(f);
+    }
+    else if (Std.isOfType(o, PolymodStaticClassReference))
     {
       var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
 
@@ -1413,7 +1425,12 @@ class PolymodInterpEx extends Interp
     }
 
     // Otherwise, we assume the field is fine to use.
-    if (Std.isOfType(o, PolymodStaticClassReference))
+    if (Std.isOfType(o, PolymodStaticAbstractReference))
+    {
+      // If the target is an abstract, assignment is always invalid.
+      errorEx(EInvalidFinalSet(f));
+    }
+    else if (Std.isOfType(o, PolymodStaticClassReference))
     {
       var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
 
@@ -1534,6 +1551,7 @@ class PolymodInterpEx extends Interp
       {
         if (importedClass.cls != null) return importedClass.cls;
         if (importedClass.enm != null) return importedClass.enm;
+        if (importedClass.abs != null) return importedClass.abs;
 
         // Resolve imported scripted classes.
         var result = PolymodStaticClassReference.tryBuild(importedClass.fullPath);
@@ -1980,7 +1998,7 @@ class PolymodInterpEx extends Interp
     }
   }
 
-  public function registerModules(module:Array<ModuleDecl>, ?origin:String = "hscript")
+  public function registerModules(module:Array<ModuleDecl>, ?origin:String = "hscript"):Void
   {
     var pkg:Array<String> = null;
     var imports:Map<String, ClassImport> = [];
@@ -2030,7 +2048,8 @@ class PolymodInterpEx extends Interp
               pkg: path.slice(0, path.length - 1),
               fullPath: path.join("."),
               cls: null,
-              enm: null
+              enm: null,
+              abs: null
             };
 
           if (PolymodScriptClass.importOverrides.exists(importedClass.fullPath))
@@ -2043,15 +2062,7 @@ class PolymodInterpEx extends Interp
           else if (PolymodScriptClass.abstractClassImpls.exists(importedClass.fullPath))
           {
             // We used a macro to map each abstract to its implementation.
-            importedClass.cls = PolymodScriptClass.abstractClassImpls.get(importedClass.fullPath);
-
-						if (importedClass.cls == null) {
-							Polymod.warning(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Abstract type ${importedClass.fullPath} could not be resolved. Try using the underlying type instead.', origin);
-						} else {
-	            // trace('RESOLVED ABSTRACT CLASS ${importedClass.fullPath} -> ${Type.getClassName(importedClass.cls)}');
-	            // trace(Type.getClassFields(importedClass.cls));
-						}
-
+            importedClass.abs = PolymodScriptClass.abstractClassImpls.get(importedClass.fullPath);
           }
           else if (_scriptEnumDescriptors.exists(importedClass.fullPath))
           {
@@ -2107,7 +2118,8 @@ class PolymodInterpEx extends Interp
               pkg: path.slice(0, path.length - 1),
               fullPath: path.join("."),
               cls: null,
-              enm: null
+              enm: null,
+              abs: null
             };
 
           if (PolymodScriptClass.importOverrides.exists(importedClass.fullPath))
@@ -2120,9 +2132,7 @@ class PolymodInterpEx extends Interp
           else if (PolymodScriptClass.abstractClassImpls.exists(importedClass.fullPath))
           {
             // We used a macro to map each abstract to its implementation.
-            importedClass.cls = PolymodScriptClass.abstractClassImpls.get(importedClass.fullPath);
-            trace('RESOLVED ABSTRACT CLASS ${importedClass.fullPath} -> ${Type.getClassName(importedClass.cls)}');
-            trace(Type.getClassFields(importedClass.cls));
+            importedClass.abs = PolymodScriptClass.abstractClassImpls.get(importedClass.fullPath);
           }
           else if (_scriptEnumDescriptors.exists(importedClass.fullPath))
           {
