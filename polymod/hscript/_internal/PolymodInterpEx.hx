@@ -1400,8 +1400,13 @@ class PolymodInterpEx extends Interp
     // Otherwise, we assume the field is fine to use.
     if (Std.isOfType(o, PolymodStaticAbstractReference))
     {
-      // If the target is an abstract, assignment is always invalid.
-      errorEx(EInvalidFinalSet(f));
+      var ref:PolymodStaticAbstractReference = cast(o, PolymodStaticAbstractReference);
+
+      try {
+        return ref.setField(f, v);
+      } catch (e:Dynamic) {
+        errorEx(EInvalidFinalSet(f));
+      }
     }
     else if (Std.isOfType(o, PolymodStaticClassReference))
     {
