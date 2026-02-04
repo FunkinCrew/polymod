@@ -2,43 +2,50 @@
   "dependencies": [
     {
       "name": "flixel",
-      "type": "haxelib",
-      "version": null
+      "type": "haxelib"
     },
     {
       "name": "flixel-addons",
-      "type": "haxelib",
-      "version": null
+      "type": "haxelib"
     },
     {
       "name": "flixel-ui",
-      "type": "haxelib",
-      "version": null
+      "type": "haxelib"
     },
     {
       "name": "hxcpp",
-      "type": "haxelib",
-      "version": null
+      "type": "haxelib"
+    },
+    {
+      "name": "jsonpatch",
+      "type": "haxelib"
+    },
+    {
+      "name": "jsonpath",
+      "type": "haxelib"
     },
     {
       "name": "lime",
-      "type": "haxelib",
-      "version": null
+      "type": "haxelib"
     },
     {
       "name": "openfl",
-      "type": "haxelib",
-      "version": null
+      "type": "haxelib"
     },
     {
       "name": "polymod",
-      "path": "../..",
-      "type": "dev"
+      "type": "dev",
+      "path": "../.."
+    },
+    {
+      "name": "thx.core",
+      "type": "git",
+      "ref": "master",
+      "url": "https://github.com/fponticelli/thx.core"
     },
     {
       "name": "thx.semver",
-      "type": "haxelib",
-      "version": null
+      "type": "haxelib"
     }
   ]
 }

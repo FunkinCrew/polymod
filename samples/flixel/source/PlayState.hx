@@ -69,7 +69,27 @@ class PlayState extends FlxState
 			add(w);
 		}
 
+		var toggleMods = new CheapButton('Toggle Mods', onToggleMods);
+		toggleMods.x = xx;
+		toggleMods.y = yy;
+		add(toggleMods);
+
 		updateWidgets();
+	}
+
+	var enabled:Bool = true;
+	function onToggleMods():Void {
+		trace('Toggling mods!');
+
+		if (enabled) {
+			enabled = false;
+			Polymod.disableModdedAssets();
+		} else {
+			enabled = true;
+			Polymod.enableModdedAssets();
+		}
+
+		refresh();
 	}
 
 	public function refresh()
@@ -279,6 +299,8 @@ class PlayState extends FlxState
 			return item.id;
 		});
 		trace('Loaded mods: ${loadedMods}');
+
+		enabled = true;
 		refresh();
 	}
 
