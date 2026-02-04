@@ -1800,8 +1800,10 @@ class Parser
               input = oldInput;
               readPos = oldPos;
               offset = oldOffset;
+              #if hscriptPos
               tokenMin = oldTokenMin;
               tokenMax = oldTokenMax;
+              #end
               char = -1;
 
               b = new StringBuf();

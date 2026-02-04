@@ -2190,7 +2190,9 @@ class PolymodInterpEx extends Interp
     _clone._nextCallObject = this._nextCallObject;
     _clone._classDeclOverride = this._classDeclOverride;
     _clone.depth = this.depth;
+    #if hscriptPos
     _clone.curExpr = this.curExpr;
+    #end
     _clone.inTry = this.inTry;
     return _clone;
   }
