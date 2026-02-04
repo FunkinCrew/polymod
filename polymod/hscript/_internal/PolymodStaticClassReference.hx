@@ -170,7 +170,8 @@ class PolymodStaticClassReference
  * to the abstract static value store built by PolymodScriptClassMacro at compile time.
  */
 @:nullSafety
-class PolymodStaticAbstractReference {
+class PolymodStaticAbstractReference
+{
   /**
    * The name of the abstract class, as it was imported.
    */
@@ -201,13 +202,16 @@ class PolymodStaticAbstractReference {
    * @return The resulting instance.
    * @throws ex Thrown if the underlying implementation class is not available.
    */
-  public function instantiate(args:Array<Dynamic>):Dynamic {
-    if (this.absImpl == null) {
+  public function instantiate(args:Array<Dynamic>):Dynamic
+  {
+    if (this.absImpl == null)
+    {
       throw 'Could not resolve abstract class ${absName}.';
     }
 
     var ctor = Reflect.field(this.absImpl, '_new');
-    if (ctor == null) {
+    if (ctor == null)
+    {
       throw 'Could not find constructor for abstract class ${absName}';
     }
 
@@ -219,14 +223,18 @@ class PolymodStaticAbstractReference {
    * @param fieldName The name of the field to retrieve.
    * @return The value of the field.
    */
-  public function getField(fieldName:String):Dynamic {
-    if (this.absImpl != null) {
-      if (Reflect.hasField(this.absImpl, fieldName)) {
+  public function getField(fieldName:String):Dynamic
+  {
+    if (this.absImpl != null)
+    {
+      if (Reflect.hasField(this.absImpl, fieldName))
+      {
         var result:Dynamic = Reflect.getProperty(this.absImpl, fieldName);
         if (result != null) return result;
       }
       var getterName:String = 'get_$fieldName';
-      if (Reflect.hasField(this.absImpl, getterName)) {
+      if (Reflect.hasField(this.absImpl, getterName))
+      {
         var getter = Reflect.field(this.absImpl, getterName);
         return Reflect.callMethod(this.absImpl, getter, []);
       }
@@ -241,14 +249,18 @@ class PolymodStaticAbstractReference {
    * @param fieldValue The value to assign to the field.
    * @return The value of the field.
    */
-  public function setField(fieldName:String, fieldValue:Dynamic):Dynamic {
-    if (this.absImpl != null) {
-      if (Reflect.hasField(this.absImpl, fieldName)) {
+  public function setField(fieldName:String, fieldValue:Dynamic):Dynamic
+  {
+    if (this.absImpl != null)
+    {
+      if (Reflect.hasField(this.absImpl, fieldName))
+      {
         Reflect.setProperty(this.absImpl, fieldName, fieldValue);
         return fieldValue;
       }
       var setterName:String = 'set_$fieldName';
-      if (Reflect.hasField(this.absImpl, setterName)) {
+      if (Reflect.hasField(this.absImpl, setterName))
+      {
         var setter = Reflect.field(this.absImpl, setterName);
         var result = Reflect.callMethod(this.absImpl, setter, [fieldValue]);
         return result;
@@ -264,25 +276,31 @@ class PolymodStaticAbstractReference {
    * @param args The arguments to pass to the function.
    * @return The return value of the function.
    */
-  public function callFunction(funcName:String, args:Array<Dynamic>):Dynamic {
+  public function callFunction(funcName:String, args:Array<Dynamic>):Dynamic
+  {
     // If we can just call the method directly, do that.
     var func = getField(funcName);
-    if (func != null) {
+    if (func != null)
+    {
       return Reflect.callMethod(this.absImpl, func, args);
     }
 
     throw 'Could not resolve abstract class static function ${funcName}';
   }
 
-  function fetchAbstractClassStatic(fieldName:String):Dynamic {
+  function fetchAbstractClassStatic(fieldName:String):Dynamic
+  {
     var key:String = '${this.absImplPath}.${fieldName}';
 
-    if (PolymodScriptClass.abstractClassStatics.exists(key)) {
+    if (PolymodScriptClass.abstractClassStatics.exists(key))
+    {
       var holder = PolymodScriptClass.abstractClassStatics.get(key);
       var property = key.replace('.', '_');
 
       return Reflect.getProperty(holder, property);
-    } else {
+    }
+    else
+    {
       throw 'Could not resolve abstract class static field ${fieldName}';
     }
   }
