@@ -191,8 +191,6 @@ class PolymodScriptClassMacro
             switch (field.kind)
             {
               case FVar(read, write):
-                trace(field.name, read, write);
-
                 var canGet:Bool = read == AccInline || read == AccNormal;
                 if (read == AccCall)
                 {
