@@ -225,9 +225,37 @@ class PolymodStaticAbstractReference {
         var result:Dynamic = Reflect.getProperty(this.absImpl, fieldName);
         if (result != null) return result;
       }
+      var getterName:String = 'get_$fieldName';
+      if (Reflect.hasField(this.absImpl, getterName)) {
+        var getter = Reflect.field(this.absImpl, getterName);
+        return Reflect.callMethod(this.absImpl, getter, []);
+      }
     }
 
     return fetchAbstractClassStatic(fieldName);
+  }
+
+  /**
+   * Assign a static field of the abstract class.
+   * @param fieldName The name of the field to assign.
+   * @param fieldValue The value to assign to the field.
+   * @return The value of the field.
+   */
+  public function setField(fieldName:String, fieldValue:Dynamic):Dynamic {
+    if (this.absImpl != null) {
+      if (Reflect.hasField(this.absImpl, fieldName)) {
+        Reflect.setProperty(this.absImpl, fieldName, fieldValue);
+        return fieldValue;
+      }
+      var setterName:String = 'set_$fieldName';
+      if (Reflect.hasField(this.absImpl, setterName)) {
+        var setter = Reflect.field(this.absImpl, setterName);
+        var result = Reflect.callMethod(this.absImpl, setter, [fieldValue]);
+        return result;
+      }
+    }
+
+    throw 'Could not resolve abstract static field ${fieldName}';
   }
 
   /**
