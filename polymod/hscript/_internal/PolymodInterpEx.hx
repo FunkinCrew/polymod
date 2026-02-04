@@ -27,6 +27,8 @@ class PolymodInterpEx extends Interp
 
   var _propTrack:Map<String, Bool> = [];
 
+  var _root:Null<PolymodInterpEx>;
+
   function getClassDecl():ClassDecl
   {
     if (_classDeclOverride != null)
@@ -696,6 +698,13 @@ class PolymodInterpEx extends Interp
           }
           args = args2;
 
+          // Apply changes from the root again in the case another clone has already messed with them.
+          for (k => v in _root.variables)
+          {
+            if (k == "trace") continue;
+            clone.variables.set(k, v);
+          }
+
           clone.depth++;
 
           for (i in 0...params.length)
@@ -740,6 +749,17 @@ class PolymodInterpEx extends Interp
             catch (err:Dynamic)
             {
               throw err;
+            }
+          }
+
+          // Re-apply any changes to the root Interpreter
+          for (k => v in clone.variables)
+          {
+            if (k == 'trace') continue;
+
+            if (variables[k] != v)
+            {
+              _root.variables.set(k, v);
             }
           }
           return r;
@@ -2185,19 +2205,21 @@ class PolymodInterpEx extends Interp
   {
     var _clone = new PolymodInterpEx(this.targetCls, this._proxy);
 
-    // Pass the variables by reference
-    _clone.variables = this.variables;
-
-    for (k => v in this.locals)
+    for (k => v in this.variables)
     {
-      _clone.locals.set(k, v);
+      if (k != 'trace') _clone.variables.set(k, v);
     }
+
+    _clone.locals = duplicate(this.locals);
 
     for (v in this.declared)
     {
       if (!_clone.declared.contains(v)) _clone.declared.push(v);
     }
 
+    if (depth == 0) _root = this;
+
+    _clone._root = this._root;
     _clone._nextCallObject = this._nextCallObject;
     _clone._classDeclOverride = this._classDeclOverride;
     _clone.depth = this.depth;
