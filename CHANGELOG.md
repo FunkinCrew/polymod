@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [2.0.0] - 2026-??-??
-## 
+## Added
 - You can now declare and access static variables and functions of scripted classes, even from other scripts.
 - You can directly instantiate a scripted class by name from another script (`new TestClass()` instead of `ScriptedBar.init('TestClass', [])`).
 - Scripted classes can now extend an aliased class.
@@ -15,24 +15,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - `scriptStaticCall` to invoke a static function on a scripted class.
   - `scriptStaticGet` to retrieve a static variable on a scripted class.
   - `scriptStaticSet` to assign a static variable on a scripted class.
-- Added the ability to blacklist static or instance fields or methods.
-  - Use `Polymod.blacklistStaticFields(Class, Array<String>)` to blacklist static variables or functions from being accessed by scripts.
-  - Use `Polymod.blacklistInstanceFields(Class, Array<String>)` to blacklist instance variables or functions from being accessed by scripts.
-- Added support for scripted `enum` values, accessible from other scripts. () - by @lemz1 in [#192]
-- Added support for the `final` keyword. () - by @KoloInDaCrib in [#193]
-  - When using `final myValue = 12;`, attempting to reassign the value throws an error.
+- Added the ability to import and access static fields and methods of `abstract`s.
+- Added the ability to import and access values of `enum abstract`s.
+- Added the ability to import and access `typedef`s (they will be aliased to the appropriate type).
+- Added the new `scriptHas` function to scripted class implementations to check for field existance.
+- Added support for import renaming using the `as` keyword. () - by @KoloInDaCrib in [#190]
 - Added support for properties, with getters and setters. () - by @KoloInDaCrib in [#191]
   - When using `var myValue(get, set):Int;`, accessing and assigning `myValue` will instead call `get_myValue` and `set_myValue` respectively.
-- Added the ability to access static variables and methods of `abstract`s directly by name. () -  by @lemz1 in [#195]
+- Added support for scripted `enum` values, accessible from other scripts. () - by @lemz1 in [#192]
+- Added support for the `final` keyword. () - by @KoloInDaCrib in [#193]
+- Added support for scripted classes to import other scripted classes that are in a different package. Scripted classes with the same package will be automatically imported. () - by @lemz1 in [#194]
+- Added the ability to blacklist static or instance fields or methods. () - by @KoloInDaCrib in [#216]
+  - Use `Polymod.blacklistStaticFields(Class, Array<String>)` to blacklist static variables or functions from being accessed by scripts.
+  - Use `Polymod.blacklistInstanceFields(Class, Array<String>)` to blacklist instance variables or functions from being accessed by scripts.
+  - When using `final myValue = 12;`, attempting to reassign the value throws an error.
+- Added support for static extensions via the `using` keyword. () - by @KoloInDaCrib in [#218]
+- Added support for scripted classes to extend other scripted classes. () - by @NotHyper-474 in [#285]
+- Added support for typedef extensions, and optional fields in typedefs. () - by @Starexify in [#290]
+- Added support for string interpolation (i.e. you can now use `'${value}'` instead of string concatenation). () - by @NotHyper-474 in [#292]
 ## Changed
 - Polymod's scripting systems now utilize an internal, built-in fork of HScript, rather than a separate repository. This allows for new features and support to be added (such as new keywords and syntax) without having to require a specific non-standard version of the Haxelib.
 - Added improved error messages for the following cases:
   - Attempting to access `this` from a scripted static function.
-  - Attempting to declare a field with a duplicate name (previously, this silently replaced the field, leading to weird bugs!).
   - Attempting to access a blacklisted static or instance field.
-- Function calls now support an arbitrary number of arguments, up from eight. () - by @NotHyper-474 in [#278]
+  - Attempting to declare a field with a duplicate name (previously, this silently replaced the field, leading to weird bugs!). () - by @KoloInDaCrib in [#261]
 - Cleaned up a lot of existing error messages to be more clear what they're doing.
+- Added a new CheckStyle config, and performed a lot of code cleanup across the project.
 - If a mod is skipped because its API version is invalid, it will now output a `MOD_API_VERSION_MISMATCH` warning.
+- File accesses are now case insensitive by default, to create similar behavior between Linux and Windows. Use `PolymodConfig.caseInsensitiveZipLoading` to configure. () - by @mikolka9144 in [#212]
+  - Functionality also implemented for the ZIPFileSystem. () - by @NotHyper-474 in [#204]
+- Polymod will automatically clear any cached scripts before loading them again. () - by @KoloInDaCrib in [#247]
+- Function calls now support an arbitrary number of arguments, up from eight. () - by @NotHyper-474 in [#278]
+- Scripted classes no longer have to extend anything (a scripted class that has no superclass can only be instantiated from other scripts). () - by @NotHyper-474 in [#280]
+- `interface`s and uses of `implements` now get properly parsed instead of throwing an error (they aren't enforced right now, though) () - by @Starexify in [#284]
+- The `init` function of scripted class implementations has been renamed to `scriptInit`; this is a breaking change but should be an easy rename. () - by @NotHyper-474 in [#286]
+  - This PR also fixes an issue where constructor arguments wouldn't be parsed correctly.
 ## Fixed
 - Fixed a Null Object Reference error that could occur if a scripted class attempts to extend a superclass which hasn't been imported.
 - Optimized the `HScriptedClass` macro to no longer require reflection when the script does not override the function being called.
@@ -43,8 +60,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Fixed the `list()` function implementation to make it more consistent with Lime's behavior.
 - Fixed an issue where attempting to list assets from a specific library would display all assets from all libraries instead.
 - Resolve a build error `Type not found: T` caused by not properly deparameterizing scripted class types. () - by @Geokureli in [#178]
+- Fixed an issue where try/catch blocks would prevent the rest of the function from being called properly. () - by @NotHyper-474 in [#199]
 - `PolymodScriptClass.className` now returns a properly formatted value. () - by @cyn0x8 in [#202]
 - Fix an issue where `DefineUtil.getDefineBool` would always return false, even if a different default value was provided. () - by @NotHyper-474 in [#208]
+- Fixed an issue where some expressions would be evaluated twice, causing a deranged context loss error. () - by @NotHyper-474 in [#234]
+- Fixed an issue where static variables with no expression would throw a Null Object Reference. () - by @NotHyper-474 in [#239]
+- Fixed an issue where `Array.remove()` could not be called on HTML5. () - by @KoloInDaCrib in [#251]
+- Fixed an issue where local variables would still be in scope in static functions. () - by @NotHyper-474 in [#281]
+- Fixed an issue where static extensions couldn't be used in static functions. () - by @NotHyper-474 in [#282]
+- Fixed an issue where the `is` keyword had the wrong operator priority. () - by @Starexify in [#290]
+- Fixed an issue where enum constructors couldn't be called with multiple arguments. () - by @Starexify in [#296]
 
 # [1.8.0] - 2024-07-26
 The version is the result of resolving practical needs that arose from using Polymod with [Friday Night Funkin'](https://github.com/FunkinCrew/Funkin) over the past year and a half!
