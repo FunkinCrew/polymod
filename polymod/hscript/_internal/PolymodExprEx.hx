@@ -48,6 +48,7 @@ enum ErrorEx
   EBlacklistedModule(m:String);
   EBlacklistedField(f:String);
   EPurgedFunction(f:String); // Function can't be called because it previously threw an uncaught exception
+  EInvalidArgCount(f:String, expected:Int, given:Int); // Given arguments count don't match the minimum required parameters
   ENullObjectReference(f:String); // Accessing a field of "null"
   EInvalidScriptedFnAccess(f:String);
   EInvalidScriptedVarGet(v:String);
