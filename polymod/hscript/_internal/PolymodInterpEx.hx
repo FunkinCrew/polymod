@@ -1755,6 +1755,9 @@ class PolymodInterpEx extends Interp
    */
   public function validateArgumentCount(params:Array<Argument>, args:Array<Dynamic>, name:Null<String>)
   {
+    // getters/setters have null given arguments it seems, so we return early
+    if (args == null) return;
+
     var minParams = 0;
     for (i in 0...params.length)
     {
@@ -1764,7 +1767,7 @@ class PolymodInterpEx extends Interp
 
     if (args.length < minParams)
     {
-      errorEx(ECustom('Invalid number of parameters. Got ${args.length}, required $minParams${(name != null) ? " for function '" + name + "'" : ""}.'));
+      errorEx(EInvalidArgCount((name != null) ? " for function '" + name + "'" : "", minParams, args.length));
     }
   }
 
