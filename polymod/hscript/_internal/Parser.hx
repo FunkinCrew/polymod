@@ -398,6 +398,27 @@ class Parser
     return parseExprNext(mk(EObject(fl), p1));
   }
 
+  /**
+   * Transform an Expr to an Argument for lambda functions
+   *
+   * @param e The expression
+   * @return The function argument
+   */
+  function exprToArg(e:Expr):Argument {
+    return switch (expr(e)) {
+      case EIdent(v):
+        {name: v, t: null, opt: false, value: null};
+      case ECheckType({e: EIdent(v)}, t):
+        {name: v, t: t, opt: false, value: null};
+      case EBinop("=", {e: EIdent(v)}, def):
+        {name: v, t: null, opt: false, value: def};
+      case EBinop("=", {e: ECheckType({e: EIdent(v)}, t)}, def):
+        {name: v, t: t, opt: false, value: def};
+      default:
+        null;
+    }
+  }
+
   function parseExpr()
   {
     var tk = token();
@@ -423,28 +444,58 @@ class Parser
         if (tk == TPClose)
         {
           ensureToken(TOp("->"));
-          var eret = parseExpr();
-          return mk(EFunction([], mk(EReturn(eret), p1)), p1);
+          return mk(EFunction([], mk(EReturn(parseExpr()), p1)), p1);
         }
+
+        var isOpt = false;
+        if (tk == TQuestion) {
+          isOpt = true;
+          tk = token();
+        }
+
         push(tk);
         var e = parseExpr();
         tk = token();
+
         switch (tk)
         {
           case TPClose:
+            if (maybe(TOp("->")))
+            {
+              var arg = exprToArg(e);
+              if (arg == null) return unexpected(tk);
+              arg.opt = isOpt;
+              return mk(EFunction([arg], mk(EReturn(parseExpr()), p1)), p1);
+            }
             return parseExprNext(mk(EParent(e), p1, tokenMax));
+
           case TDoubleDot:
             var t = parseType();
+            var v0 = maybe(TOp("=")) ? parseExpr() : null;
+
             tk = token();
             switch (tk)
             {
               case TPClose:
-                return parseExprNext(mk(ECheckType(e, t), p1, tokenMax));
+                if (maybe(TOp("->")))
+                {
+                  switch (expr(e))
+                  {
+                    case EIdent(v):
+                      var arg:Argument = {name: v, t: t, value: v0, opt: isOpt};
+                      return mk(EFunction([arg], mk(EReturn(parseExpr()), p1)), p1);
+                    default:
+                  }
+                }
+
+                var e2 = mk(ECheckType(e, t), p1, tokenMax);
+                if (v0 != null) e2 = mk(EBinop("=", e2, v0), p1, tokenMax);
+                return parseExprNext(e2);
               case TComma:
                 switch (expr(e))
                 {
-                  case EIdent(v): return parseLambda([
-                      {name: v, t: t}], pmin(e));
+                  case EIdent(v):
+                    return parseLambda([{name: v, t: t, value: v0}], p1);
                   default:
                 }
               default:
@@ -452,8 +503,8 @@ class Parser
           case TComma:
             switch (expr(e))
             {
-              case EIdent(v): return parseLambda([
-                  {name: v}], pmin(e));
+              case EIdent(v):
+                return parseLambda([{name: v}], p1);
               default:
             }
           default:
@@ -574,11 +625,9 @@ class Parser
       if (maybe(TQuestion)) arg.opt = true;
       arg.name = getIdent();
 
-      if (allowTypes)
-      {
-        if (maybe(TDoubleDot)) arg.t = parseType();
-        if (maybe(TOp("="))) arg.value = parseExpr();
-      }
+      if (allowTypes && maybe(TDoubleDot)) arg.t = parseType();
+      if (maybe(TOp("="))) arg.value = parseExpr();
+
       args.push(arg);
 
       var tk = token();
@@ -593,8 +642,7 @@ class Parser
       }
     }
     ensureToken(TOp("->"));
-    var eret = parseExpr();
-    return mk(EFunction(args, mk(EReturn(eret), pmin)), pmin);
+    return mk(EFunction(args, mk(EReturn(parseExpr()), pmin)), pmin);
   }
 
   function parseMetaArgs()
@@ -1043,8 +1091,8 @@ class Parser
         if (allowTypes)
         {
           if (maybe(TDoubleDot)) arg.t = parseType();
-          if (maybe(TOp("="))) arg.value = parseExpr();
         }
+        if (maybe(TOp("="))) arg.value = parseExpr();
         tk = token();
         switch (tk)
         {
