@@ -103,10 +103,11 @@ class PolymodScriptClass
     {
       _abstractClassImpls = new Map<String, PolymodStaticAbstractReference>();
 
-      var baseAbstractClassImpls:Map<String, {
-        cls: Class<Dynamic>,
-        clsName:String,
-      }> = PolymodScriptClassMacro.listAbstractImpls();
+      var baseAbstractClassImpls:Map<String,
+        {
+          cls:Class<Dynamic>,
+          clsName:String,
+        }> = PolymodScriptClassMacro.listAbstractImpls();
 
       for (key => value in baseAbstractClassImpls)
       {
@@ -124,6 +125,7 @@ class PolymodScriptClass
    * to each static field of each abstract.
    */
   public static var abstractClassStatics(get, never):Map<String, Class<Dynamic>>;
+
   static var _abstractClassStatics:Map<String, Class<Dynamic>> = null;
 
   static function get_abstractClassStatics():Map<String, Class<Dynamic>>
@@ -148,6 +150,7 @@ class PolymodScriptClass
    * since typedefs can't be normally resolved at runtime.
    */
   public static var typedefs(get, never):Map<String, Class<Dynamic>>;
+
   static var _typedefs:Map<String, Class<Dynamic>> = null;
 
   static function get_typedefs():Map<String, Class<Dynamic>>
