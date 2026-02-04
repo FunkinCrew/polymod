@@ -657,31 +657,13 @@ class PolymodInterpEx extends Interp
         // Fix to ensure callback functions catch thrown errors.
         // Using a clone to prevent locals getting wiped out.
         var clone = this.clone();
-        var hasOpt = false, minParams = 0;
-        for (p in params)
-        {
-          if (p.opt)
-          {
-            hasOpt = true;
-          }
-          if (!p.opt && p.value == null)
-          {
-            minParams++;
-          }
-        }
 
 				// This CREATES a new function in memory, that we call later.
 				var newFun:Dynamic = function(args:Array<Dynamic>)
 				{
           if (args == null) args = [];
 
-          if (args.length < minParams)
-          {
-            var str = "Invalid number of parameters. Got " + args.length + ", required " + minParams;
-            if (name != null)
-              str += " for function '" + name + "'";
-            errorEx(ECustom(str));
-          }
+          validateArgumentCount(params, args, name);
 
           // make sure mandatory args are forced
           var args2 = [];
@@ -1667,7 +1649,7 @@ class PolymodInterpEx extends Interp
 
       var previousClassDecl = _classDeclOverride;
       // previousValues is used to restore variables after they are shadowed in the local scope.
-      var previousValues:Map<String, Dynamic> = setFunctionValues(fn, args);
+      var previousValues:Map<String, Dynamic> = setFunctionValues(fn, args, fnName);
 
       this._classDeclOverride = cls;
 
@@ -1725,12 +1707,15 @@ class PolymodInterpEx extends Interp
    *
 	 * @param fn The function declaration to extract arguments from.
 	 * @param args The arguments to pass to the function.
+	 * @param name The function's name
 	 * @return The Map containing the variable values before they are shadowed in the local scope.
 	 */
-  public function setFunctionValues(fn:Null<FunctionDecl>, args:Array<Dynamic> = null):Map<String, Dynamic>
+  public function setFunctionValues(fn:Null<FunctionDecl>, args:Array<Dynamic> = null, name:String = "Unknown"):Map<String, Dynamic>
   {
     var previousValues:Map<String, Dynamic> = [];
     if (fn == null) return previousValues;
+
+    validateArgumentCount(fn.args, args, name);
 
     var i = 0;
     for (a in fn.args)
@@ -1757,6 +1742,30 @@ class PolymodInterpEx extends Interp
     }
 
     return previousValues;
+  }
+
+  /**
+   * Validates the minimum argument requirement by using the rightmost required argument index
+   * and ensures the param count is matching the actual length of the given arguments.
+   * Throws an error if validation fails.
+   *
+   * @param param The function parameters
+   * @param args The given arguments
+   * @param name The function name
+   */
+  public function validateArgumentCount(params:Array<Argument>, args:Array<Dynamic>, name:Null<String>)
+  {
+    var minParams = 0;
+    for (i in 0...params.length)
+    {
+      var p = params[i];
+      if (!p.opt && p.value == null) minParams = i + 1;
+    }
+
+    if (args.length < minParams)
+    {
+      errorEx(ECustom('Invalid number of parameters. Got ${args.length}, required $minParams${(name != null) ? " for function '" + name + "'" : ""}.'));
+    }
   }
 
   public function hasScriptClassStaticFunction(clsName:String, fnName:String):Bool
