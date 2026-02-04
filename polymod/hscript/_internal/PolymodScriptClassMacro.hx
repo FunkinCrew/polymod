@@ -78,7 +78,8 @@ class PolymodScriptClassMacro
    * @return An expression containing a map of each typedef name to
    *  the underlying class type.
    */
-  public static macro function listTypedefs():ExprOf<Map<String, Class<Dynamic>>> {
+  public static macro function listTypedefs():ExprOf<Map<String, Class<Dynamic>>>
+  {
     if (!onGenerateCallbackRegistered)
     {
       onGenerateCallbackRegistered = true;
@@ -125,10 +126,7 @@ class PolymodScriptClassMacro
             if (superClass == null) throw 'No superclass for ' + classPath;
 
             var superClassPath:String = '${superClass.pack.concat([superClass.name]).join(".")}';
-            var entryData = [
-              macro $v{superClassPath},
-              macro $v{classPath}
-            ];
+            var entryData = [macro $v{superClassPath}, macro $v{classPath}];
             hscriptedClassEntries.push(macro $a{entryData});
           }
 
@@ -137,7 +135,8 @@ class PolymodScriptClassMacro
           var typedefPath:String = t.toString();
           var typedefTarget:Type = Context.followWithAbstracts(type);
 
-          switch (typedefTarget) {
+          switch (typedefTarget)
+          {
             case TAnonymous(_):
               // Ignore typedefs to anonymous structures.
               continue;
@@ -151,10 +150,7 @@ class PolymodScriptClassMacro
             case TAbstract(t, _params):
               var targetPath:String = t.toString();
 
-              var entryData = [
-                macro $v{typedefPath},
-                macro $v{targetPath}
-              ];
+              var entryData = [macro $v{typedefPath}, macro $v{targetPath}];
 
               typedefEntries.push(macro $a{entryData});
 
@@ -162,10 +158,7 @@ class PolymodScriptClassMacro
               var targetEnum:EnumType = t.get();
               var targetEnumPath:String = '${targetEnum.pack.concat([targetEnum.name]).join(".")}';
 
-              var entryData = [
-                macro $v{typedefPath},
-                macro $v{targetEnumPath}
-              ];
+              var entryData = [macro $v{typedefPath}, macro $v{targetEnumPath}];
 
               typedefEntries.push(macro $a{entryData});
 
@@ -173,13 +166,9 @@ class PolymodScriptClassMacro
               var targetClass:ClassType = t.get();
               var targetClassPath:String = '${targetClass.pack.concat([targetClass.name]).join(".")}';
 
-              var entryData = [
-                macro $v{typedefPath},
-                macro $v{targetClassPath}
-              ];
+              var entryData = [macro $v{typedefPath}, macro $v{targetClassPath}];
 
               typedefEntries.push(macro $a{entryData});
-
 
             default:
               // Unknown typedef target type?
@@ -193,7 +182,8 @@ class PolymodScriptClassMacro
           var abstractType = t.get();
           var abstractImpl = abstractType.impl?.get();
 
-          if (abstractImpl == null) {
+          if (abstractImpl == null)
+          {
             // If the abstract doesn't have an implementation, it's usually an extern or something, so we always want to ignore it.
             continue;
           }
@@ -204,19 +194,22 @@ class PolymodScriptClassMacro
 
           abstractImplEntries.push(macro $a{entryData});
 
-          for (field in abstractImpl.statics.get()) {
-            switch (field.type) {
+          for (field in abstractImpl.statics.get())
+          {
+            switch (field.type)
+            {
               case TAbstract(_, _):
                 //
               case TType(_, _):
                 //
-                default:
+              default:
                 continue;
             }
 
             var key:String = '${abstractImplPath}.${field.name}';
 
-            if (!staticFieldToClass.exists(key)) {
+            if (!staticFieldToClass.exists(key))
+            {
               continue;
             }
 
@@ -242,7 +235,8 @@ class PolymodScriptClassMacro
       + '${abstractImplEntries.length} abstract impls, '
       + '${abstractStaticEntries.length} abstract statics, '
       + '${typedefEntries.length} typedefs '
-      + 'in ${duration} sec.', Context.currentPos());
+      + 'in ${duration} sec.',
+      Context.currentPos());
 
     var polymodScriptClassClassType:ClassType = MacroUtil.getClassType('polymod.hscript._internal.PolymodScriptClassMacro');
     polymodScriptClassClassType.meta.remove('hscriptedClasses');
@@ -274,11 +268,14 @@ class PolymodScriptClassMacro
           var abstractPath = a.toString();
           var abstractType = a.get();
 
-          if (abstractType.impl == null) {
+          if (abstractType.impl == null)
+          {
             // Only a few classes end up here, generally ones that are implemented directly in code.
             // Includes like StdTypes.Float, StdTypes.Dynamic, StdTypes.Void, cpp.Int16, cpp.SizeT, Class, Enum
             continue;
-          } else {
+          }
+          else
+          {
             var abstractImplPath = abstractType.impl.toString();
             var abstractImplType = abstractType.impl.get();
             var abstractImplStatics:Array<ClassField> = abstractImplType.statics.get();
@@ -346,52 +343,65 @@ class PolymodScriptClassMacro
                     canSet = true;
                   }
 
-                  if (canGet || canSet) {
+                  if (canGet || canSet)
+                  {
                     var fieldName:String = '${abstractImplPath.replace('.', '_')}_${field.name}';
 
                     fields.push(
-                    {
-                      pos: Context.currentPos(),
-                      name: fieldName,
-                      access: [Access.APublic, Access.AStatic],
-                      kind: FProp(canGet ? 'get' : 'never', canSet ? 'set' : 'never', (macro: Dynamic), null)
-                    });
+                      {
+                        pos: Context.currentPos(),
+                        name: fieldName,
+                        access: [Access.APublic, Access.AStatic],
+                        kind: FProp(canGet ? 'get' : 'never', canSet ? 'set' : 'never', (macro :Dynamic), null)
+                      });
 
                     var fieldExpr:Expr = null;
-                    try {
+                    try
+                    {
                       // when this fails, this should mean that we are dealing with an enum abstract
                       // so we need to handle it differently
                       var fullPath:String = '${abstractType.module}.${abstractType.name}';
                       Context.getType(fullPath);
                       fieldExpr = Context.parse('${fullPath}.${field.name}', Context.currentPos());
-                    } catch (_) {
+                    }
+                    catch (_)
+                    {
                       fieldExpr = Context.getTypedExpr(field.expr());
                     }
 
-                    if (canGet) {
-                      fields.push({
-                        pos: Context.currentPos(),
-                        name: 'get_${fieldName}',
-                        access: [Access.APublic, Access.AStatic],
-                        kind: FFun({
-                          args: [],
-                          ret: null,
-                          expr: macro { @:privateAccess return ${fieldExpr}; }
-                        })
-                      });
+                    if (canGet)
+                    {
+                      fields.push(
+                        {
+                          pos: Context.currentPos(),
+                          name: 'get_${fieldName}',
+                          access: [Access.APublic, Access.AStatic],
+                          kind: FFun(
+                            {
+                              args: [],
+                              ret: null,
+                              expr: macro
+                              {@:privateAccess return ${fieldExpr};}
+                            })
+                        });
                     }
 
-                    if (canSet) {
-                      fields.push({
-                        pos: Context.currentPos(),
-                        name: 'set_${fieldName}',
-                        access: [Access.APublic, Access.AStatic],
-                        kind: FFun({
-                          args: [{name: 'value'}],
-                          ret: null,
-                          expr: macro { @:privateAccess return ${fieldExpr} = value; }
-                        })
-                      });
+                    if (canSet)
+                    {
+                      fields.push(
+                        {
+                          pos: Context.currentPos(),
+                          name: 'set_${fieldName}',
+                          access: [Access.APublic, Access.AStatic],
+                          kind: FFun(
+                            {
+                              args: [
+                                {name: 'value'}],
+                              ret: null,
+                              expr: macro
+                              {@:privateAccess return ${fieldExpr} = value;}
+                            })
+                        });
                     }
 
                     staticFieldToClass.set('${abstractImplPath}.${field.name}', 'polymod.hscript._internal.AbstractStaticMembers_${iteration}');
@@ -503,10 +513,11 @@ class PolymodScriptClassMacro
         }
         #end
 
-        result.set(abstractPath, {
-          cls: abstractImplType,
-          clsName: abstractImplPath
-        });
+        result.set(abstractPath,
+          {
+            cls: abstractImplType,
+            clsName: abstractImplPath
+          });
       }
 
       return result;
@@ -596,7 +607,8 @@ class PolymodScriptClassMacro
   #end
 }
 
-typedef AbstractImplEntry = {
-  cls: Class<Dynamic>,
+typedef AbstractImplEntry =
+{
+  cls:Class<Dynamic>,
   clsName:String,
 };

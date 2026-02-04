@@ -116,16 +116,21 @@ class PolymodInterpEx extends Interp
 
       // Importing a blacklisted module creates an import with a `null` class, so we check for that here.
       var abs = importedClass.abs;
-      if (abs != null) {
-        try {
+      if (abs != null)
+      {
+        try
+        {
           return abs.instantiate(args);
-        } catch (e) {
+        }
+        catch (e)
+        {
           errorEx(EInvalidModule(importedClass.fullPath));
         }
       }
 
       var cls = importedClass.cls;
-      if (cls != null) {
+      if (cls != null)
+      {
         return Type.createInstance(cls, args);
       }
 
@@ -1402,9 +1407,12 @@ class PolymodInterpEx extends Interp
     {
       var ref:PolymodStaticAbstractReference = cast(o, PolymodStaticAbstractReference);
 
-      try {
+      try
+      {
         return ref.setField(f, v);
-      } catch (e:Dynamic) {
+      }
+      catch (e:Dynamic)
+      {
         errorEx(EInvalidFinalSet(f));
       }
     }
@@ -2006,7 +2014,8 @@ class PolymodInterpEx extends Interp
             // We used a macro to map each abstract to its implementation.
             importedClass.abs = PolymodScriptClass.abstractClassImpls.get(importedClass.fullPath);
           }
-          else if (PolymodScriptClass.typedefs.exists(importedClass.fullPath)) {
+          else if (PolymodScriptClass.typedefs.exists(importedClass.fullPath))
+          {
             importedClass.cls = PolymodScriptClass.typedefs.get(importedClass.fullPath);
           }
           else if (_scriptEnumDescriptors.exists(importedClass.fullPath))
