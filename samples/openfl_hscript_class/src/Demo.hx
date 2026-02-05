@@ -129,7 +129,7 @@ class Demo extends Sprite
     for (stageClassName in stageClassNames)
     {
       var defaultStageId:String = 'STAGE_${Std.random(256)}';
-      var stage:ScriptedStage = ScriptedStage.init(stageClassName, defaultStageId);
+      var stage:ScriptedStage = ScriptedStage.scriptInit(stageClassName, defaultStageId);
       if (stage != null)
       {
         stageData.push(stage);
