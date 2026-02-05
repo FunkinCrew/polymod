@@ -106,9 +106,9 @@ class SysFileSystem implements IFileSystem
     return result;
   }
 
-  public function getMetadata(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
+  public function getMetadata(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
-    var modPath = Util.pathJoin(modRoot, modId);
+    var modPath = Util.pathJoin(modRoot, dirName);
     if (exists(modPath))
     {
       var meta:ModMetadata = null;
@@ -129,7 +129,8 @@ class SysFileSystem implements IFileSystem
 
       if (meta == null) return null;
 
-      meta.id = modId;
+      meta.id = meta.id == '' ? dirName : meta.id;
+      meta.dirName = dirName;
       meta.modPath = modPath;
 
       if (!exists(iconFile))
@@ -146,7 +147,7 @@ class SysFileSystem implements IFileSystem
     }
     else
     {
-      Polymod.error(MOD_MISSING_DIRECTORY, 'Could not find mod directory: $modId', origin);
+      Polymod.error(MOD_MISSING_DIRECTORY, 'Could not find mod directory: $dirName', origin);
     }
     return null;
   }
