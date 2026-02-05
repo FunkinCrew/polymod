@@ -52,7 +52,9 @@ class Interp
   public function new()
   {
     locals = new Map();
-    declared = new Array();
+    declared = [];
+    depth = 0;
+    inTry = false;
     resetVariables();
     initOps();
   }
