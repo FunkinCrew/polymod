@@ -21,7 +21,7 @@ class Main extends Sprite
   function test()
   {
     var defaultStageId:String = 'STAGE_${Std.random(256)}';
-    var stage:ScriptedStage = ScriptedStage.init('BasicStage', defaultStageId);
+    var stage:ScriptedStage = ScriptedStage.scriptInit('BasicStage', defaultStageId);
     stage.create();
   }
 
