@@ -188,9 +188,9 @@ class MemoryFileSystem implements PolymodFileSystem.IFileSystem
     return result;
   }
 
-  public function getMetadata(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
+  public function getMetadata(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
-    var modpath = Util.pathJoin(modRoot, modId);
+    var modpath = Util.pathJoin(modRoot, dirName);
     if (exists(modpath))
     {
       var meta:ModMetadata = null;
@@ -209,7 +209,8 @@ class MemoryFileSystem implements PolymodFileSystem.IFileSystem
         meta = ModMetadata.fromJsonStr(metaText, origin);
         if (meta == null) return null;
 
-        meta.id = modId;
+        meta.id = meta.id == '' ? dirName : meta.id;
+        meta.dirName = dirName;
         meta.modPath = modpath;
       }
 
@@ -227,7 +228,7 @@ class MemoryFileSystem implements PolymodFileSystem.IFileSystem
     }
     else
     {
-      Polymod.error(MOD_MISSING_DIRECTORY, 'Could not find mod directory: $modpath', origin);
+      Polymod.error(MOD_MISSING_DIRECTORY, 'Could not find mod directory: $dirName', origin);
     }
     return null;
   }

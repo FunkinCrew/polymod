@@ -946,6 +946,11 @@ class ModMetadata
   public var modPath:String;
 
   /**
+   * The directory name of the mod.
+   */
+  public var dirName:String;
+
+  /**
    * `metadata` provides an optional list of keys.
    * These can provide additional information about the mod, specific to your application.
    */
@@ -1058,6 +1063,7 @@ class ModMetadata
     }
 
     var m = new ModMetadata();
+    m.id = JsonHelp.str(json, 'id');
     m.title = JsonHelp.str(json, 'title');
     m.description = JsonHelp.str(json, 'description');
     m._author = JsonHelp.str(json, 'author');
