@@ -267,6 +267,10 @@ class PolymodInterpEx extends Interp
     // Clear the script class descriptors.
     _scriptClassDescriptors.clear();
 
+    // Also clear the imports from the import.hx files.
+    _scriptClassImports.clear();
+    _scriptClassUsings.clear();
+
     // Also destroy local variable scope.
     this.resetVariables();
   }
@@ -308,6 +312,22 @@ class PolymodInterpEx extends Interp
     this.resetVariables();
   }
 
+  private static var _scriptClassImports:Map<String, Array<ClassImport>> = new Map<String, Array<ClassImport>>();
+  private static var _scriptClassUsings:Map<String, Array<ClassImport>> = new Map<String, Array<ClassImport>>();
+
+  private static function registerImportForPackage(pkg:Null<Array<String>>, imp:ClassImport, isUsing:Bool = false)
+  {
+    var impFilePkg:String = pkg?.join(".") ?? "";
+    var map:Map<String, Array<ClassImport>> = isUsing ? _scriptClassUsings : _scriptClassImports;
+
+    if (!map.exists(impFilePkg))
+    {
+      map.set(impFilePkg, []);
+    }
+
+    map.get(impFilePkg).push(imp);
+  }
+
   public static function validateImports():Void
   {
     for (cls in _scriptClassDescriptors)
@@ -340,6 +360,26 @@ class PolymodInterpEx extends Interp
         }
       }
 
+      // Import classes from the import.hx files.
+      var pkg:String = cls.pkg?.join(".") ?? "";
+
+      for (key => imps in _scriptClassImports)
+      {
+        if (!pkg.startsWith(key) && key.length != 0) continue;
+
+        for (imp in imps)
+          cls.imports.set(imp.name, imp);
+      }
+
+      for (key => imps in _scriptClassUsings)
+      {
+        if (!pkg.startsWith(key) && key.length != 0) continue;
+
+        for (imp in imps)
+          cls.usings.set(imp.name, imp);
+      }
+
+      // Add the scripted imports.
       for (key => imp in cls.importsToValidate)
       {
         if (_scriptClassDescriptors.exists(imp.fullPath))
@@ -2022,23 +2062,29 @@ class PolymodInterpEx extends Interp
 
   public function registerModules(module:Array<ModuleDecl>, ?origin:String = "hscript"):Void
   {
+    var isImportFile:Bool = (new haxe.io.Path(origin).file == "import");
+
     var pkg:Array<String> = null;
     var imports:Map<String, ClassImport> = [];
     var importsToValidate:Map<String, ClassImport> = [];
     var usings:Map<String, ClassImport> = [];
 
-    for (importPath in PolymodScriptClass.defaultImports.keys())
+    // Don't add the default imports to import.hx since they're added to other script classes anyways.
+    if (!isImportFile)
     {
-      var splitPath = importPath.split(".");
-      var clsName = splitPath[splitPath.length - 1];
+      for (importPath in PolymodScriptClass.defaultImports.keys())
+      {
+        var splitPath = importPath.split(".");
+        var clsName = splitPath[splitPath.length - 1];
 
-      imports.set(clsName,
-        {
-          name: clsName,
-          pkg: splitPath.slice(0, splitPath.length - 1),
-          fullPath: importPath,
-          cls: PolymodScriptClass.defaultImports.get(importPath),
-        });
+        imports.set(clsName,
+          {
+            name: clsName,
+            pkg: splitPath.slice(0, splitPath.length - 1),
+            fullPath: importPath,
+            cls: PolymodScriptClass.defaultImports.get(importPath),
+          });
+      }
     }
 
     for (decl in module)
@@ -2105,6 +2151,12 @@ class PolymodInterpEx extends Interp
             // If the class is still not found, skip this import entirely.
             if (resultCls == null && resultEnm == null)
             {
+              if (isImportFile)
+              {
+                registerImportForPackage(pkg, importedClass);
+                continue;
+              }
+
               // Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import class ${importedClass.fullPath}', origin);
               // this could be a scripted class or enum that hasn't been registered yet
               importsToValidate.set(importedClass.name, importedClass);
@@ -2118,6 +2170,12 @@ class PolymodInterpEx extends Interp
             {
               importedClass.enm = resultEnm;
             }
+          }
+
+          if (isImportFile)
+          {
+            registerImportForPackage(pkg, importedClass);
+            continue;
           }
 
           // Polymod.debug('Imported class ${importedClass.name} from ${importedClass.fullPath}');
@@ -2169,22 +2227,22 @@ class PolymodInterpEx extends Interp
             var resultCls:Class<Dynamic> = Type.resolveClass(importedClass.fullPath);
 
             // If the class is still not found, skip this import entirely.
-            if (resultCls == null)
-            {
-              // Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import class ${importedClass.fullPath}', origin);
-              // this could be a scripted class that hasn't been registered yet
-              importsToValidate.set(importedClass.name, importedClass);
-              continue;
-            }
-            else
-            {
-              importedClass.cls = resultCls;
-            }
+            if (resultCls == null) continue;
+
+            importedClass.cls = resultCls;
+          }
+
+          if (isImportFile)
+          {
+            registerImportForPackage(pkg, importedClass, true);
+            continue;
           }
 
           // Polymod.debug('Using class ${importedClass.name} from ${importedClass.fullPath}');
           usings.set(importedClass.name, importedClass);
         case DClass(c):
+          if (isImportFile) continue;
+
           var instanceFields = [];
           var staticFields = [];
           for (f in c.fields)
@@ -2217,6 +2275,8 @@ class PolymodInterpEx extends Interp
             };
           registerScriptClass(classDecl);
         case DEnum(e):
+          if (isImportFile) continue;
+
           if (pkg != null)
           {
             imports.set(e.name,
