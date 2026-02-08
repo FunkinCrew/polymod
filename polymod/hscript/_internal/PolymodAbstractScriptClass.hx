@@ -29,7 +29,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
         }
         else if (this.findVar(name) != null)
         {
-          var v = this.findVar(name);
+          var v = this.findVar(name, true);
 
           @:privateAccess
           switch (v.get)
@@ -39,20 +39,30 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
               if (!this._interp._propTrack.exists(getName))
               {
                 this._interp._propTrack.set(getName, true);
-                var r = this.callFunction(getName);
+                var r:Dynamic = null;
+                // Children may override it
+                if (this.topASC != null && this.topASC.findFunction(getName) != null)
+                {
+                  r = this.topASC.callFunction(getName);
+                }
+                else
+                {
+                  r = this.callFunction(getName);
+                }
                 this._interp._propTrack.remove(getName);
                 return r;
               }
-            // Fallback like it's a normal variable.
-            // If it doesn't have a "physical field" and @:isVar isn't set
-            // an error will be thrown so doing this is fine.
+              else
+              {
+                // Fallback like it's a normal variable.
+              }
 
             case "null":
               return this._interp.errorEx(EInvalidPropGet(name));
           }
 
           var varValue:Dynamic = null;
-          if (this._interp.variables.exists(name) == false)
+          if (!this._interp.variables.exists(name))
           {
             if (v.expr != null)
             {
@@ -166,13 +176,13 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
       case _:
         if (this.findVar(name) != null)
         {
-          if (this.findVar(name).isfinal && this.findVar(name).expr != null) // The variable already exists and has a set value.
+          var decl = this.findVar(name, true);
+          if (decl.isfinal && decl.expr != null) // The variable already exists and has a set value.
           {
             throw "Invalid access to field " + name;
             return null;
           }
 
-          var decl = this.findVar(name);
           @:privateAccess
           switch (decl.set)
           {
@@ -181,7 +191,16 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
               if (!this._interp._propTrack.exists(setName))
               {
                 this._interp._propTrack.set(setName, true);
-                var r = this.callFunction(setName, [value]);
+                var r:Dynamic = null;
+                // Children may override it
+                if (this.topASC != null && this.topASC.findFunction(setName) != null)
+                {
+                  r = this.topASC.callFunction(setName, [value]);
+                }
+                else
+                {
+                  r = this.callFunction(setName, [value]);
+                }
                 this._interp._propTrack.remove(setName);
                 return r;
               }

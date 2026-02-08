@@ -677,9 +677,8 @@ class PolymodInterpEx extends Interp
           }
         }
 
-				// This CREATES a new function in memory, that we call later.
-				var newFun:Dynamic = function(args:Array<Dynamic>)
-				{
+        // This CREATES a new function in memory, that we call later.
+        var newFun:Dynamic = function(args:Array<Dynamic>) {
           if (args == null) args = [];
 
           validateArgumentCount(params, args, name);
@@ -1333,9 +1332,9 @@ class PolymodInterpEx extends Interp
     else if (Std.isOfType(o, PolymodScriptClass))
     {
       var proxy:PolymodAbstractScriptClass = cast(o, PolymodScriptClass);
-      if (proxy._interp.variables.exists(f))
+      if (proxy.fieldExists(f))
       {
-        return proxy._interp.variables.get(f);
+        return proxy.fieldRead(f);
       }
       else if (proxy.superClass != null && proxy.superHasField(f))
       {
@@ -1442,10 +1441,10 @@ class PolymodInterpEx extends Interp
     }
     else if (Std.isOfType(o, PolymodScriptClass))
     {
-      var proxy:PolymodScriptClass = cast(o, PolymodScriptClass);
-      if (proxy._interp.variables.exists(f))
+      var proxy:PolymodAbstractScriptClass = cast(o, PolymodScriptClass);
+      if (proxy.fieldExists(f))
       {
-        proxy._interp.variables.set(f, v);
+        return proxy.fieldWrite(f, v);
       }
       else if (proxy.superClass != null && proxy.superHasField(f))
       {
@@ -1752,13 +1751,13 @@ class PolymodInterpEx extends Interp
   }
 
   /**
-	 * Initializes function arguments within the interpreter scope.
+   * Initializes function arguments within the interpreter scope.
    *
-	 * @param fn The function declaration to extract arguments from.
-	 * @param args The arguments to pass to the function.
-	 * @param name The function's name
-	 * @return The Map containing the variable values before they are shadowed in the local scope.
-	 */
+   * @param fn The function declaration to extract arguments from.
+   * @param args The arguments to pass to the function.
+   * @param name The function's name
+   * @return The Map containing the variable values before they are shadowed in the local scope.
+   */
   public function setFunctionValues(fn:Null<FunctionDecl>, args:Array<Dynamic> = null, name:String = "Unknown"):Map<String, Dynamic>
   {
     var previousValues:Map<String, Dynamic> = [];
