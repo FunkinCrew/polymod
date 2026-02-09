@@ -312,7 +312,7 @@ class PolymodScriptClass
         baseSuperClsName = baseSuperClsName.split('<')[0];
       }
 
-      var superCls:Class<Dynamic> = null;
+      var superCls:Dynamic = null;
 
       if (classDecl.imports.exists(baseSuperClsName))
       {
@@ -339,10 +339,14 @@ class PolymodScriptClass
         while (superCls != null)
         {
           // Recursively add this class's superclasses.
-          result.push(Type.getClassName(superCls));
+          if (Std.isOfType(superCls, PolymodScriptClass)) result.push(superCls.fullyQualifiedName);
+          else
+            result.push(Type.getClassName(superCls));
 
           // This returns null when the class has no superclass.
-          superCls = Type.getSuperClass(superCls);
+          if (Std.isOfType(superCls, PolymodScriptClass)) superCls = superCls.superClass;
+          else
+            superCls = Type.getSuperClass(superCls);
         }
         return result;
       }
