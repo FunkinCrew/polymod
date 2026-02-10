@@ -339,7 +339,7 @@ class PolymodScriptClassMacro
 
     if (metaData.hscriptedClasses != null)
     {
-      trace('Got hscriptedClasses: ' + metaData.hscriptedClasses);
+      // trace('Got hscriptedClasses: ' + metaData.hscriptedClasses);
 
       var result:Map<String, Class<Dynamic>> = [];
 
@@ -387,7 +387,7 @@ class PolymodScriptClassMacro
         var abstractImplPath:String = element[1];
         // var abstractType:Class<Dynamic> = cast Type.resolveClass(abstractPath);
         #if js
-        trace('Resolving using JS method');
+        // trace('Resolving using JS method');
         var abstractImplType:Class<Dynamic> = resolveClass(abstractPath);
 
         if (abstractImplType == null)
