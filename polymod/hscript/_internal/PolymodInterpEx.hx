@@ -768,19 +768,11 @@ class PolymodInterpEx extends Interp
         newFun = Reflect.makeVarArgs(newFun);
         if (name != null)
         {
-          if (depth == 0)
-          {
-            // Store the function as a global.
-            variables.set(name, newFun);
-          }
-          else
-          {
-            // function-in-function is a local function
-            declared.push({n: name, old: locals.get(name)});
-            var ref = {r: newFun};
-            locals.set(name, ref);
-            clone.locals.set(name, ref); // allow self-recursion
-          }
+          // function-in-function is a local function
+          declared.push({n: name, old: locals.get(name)});
+          var ref = {r: newFun};
+          locals.set(name, ref);
+          clone.locals.set(name, ref); // allow self-recursion
         }
         return newFun;
       case EArrayDecl(arr):
