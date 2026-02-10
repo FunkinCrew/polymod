@@ -27,7 +27,7 @@ class PolymodInterpEx extends Interp
 
   var _propTrack:Map<String, Bool> = [];
 
-  var _root:Null<PolymodInterpEx>;
+  static var defaultVariables:Map<String, Dynamic>;
 
   function getClassDecl():ClassDecl
   {
@@ -248,6 +248,11 @@ class PolymodInterpEx extends Interp
     variables.set("Float", Float);
     variables.set("Int", Int);
     variables.set("String", String);
+
+    if (defaultVariables == null)
+    {
+      defaultVariables = variables.copy();
+    }
   }
 
   public function clearScriptClassDescriptors():Void
@@ -657,8 +662,20 @@ class PolymodInterpEx extends Interp
         }
       case EFunction(params, fexpr, name, _):
         // Fix to ensure callback functions catch thrown errors.
-        // Using a clone to prevent locals getting wiped out.
-        var clone = this.clone();
+        var capturedLocals = duplicate(this.locals);
+        var capturedVariables:Map<String, Dynamic> = [];
+        var capturedCallObject = this._nextCallObject;
+        var capturedClassDeclOverride = this._classDeclOverride;
+        var me = this;
+
+        // Retrieve only the non-default variables
+        for (k => v in variables)
+        {
+          if (!defaultVariables.exists(k))
+          {
+            capturedVariables.set(k, v);
+          }
+        }
 
 				// This CREATES a new function in memory, that we call later.
 				var newFun:Dynamic = function(args:Array<Dynamic>)
@@ -698,30 +715,58 @@ class PolymodInterpEx extends Interp
           }
           args = args2;
 
-          // Apply changes from the root again in the case another clone has already messed with them.
-          for (k => v in _root.variables)
-          {
-            if (k == "trace") continue;
-            clone.variables.set(k, v);
-          }
+          var old = me.locals;
+          var depth = me.depth;
+          var oldCallObject = me._nextCallObject;
+          var oldClsDeclOverride = me._classDeclOverride;
+          me.depth++;
+          me.locals = duplicate(capturedLocals);
+          me._nextCallObject = capturedCallObject;
+          me._classDeclOverride = capturedClassDeclOverride;
 
-          clone.depth++;
+          // Restore removed variables (those are usually arguments)
+          for (k => v in capturedVariables)
+          {
+            if (me.variables.exists(k))
+            {
+              capturedVariables.remove(k);
+              continue;
+            }
+            me.variables.set(k, v);
+          }
 
           for (i in 0...params.length)
           {
-            clone.locals.set(params[i].name, {r: args[i]});
+            me.locals.set(params[i].name, {r: args[i]});
           }
+          var oldDecl = declared.length;
           var r = null;
+
+          inline function restoreContext()
+          {
+            // Remove the restored arguments again
+            for (k in capturedVariables.keys())
+            {
+              me.variables.remove(k);
+            }
+
+            restore(oldDecl);
+            me.locals = old;
+            me.depth = depth;
+            me._nextCallObject = oldCallObject;
+            me._classDeclOverride = oldClsDeclOverride;
+          }
 
           if (inTry)
           {
             // True if the SCRIPT wraps the function in a try/catch block.
             try
             {
-              r = clone.exprReturn(fexpr);
+              r = me.exprReturn(fexpr);
             }
             catch (e:Dynamic)
             {
+              restoreContext();
               #if neko
               neko.Lib.rethrow(e);
               #else
@@ -734,7 +779,7 @@ class PolymodInterpEx extends Interp
             // There is no try/catch block. We can add some custom error handling.
             try
             {
-              r = clone.exprReturn(fexpr);
+              r = me.exprReturn(fexpr);
             }
             catch (err:PolymodExprEx.ErrorEx)
             {
@@ -748,39 +793,23 @@ class PolymodInterpEx extends Interp
             }
             catch (err:Dynamic)
             {
+              restoreContext();
               throw err;
             }
           }
 
-          // Re-apply any changes to the root Interpreter
-          for (k => v in clone.variables)
-          {
-            if (k == 'trace') continue;
-
-            if (variables[k] != v)
-            {
-              _root.variables.set(k, v);
-            }
-          }
+          restoreContext();
           return r;
         };
 
         newFun = Reflect.makeVarArgs(newFun);
         if (name != null)
         {
-          if (depth == 0)
-          {
-            // Store the function as a global.
-            variables.set(name, newFun);
-          }
-          else
-          {
-            // function-in-function is a local function
-            declared.push({n: name, old: locals.get(name)});
-            var ref = {r: newFun};
-            locals.set(name, ref);
-            clone.locals.set(name, ref); // allow self-recursion
-          }
+          // function-in-function is a local function
+          declared.push({n: name, old: locals.get(name)});
+          var ref = {r: newFun};
+          locals.set(name, ref);
+          capturedLocals.set(name, ref); // allow self-recursion
         }
         return newFun;
       case EArrayDecl(arr):
@@ -2199,33 +2228,6 @@ class PolymodInterpEx extends Interp
         case DInterface(_):
       }
     }
-  }
-
-  public function clone():PolymodInterpEx
-  {
-    var _clone = new PolymodInterpEx(this.targetCls, this._proxy);
-
-    for (k => v in this.variables)
-    {
-      if (k != 'trace') _clone.variables.set(k, v);
-    }
-
-    _clone.locals = duplicate(this.locals);
-
-    for (v in this.declared)
-    {
-      if (!_clone.declared.contains(v)) _clone.declared.push(v);
-    }
-
-    if (depth == 0) _root = this;
-
-    _clone._root = this._root;
-    _clone._nextCallObject = this._nextCallObject;
-    _clone._classDeclOverride = this._classDeclOverride;
-    _clone.depth = this.depth;
-    _clone.curExpr = this.curExpr;
-    _clone.inTry = this.inTry;
-    return _clone;
   }
 }
 
