@@ -4,7 +4,6 @@ import polymod.hscript._internal.Expr;
 import polymod.hscript._internal.Expr.ClassDecl;
 import polymod.hscript._internal.Expr.ClassImport;
 import polymod.hscript._internal.PolymodStaticClassReference;
-import polymod.hscript._internal.PolymodExprEx;
 import polymod.hscript._internal.Printer;
 import polymod.util.Util;
 
@@ -63,15 +62,6 @@ class PolymodInterpEx extends Interp
     this.targetCls = targetCls;
   }
 
-  function errorEx(e:#if hscriptPos ErrorDefEx #else ErrorEx #end, rethrow = false):Dynamic
-  {
-    #if hscriptPos var e = new ErrorEx(e, curExpr?.pmin ?? 0, curExpr?.pmax ?? 0, curExpr?.origin ?? 'unknown', curExpr?.line ?? 0); #end
-    if (rethrow) this.rethrow(e)
-    else
-      throw e;
-    return null;
-  }
-
   override function cnew(cl:String, args:Array<Dynamic>):Dynamic
   {
     // Try to retrieve a scripted class with this name in the same package.
@@ -120,7 +110,7 @@ class PolymodInterpEx extends Interp
       var c = importedClass.cls;
       if (c == null)
       {
-        errorEx(EBlacklistedModule(importedClass.fullPath));
+        error(EBlacklistedModule(importedClass.fullPath));
       }
       else
       {
@@ -131,7 +121,7 @@ class PolymodInterpEx extends Interp
     // Attempt to resolve the class without overrides.
     var cls = Type.resolveClass(cl);
     if (cls == null) cls = resolve(cl);
-    if (cls == null) errorEx(EInvalidModule(cl));
+    if (cls == null) error(EInvalidModule(cl));
     return Type.createInstance(cls, args);
   }
 
@@ -207,12 +197,12 @@ class PolymodInterpEx extends Interp
         return o.scriptCall(f, args);
       }
 
-      return errorEx(EInvalidScriptedFnAccess(f));
+      return error(EInvalidScriptedFnAccess(f));
     }
     else
     {
       // Throw an error for a missing function.
-      return errorEx(EInvalidAccess(f));
+      return error(EInvalidAccess(f));
     }
   }
 
@@ -441,13 +431,13 @@ class PolymodInterpEx extends Interp
                 }
 
               case "never":
-                errorEx(EInvalidPropSet(id));
+                error(EInvalidPropSet(id));
                 return null;
             }
 
             if ((decl?.isfinal ?? false) && decl?.expr != null)
             {
-              errorEx(EInvalidAccess(id));
+              error(EInvalidAccess(id));
               return null;
             }
           }
@@ -488,7 +478,7 @@ class PolymodInterpEx extends Interp
 
                     if (finals.contains(id))
                     {
-                      errorEx(EInvalidFinalSet(id));
+                      error(EInvalidFinalSet(id));
                       return null;
                     }
                   }
@@ -518,7 +508,7 @@ class PolymodInterpEx extends Interp
             {
               var v = switch (decl.get)
               {
-                case "never": errorEx(EInvalidPropGet(id));
+                case "never": error(EInvalidPropGet(id));
                 default: expr(e);
               }
 
@@ -536,7 +526,7 @@ class PolymodInterpEx extends Interp
                     return r;
                   }
                 case "never":
-                  return errorEx(EInvalidPropSet(id));
+                  return error(EInvalidPropSet(id));
               }
             }
           }
@@ -561,7 +551,7 @@ class PolymodInterpEx extends Interp
             {
               var value = switch (decl.get)
               {
-                case "never": errorEx(EInvalidPropGet(id));
+                case "never": error(EInvalidPropGet(id));
                 default: expr(e1);
               }
 
@@ -580,7 +570,7 @@ class PolymodInterpEx extends Interp
                   }
                 // Fallback
                 case "never":
-                  errorEx(EInvalidPropSet(id));
+                  error(EInvalidPropSet(id));
                   return v;
               }
             }
@@ -646,7 +636,7 @@ class PolymodInterpEx extends Interp
                           hasIsVar = true;
                           break;
                         }
-                      if (!hasIsVar) return errorEx(EPropVarNotReal(id));
+                      if (!hasIsVar) return error(EPropVarNotReal(id));
                     default:
                   }
                 }
@@ -780,11 +770,6 @@ class PolymodInterpEx extends Interp
             {
               r = me.exprReturn(fexpr);
             }
-            catch (err:PolymodExprEx.ErrorEx)
-            {
-              PolymodScriptClass.reportErrorEx(err, getClassFullyQualifiedName(), name);
-              r = null;
-            }
             catch (err:Expr.Error)
             {
               PolymodScriptClass.reportError(err, getClassFullyQualifiedName(), name);
@@ -835,7 +820,7 @@ class PolymodInterpEx extends Interp
           inTry = oldTry;
           return v;
         }
-        catch (error:PolymodExprEx.ErrorEx)
+        catch (error:Error)
         {
           #if hscriptPos
           var err = error.e;
@@ -862,7 +847,7 @@ class PolymodInterpEx extends Interp
         catch (error:Dynamic)
         {
           var en = Type.getEnum(error);
-          if (en != null && (en.getName() == "hscript._Interp.Stop" || en.getName() == "hscript.Interp.Stop"))
+          if (en != null && en.getName().endsWith("Interp.Stop"))
           {
             // HScript catches errors specifically of the type Stop, and uses them to handle
             // `break`, `continue`, and `return` statements without extensive logic to skip subsequent expressions.
@@ -883,7 +868,7 @@ class PolymodInterpEx extends Interp
       case EThrow(e):
         // If there is a try/catch block, the error will be caught.
         // If there is no try/catch block, the error will be reported.
-        errorEx(EScriptThrow('${expr(e)}'));
+        error(EScriptThrow('${expr(e)}'));
       // Enums
       case EField(e, f):
         var name = getIdent(e);
@@ -1025,8 +1010,8 @@ class PolymodInterpEx extends Interp
                   #if hscriptPos
                   curExpr = e;
                   #end
-                  var error = 'Invalid expression in map initialization (expected key=>value, got ${Printer.toString(e)})';
-                  errorEx(ECustom(error));
+                  var err = 'Invalid expression in map initialization (expected key=>value, got ${Printer.toString(e)})';
+                  error(ECustom(err));
                 }
               }
               else if (last == "Array")
@@ -1046,8 +1031,8 @@ class PolymodInterpEx extends Interp
                   #if hscriptPos
                   curExpr = e;
                   #end
-                  var error = 'Invalid expression in array initialization (expected no key=>value pairs, got ${Printer.toString(e)})';
-                  errorEx(ECustom(error));
+                  var err = 'Invalid expression in array initialization (expected no key=>value pairs, got ${Printer.toString(e)})';
+                  error(ECustom(err));
                 }
               }
               else
@@ -1087,8 +1072,8 @@ class PolymodInterpEx extends Interp
           #if hscriptPos
           curExpr = e;
           #end
-          var error = 'Invalid expression in map initialization (expected key=>value, got ${Printer.toString(e)})';
-          errorEx(ECustom(error));
+          var err = 'Invalid expression in map initialization (expected key=>value, got ${Printer.toString(e)})';
+          error(ECustom(err));
       }
     }
 
@@ -1143,7 +1128,7 @@ class PolymodInterpEx extends Interp
 
   override function makeIterator(v:Dynamic):Iterator<Dynamic>
   {
-    if (v == null) errorEx(EInvalidIterator(v));
+    if (v == null) error(EInvalidIterator(v));
     if (v.iterator != null)
     {
       try
@@ -1158,7 +1143,7 @@ class PolymodInterpEx extends Interp
     }
     if (v.hasNext == null || v.next == null)
     {
-      errorEx(EInvalidIterator(v));
+      error(EInvalidIterator(v));
     }
     return v;
   }
@@ -1181,7 +1166,7 @@ class PolymodInterpEx extends Interp
 
     if (fun == null)
     {
-      errorEx(EInvalidAccess(fun));
+      error(EInvalidAccess(fun));
     }
 
     if (target != null && target == _proxy)
@@ -1203,11 +1188,11 @@ class PolymodInterpEx extends Interp
       {
         _nextCallObject = null;
 
-        if (Std.isOfType(e, PolymodExprEx.ErrorEx) || Std.isOfType(e, polymod.hscript._internal.Expr.Error))
+        if (Std.isOfType(e, Error))
         {
           throw e;
         }
-        return errorEx(EScriptCallThrow(e));
+        return error(EScriptCallThrow(e));
       }
       return null;
     }
@@ -1249,12 +1234,12 @@ class PolymodInterpEx extends Interp
       this.declared = capturedDeclared;
       this.depth = capturedDepth;
 
-      if (Std.isOfType(e, PolymodExprEx.ErrorEx) || Std.isOfType(e, polymod.hscript._internal.Expr.Error))
+      if (Std.isOfType(e, Error))
       {
         throw e;
       }
 
-      return errorEx(EScriptCallThrow(e));
+      return error(EScriptCallThrow(e));
     }
   }
 
@@ -1268,11 +1253,6 @@ class PolymodInterpEx extends Interp
     try
     {
       return super.execute(expr);
-    }
-    catch (err:PolymodExprEx.ErrorEx)
-    {
-      PolymodScriptClass.reportErrorEx(err, getClassFullyQualifiedName());
-      return null;
     }
     catch (err:Expr.Error)
     {
@@ -1293,7 +1273,7 @@ class PolymodInterpEx extends Interp
 
   override function get(o:Dynamic, f:String):Dynamic
   {
-    if (o == null) errorEx(ENullObjectReference(f));
+    if (o == null) error(ENullObjectReference(f));
 
     // Backwards compatibility for scripts using HScriptedClass.init
     // Std.isOfType(o, HScriptedClass) only works with class instances
@@ -1308,7 +1288,7 @@ class PolymodInterpEx extends Interp
     // Check if the field is a blacklisted static field.
     if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
     {
-      errorEx(EBlacklistedField(f));
+      error(EBlacklistedField(f));
       return null;
     }
 
@@ -1317,7 +1297,7 @@ class PolymodInterpEx extends Interp
     {
       if (PolymodScriptClass.blacklistedInstanceFields.exists(oCls) && PolymodScriptClass.blacklistedInstanceFields.get(oCls).contains(f))
       {
-        errorEx(EBlacklistedField(f));
+        error(EBlacklistedField(f));
         return null;
       }
     }
@@ -1355,7 +1335,7 @@ class PolymodInterpEx extends Interp
         catch (e:Dynamic) {}
 
         // If we're here, the field doesn't exist on the proxy.
-        errorEx(EUnknownVariable(f));
+        error(EUnknownVariable(f));
       }
     }
     else if (Std.isOfType(o, HScriptedClass))
@@ -1365,7 +1345,7 @@ class PolymodInterpEx extends Interp
         return o.scriptGet(f);
       }
 
-      errorEx(EInvalidScriptedVarGet(f));
+      error(EInvalidScriptedVarGet(f));
 
       // var result = Reflect.getProperty(o, f);
       // To save a bit of performance, we only query for the existence of the property
@@ -1377,7 +1357,7 @@ class PolymodInterpEx extends Interp
       // 	  var propertyList = Type.getInstanceFields(Type.getClass(o));
       // 	  if (propertyList.indexOf(f) == -1)
       // 	  {
-      // 	  	errorEx(EInvalidScriptedVarGet(f));
+      // 	  	error(EInvalidScriptedVarGet(f));
       // 	  }
       // }
       // #end
@@ -1411,7 +1391,7 @@ class PolymodInterpEx extends Interp
 
   override function set(o:Dynamic, f:String, v:Dynamic):Dynamic
   {
-    if (o == null) errorEx(ENullObjectReference(f));
+    if (o == null) error(ENullObjectReference(f));
 
     var oCls:String = Util.getTypeNameOf(o);
 
@@ -1458,7 +1438,7 @@ class PolymodInterpEx extends Interp
       }
       else
       {
-        errorEx(EUnknownVariable(f));
+        error(EUnknownVariable(f));
       }
       return v;
     }
@@ -1469,7 +1449,7 @@ class PolymodInterpEx extends Interp
         return o.scriptSet(f, v);
       }
 
-      errorEx(EInvalidScriptedVarSet(f));
+      error(EInvalidScriptedVarSet(f));
 
       // Reflect.setProperty(o, f, v);
       // return v;
@@ -1481,7 +1461,7 @@ class PolymodInterpEx extends Interp
     }
     catch (e)
     {
-      errorEx(EInvalidAccess(f));
+      error(EInvalidAccess(f));
     }
     return v;
   }
@@ -1508,11 +1488,11 @@ class PolymodInterpEx extends Interp
     {
       if (_proxy == null)
       {
-        errorEx(EInvalidInStaticContext("super"));
+        error(EInvalidInStaticContext("super"));
       }
       else if (_proxy.superClass == null)
       {
-        if (_proxy._c.extend == null) errorEx(EClassInvalidSuper);
+        if (_proxy._c.extend == null) error(EClassInvalidSuper);
         return Reflect.makeVarArgs(_proxy.createSuperClass);
       }
       else
@@ -1528,7 +1508,7 @@ class PolymodInterpEx extends Interp
       }
       else
       {
-        errorEx(EInvalidInStaticContext("this"));
+        error(EInvalidInStaticContext("this"));
       }
     }
     else if (id == "null")
@@ -1561,7 +1541,7 @@ class PolymodInterpEx extends Interp
 
         // If we are here, there is an imported class whose value is null, and it isn't a scripted class.
         // This means that we are attempting to access a BLACKLISTED module.
-        errorEx(EBlacklistedModule(importedClass.fullPath));
+        error(EBlacklistedModule(importedClass.fullPath));
       }
     }
 
@@ -1613,7 +1593,7 @@ class PolymodInterpEx extends Interp
     }
     else if (_proxy != null && _proxy.hasPurgedScriptFunction(id))
     {
-      errorEx(EPurgedFunction(id));
+      error(EPurgedFunction(id));
     }
     else if (_proxy != null)
     {
@@ -1642,7 +1622,7 @@ class PolymodInterpEx extends Interp
     }
 
     // If we're here, the field definitely doesn't exist.
-    errorEx(EUnknownVariable(id));
+    error(EUnknownVariable(id));
 
     return null;
   }
@@ -1706,14 +1686,6 @@ class PolymodInterpEx extends Interp
       try
       {
         result = this.executeEx(fn.expr);
-      }
-      catch (err:PolymodExprEx.ErrorEx)
-      {
-        PolymodScriptClass.reportErrorEx(err, clsName, fnName);
-        // A script error occurred while executing the script function.
-        // Purge the function from the cache so it is not called again.
-        // purgeStaticFunction(fnName);
-        return null;
       }
       catch (err:Expr.Error)
       {
@@ -1801,7 +1773,7 @@ class PolymodInterpEx extends Interp
    * @param args The given arguments
    * @param name The function name
    */
-  public function validateArgumentCount(params:Array<Argument>, args:Array<Dynamic>, name:Null<String>)
+  public function validateArgumentCount(params:Array<Argument>, args:Array<Dynamic>, name:Null<String>):Void
   {
     // getters/setters have null given arguments it seems, so we return early
     if (args == null) return;
@@ -1815,7 +1787,7 @@ class PolymodInterpEx extends Interp
 
     if (args.length < minParams)
     {
-      errorEx(EInvalidArgCount((name != null) ? " for function '" + name + "'" : "", minParams, args.length));
+      error(EInvalidArgCount((name != null) ? " for function '" + name + "'" : "", minParams, args.length));
     }
   }
 
@@ -1910,7 +1882,7 @@ class PolymodInterpEx extends Interp
     }
     else
     {
-      errorEx(EInvalidAccess(fieldName));
+      error(EInvalidAccess(fieldName));
       return null;
     }
   }
@@ -1971,7 +1943,7 @@ class PolymodInterpEx extends Interp
     }
     else
     {
-      errorEx(EInvalidAccess(fieldName));
+      error(EInvalidAccess(fieldName));
       return null;
     }
   }

@@ -58,7 +58,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
               }
 
             case "null":
-              return this._interp.errorEx(EInvalidPropGet(name));
+              return this._interp.error(EInvalidPropGet(name));
           }
 
           var varValue:Dynamic = null;
@@ -206,7 +206,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
               }
 
             case "never" | "null":
-              return this._interp.errorEx(EInvalidPropSet(name));
+              return this._interp.error(EInvalidPropSet(name));
           }
 
           this._interp.variables.set(name, value);

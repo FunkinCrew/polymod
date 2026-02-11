@@ -99,12 +99,35 @@ enum CType
 }
 
 #if hscriptPos
+/**
+ * Stores information about an error.
+ */
 class Error
 {
+  /**
+   * The error type.
+   */
   public var e:ErrorDef;
+
+  /**
+   * Start position in the code where this error occurred.
+   */
   public var pmin:Int;
+
+  /**
+   * End position in the code where this error occurred.
+   */
   public var pmax:Int;
+
+  /**
+   * The origin of where the error occurred.
+   * This is usually the file name.
+   */
   public var origin:String;
+
+  /**
+   * The line number the error occurred on.
+   */
   public var line:Int;
 
   public function new(e, pmin, pmax, origin, line)
@@ -136,6 +159,26 @@ enum Error
   EInvalidIterator(v:String);
   EInvalidOp(op:String);
   EInvalidAccess(f:String);
+  EInvalidModule(m:String);
+  EBlacklistedModule(m:String);
+  EBlacklistedField(f:String);
+  EPurgedFunction(f:String); // Function can't be called because it previously threw an uncaught exception
+  EInvalidArgCount(f:String, expected:Int, given:Int); // Given arguments count don't match the minimum required parameters
+  ENullObjectReference(f:String); // Accessing a field of "null"
+  EInvalidScriptedFnAccess(f:String);
+  EInvalidScriptedVarGet(v:String);
+  EInvalidScriptedVarSet(v:String);
+  EInvalidFinalSet(f:String);
+  EInvalidPropGet(p:String); // Accessing a never/null getter
+  EInvalidPropSet(p:String); // Accessing a never/null setter
+  EPropVarNotReal(p:String); // Getter/setter accessing a (get/never,set/never) property within itself without "@:isVar"
+  EInvalidInStaticContext(v:String); // Accessing "this" or "super" in a static function
+  EClassSuperNotCalled;
+  EClassUnresolvedSuperclass(c:String, r:String); // superclass and reason
+  EClassInvalidSuper; // Accessing "super" in a parentless class
+  EScriptThrow(v:Dynamic); // Script called "throw"
+  EScriptCallThrow(v:Dynamic); // Script called a function which threw
+  // Fallback error type.
   ECustom(msg:String);
 }
 
@@ -164,6 +207,7 @@ typedef ModuleType =
 typedef ClassDecl =
 {
   > ModuleType,
+
   /**
    * The type being extended by the scripted class
    */
