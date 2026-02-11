@@ -150,7 +150,7 @@ class PolymodScriptClass
       {
         registerScriptClassByString(scriptBody, path);
       }
-      catch (err:PolymodExprEx.ErrorEx)
+      catch (err:Expr.Error)
       {
         var errLine:String = #if hscriptPos '${err.line}' #else "#???" #end;
         #if hscriptPos
@@ -165,23 +165,6 @@ class PolymodScriptClass
           case EClassUnresolvedSuperclass(cls, reason):
             Polymod.error(SCRIPT_PARSE_ERROR,
               'Error while parsing class ${path}#${errLine}: EClassUnresolvedSuperclass' + '\n' + 'Unresolved superclass "${cls}", ${reason}');
-          default:
-            Polymod.error(SCRIPT_PARSE_ERROR, 'Error while executing script ${path}#${errLine}: ' + '\n' + 'An unknown error occurred: ${err}');
-        }
-      }
-      catch (err:Expr.Error)
-      {
-        var errLine:String = #if hscriptPos '${err.line}' #else "#???" #end;
-        #if hscriptPos
-        switch (err.e)
-        #else
-        switch (err)
-        #end
-        {
-          case EUnexpected(s):
-            Polymod.error(SCRIPT_PARSE_ERROR,
-              'Error while parsing script ${path}#${errLine}: EUnexpected' + '\n' +
-              'Unexpected error: Unexpected token "${s}", is there invalid syntax on this line?');
           default:
             Polymod.error(SCRIPT_PARSE_ERROR, 'Error while executing script ${path}#${errLine}: ' + '\n' + 'An unknown error occurred: ${err}');
         }
@@ -206,7 +189,7 @@ class PolymodScriptClass
         registerScriptClassByString(text);
         promise.complete(true);
       }
-      catch (err:PolymodExprEx.ErrorEx)
+      catch (err:Expr.Error)
       {
         var errLine:String = #if hscriptPos '${err.line}' #else "#???" #end;
         #if hscriptPos
@@ -449,7 +432,7 @@ class PolymodScriptClass
       callFunction("new", args);
       if (superClass == null && _c.extend != null)
       {
-        @:privateAccess _interp.errorEx(EClassSuperNotCalled);
+        @:privateAccess _interp.error(EClassSuperNotCalled);
       }
     }
     else if (_c.extend != null)
@@ -492,7 +475,7 @@ class PolymodScriptClass
   {
     if (_c.extend == null)
     {
-      _interp.errorEx(EClassInvalidSuper);
+      _interp.error(EClassInvalidSuper);
     }
 
     if (args == null)
@@ -528,7 +511,7 @@ class PolymodScriptClass
 
         if (clsToCreate == null)
         {
-          @:privateAccess _interp.errorEx(EClassUnresolvedSuperclass(fullExtendString, 'WHY?'));
+          @:privateAccess _interp.error(EClassUnresolvedSuperclass(fullExtendString, 'WHY?'));
         }
       }
       else if (_c.imports.exists(extendString))
@@ -537,12 +520,12 @@ class PolymodScriptClass
 
         if (clsToCreate == null)
         {
-          @:privateAccess _interp.errorEx(EClassUnresolvedSuperclass(extendString, 'target class blacklisted'));
+          @:privateAccess _interp.error(EClassUnresolvedSuperclass(extendString, 'target class blacklisted'));
         }
       }
       else
       {
-        @:privateAccess _interp.errorEx(EClassUnresolvedSuperclass(extendString, 'missing import'));
+        @:privateAccess _interp.error(EClassUnresolvedSuperclass(extendString, 'missing import'));
       }
 
       superClass = Type.createInstance(clsToCreate, args);
@@ -564,104 +547,24 @@ class PolymodScriptClass
     }
   }
 
-  public static function reportError(err:Expr.Error, className:String = null, fnName:String = null)
+  public static function reportError(err:Expr.Error, ?className:String, ?fnName:String):Void
   {
-    var errEx = PolymodExprEx.ErrorExUtil.toErrorEx(err);
-    reportErrorEx(errEx, className, fnName);
-  }
-
-  public static function reportErrorEx(err:PolymodExprEx.ErrorEx, className:String = null, fnName:String = null):Void
-  {
-    var errLine:String = #if hscriptPos '${err.line}' #else "#???" #end;
+    var errLine:String = #if hscriptPos '${err.line}' #else "???" #end;
+    var message:String = switch (#if hscriptPos err.e #else err #end)
+    {
+      case ECustom(msg):
+        'An unknown error occurred: $msg';
+      default:
+        Printer.errorToString(err, false);
+    }
 
     className ??= '???';
-    fnName ??= 'anonymous';
+    fnName ??= '(anonymous)';
 
-    #if hscriptPos
-    switch (err.e)
-    #else
-    switch (err)
-    #end
-    {
-      // EInvalidChar
-      // EUnexpected
-      // EUnterminatedString
-      // EUnterminatedComment
-      // EInvalidPreprocessor
-      // EInvalidIterator
-      // EInvalidOp
-      case ECustom(msg):
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + 'An unknown error occurred: ${msg}');
-      case EClassUnresolvedSuperclass(c, r):
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + 'Could not resolve super class type "${c}" (${r})');
-      case EClassSuperNotCalled:
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + 'Custom constructor does not call "super()".');
-      case EClassInvalidSuper:
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + 'Unexpected "super" in class that does not extend anything.');
-      case EInvalidScriptedFnAccess(f):
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' +
-          'Could not call function "${f}" on scripted class. Did you try obj.scriptCall("${f}", [...])?');
-      case EInvalidInStaticContext(v):
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + 'Cannot access value "${v}" from a static context.');
-      case EInvalidScriptedVarGet(v):
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' +
-          'Could not retrieve variable "${v}" on scripted class. Did you try obj.scriptGet("${v}")?');
-      case EInvalidScriptedVarSet(v):
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' +
-          'Could not assign variable "${v}" on scripted class. Did you try obj.scriptSet("${v}", value)?');
-      case EInvalidModule(m):
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + 'Could not resolve imported module type "${m}".');
-      case EBlacklistedModule(m):
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + 'Imported module "${m}" has been blacklisted.');
-      case EBlacklistedField(f):
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + 'Attempted to access blacklisted field or method "${f}".');
-      case EPurgedFunction(f):
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' +
-          'Attempted to call purged function "${f}", did it throw an uncaught exception earlier?');
-      case ENullObjectReference(f):
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + 'Null object reference to field "${f}", is the target object null?');
-      case EUnknownVariable(v):
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}:' + '\n' + 'Tried to access "${v}", an unknown variable or identifier.');
-      case EInvalidFinalSet(f):
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}:' + '\n' + 'Could not assign variable "${f}" because it is a final field.');
-      case EInvalidAccess(f):
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}:' + '\n' + 'Tried to access "${f}", but it is not a valid field or method.');
-      case EInvalidPropGet(p):
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}:' + '\n' + 'Property "${p}" is not accessible for reading.');
-      case EInvalidPropSet(p):
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}:' + '\n' + 'Property "${p}" is not accessible for writing.');
-      case EPropVarNotReal(p):
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}:' + '\n' +
-          'Property "${p}" cannot be accessed because it is not a real variable. Add @:isVar to enable it.');
-      case EScriptThrow(v):
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}:' + '\n' + 'User script threw an error: ${v}');
-      default:
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-          'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + 'An unknown error occurred: ${err}');
-    }
+    Polymod.error(SCRIPT_RUNTIME_EXCEPTION, 'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + message);
   }
 
-  public function callFunction(fnName:String, args:Array<Dynamic> = null):Dynamic
+  public function callFunction(fnName:String, ?args:Array<Dynamic>):Dynamic
   {
     var field = findField(fnName);
     var fn = (field != null) ? findFunction(fnName, true) : null;
@@ -680,13 +583,6 @@ class PolymodScriptClass
       try
       {
         r = _interp.executeEx(fn.expr);
-      }
-      catch (err:PolymodExprEx.ErrorEx)
-      {
-        reportErrorEx(err, fullyQualifiedName, fnName);
-        // A script error occurred while executing the script function.
-        // Purge the function from the cache so it is not called again.
-        purgeFunction(fnName);
       }
       catch (err:Expr.Error)
       {

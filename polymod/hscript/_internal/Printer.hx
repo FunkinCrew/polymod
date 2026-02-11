@@ -24,6 +24,9 @@ package polymod.hscript._internal;
 
 import polymod.hscript._internal.Expr;
 
+/**
+ * Utility class for converting HScript elements into human-readable `String` representations.
+ */
 class Printer
 {
   var buf:StringBuf;
@@ -31,7 +34,12 @@ class Printer
 
   public function new() {}
 
-  public function exprToString(e:Expr)
+  /**
+   * Converts an HScript AST node into a human-readable `String` representation.
+   * @param e The node to convert.
+   * @return String
+   */
+  public function exprToString(e:Expr):String
   {
     buf = new StringBuf();
     tabs = "";
@@ -39,7 +47,12 @@ class Printer
     return buf.toString();
   }
 
-  public function typeToString(t:CType)
+  /**
+   * Converts a type into a human-readable `String` representation.
+   * @param t The type to convert.
+   * @return String
+   */
+  public function typeToString(t:CType):String
   {
     buf = new StringBuf();
     tabs = "";
@@ -47,10 +60,10 @@ class Printer
     return buf.toString();
   }
 
-  inline function add<T>(s:T)
+  inline function add<T>(s:T):Void
     buf.add(s);
 
-  function type(t:CType)
+  function type(t:CType):Void
   {
     switch (t)
     {
@@ -122,7 +135,7 @@ class Printer
     }
   }
 
-  function addType(t:CType)
+  function addType(t:CType):Void
   {
     if (t != null)
     {
@@ -131,7 +144,7 @@ class Printer
     }
   }
 
-  function addConst(c:Const)
+  function addConst(c:Const):Void
   {
     switch (c)
     {
@@ -153,7 +166,7 @@ class Printer
     }
   }
 
-  function expr(e:Expr)
+  function expr(e:Expr):Void
   {
     if (e == null)
     {
@@ -419,12 +432,23 @@ class Printer
     }
   }
 
-  public static function toString(e:Expr)
+  /**
+   * Same as `exprToString`, but without the need to create a Printer.
+   * @param e The AST node to convert.
+   * @return String
+   */
+  public static function toString(e:Expr):String
   {
     return new Printer().exprToString(e);
   }
 
-  public static function errorToString(e:Expr.Error)
+  /**
+   * Converts an `Error` object into a human-readable `String` representation.
+   * @param e The error to convert.
+   * @param includePosInfo Prepends the origin and line position number, only works if `hscriptPos` is defined.
+   * @return String
+   */
+  public static function errorToString(e:Expr.Error, includePosInfo:Bool = true):String
   {
     var message = switch (#if hscriptPos e.e #else e #end)
     {
@@ -437,12 +461,31 @@ class Printer
       case EInvalidIterator(v): "Invalid iterator: " + v;
       case EInvalidOp(op): "Invalid operator: " + op;
       case EInvalidAccess(f): "Invalid access to field " + f;
+      case EInvalidModule(m): "Invalid module: " + m;
+      case EBlacklistedModule(m): "Blacklisted module: " + m;
+      case EBlacklistedField(m): "Blacklisted field: " + m;
+      case EInvalidArgCount(f, expected, given): 'Invalid number of given arguments. Got $given, required $expected' + f;
+      case EPurgedFunction(f): "Invalid access to purged function (did it throw an uncaught exception earlier?): " + f;
+      case ENullObjectReference(f): "Invalid reference to field of a null object: " + f;
+      case EInvalidInStaticContext(v): "Invalid field access from static context: " + v;
+      case EInvalidScriptedFnAccess(f): "Invalid function access to scripted class: " + f;
+      case EInvalidScriptedVarGet(v): "Invalid variable retrieval to scripted class: " + v;
+      case EInvalidScriptedVarSet(v): "Invalid variable assignment to scripted class: " + v;
+      case EInvalidFinalSet(f): "Invalid final field assignment: " + f;
+      case EInvalidPropGet(p): "Cannot access property " + p + " for reading";
+      case EInvalidPropSet(p): "Cannot access property " + p + " for writing";
+      case EPropVarNotReal(p): "Cannot access property " + p + " because it is not a real variable";
+      case EClassSuperNotCalled: "Super constructor not called";
+      case EClassInvalidSuper: "Unexpected \"super\" in class that does not extend anything.";
+      case EClassUnresolvedSuperclass(c, r): 'Unresolved superclass $c (reason: $r)';
+      // TODO: Do we need to distinguish these?
+      case EScriptCallThrow(v): "Script threw an exception: " + v;
+      case EScriptThrow(v): "User script threw an exception: " + v;
       case ECustom(msg): msg;
     };
     #if hscriptPos
-    return e.origin + ":" + e.line + ": " + message;
-    #else
-    return message;
+    if (includePosInfo) message = e.origin + ":" + e.line + ": " + message;
     #end
+    return message;
   }
 }
