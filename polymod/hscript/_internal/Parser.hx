@@ -408,11 +408,11 @@ class Parser
     return switch (expr(e)) {
       case EIdent(v):
         {name: v, t: null, opt: false, value: null};
-      case ECheckType({e: EIdent(v)}, t):
+      case ECheckType(expr(_) => EIdent(v), t):
         {name: v, t: t, opt: false, value: null};
-      case EBinop("=", {e: EIdent(v)}, def):
+      case EBinop("=", expr(_) => EIdent(v), def):
         {name: v, t: null, opt: false, value: def};
-      case EBinop("=", {e: ECheckType({e: EIdent(v)}, t)}, def):
+      case EBinop("=", expr(_) => ECheckType(expr(_) => EIdent(v), t), def):
         {name: v, t: t, opt: false, value: def};
       default:
         null;
