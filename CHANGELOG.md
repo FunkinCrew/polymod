@@ -35,12 +35,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Added support for string interpolation (i.e. you can now use `'${value}'` instead of string concatenation). () - by @NotHyper-474 in [#292]
 ## Changed
 - Polymod's scripting systems now utilize an internal, built-in fork of HScript, rather than a separate repository. This allows for new features and support to be added (such as new keywords and syntax) without having to require a specific non-standard version of the Haxelib.
+  - Refactored the internal fork of HScript to fold in the extending classes, greatly simplifying the codebase for the HScript implementation.
+  - Combined `PolymodExprEx` with `Expr`, unifying the `Error` and `ErrorEx` classes and simplifying the codebase. () - by @NotHyper-474 in [#344]
 - Added improved error messages for the following cases:
   - Attempting to access `this` from a scripted static function.
   - Attempting to access a blacklisted static or instance field.
   - Attempting to declare a field with a duplicate name (previously, this silently replaced the field, leading to weird bugs!). () - by @KoloInDaCrib in [#261]
 - Cleaned up a lot of existing error messages to be more clear what they're doing.
-- Added a new CheckStyle config, and performed a lot of code cleanup across the project.
+- Added a new CheckStyle config, and performed a lot of code cleanup across the project to standardize code style.
 - If a mod is skipped because its API version is invalid, it will now output a `MOD_API_VERSION_MISMATCH` warning.
 - File accesses are now case insensitive by default, to create similar behavior between Linux and Windows. Use `PolymodConfig.caseInsensitiveZipLoading` to configure. () - by @mikolka9144 in [#212]
   - Functionality also implemented for the ZIPFileSystem. () - by @NotHyper-474 in [#204]
@@ -70,6 +72,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Fixed an issue where static extensions couldn't be used in static functions. () - by @NotHyper-474 in [#282]
 - Fixed an issue where the `is` keyword had the wrong operator priority. () - by @Starexify in [#290]
 - Fixed an issue where enum constructors couldn't be called with multiple arguments. () - by @Starexify in [#296]
+- Fixed an issue causing variables to be lost when local functions were called. () - by @NotHyper-474 in [#311]
+- Fixed an issue where the game would crash when attempting to process minimum argument counts for getters and setters. () - by @Starexify in [#312]
+- Fixed an issue causing projects to be unable to compile when `hscriptPos` was disabled. () - by @lemz1 in [#314]
 
 # [1.8.0] - 2024-07-26
 The version is the result of resolving practical needs that arose from using Polymod with [Friday Night Funkin'](https://github.com/FunkinCrew/Funkin) over the past year and a half!
