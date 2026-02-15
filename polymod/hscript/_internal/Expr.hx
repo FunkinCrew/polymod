@@ -281,16 +281,22 @@ typedef ClassImport =
 
   /**
    * The underlying class that was imported.
-   * Will be `null` if this is an enum instead (see `enm`),
+   * Will be `null` if this is not a class (see `enm` or `abs`),
    * or the class the script tried to import was BLACKLISTED.
    */
   var ?cls:Class<Dynamic>;
 
   /**
    * The underlying enum that was imported.
-   * Will be `null` if this is an enum instead (see `enm`).
+   * Will be `null` if this is not an enum.
    */
   var ?enm:Enum<Dynamic>;
+
+  /**
+   * The underlying abstract class that was imported.
+   * Will be `null` if this is not an abstract class.
+   */
+  var ?abs:PolymodStaticAbstractReference;
 }
 
 typedef EnumDecl =

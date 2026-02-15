@@ -3,7 +3,7 @@ package polymod.hscript._internal;
 import polymod.hscript._internal.Expr;
 import polymod.hscript._internal.Expr.ClassDecl;
 import polymod.hscript._internal.Expr.ClassImport;
-import polymod.hscript._internal.PolymodClassDeclEx.PolymodStaticAbstractReference;
+import polymod.hscript._internal.PolymodStaticAbstractReference;
 import polymod.hscript._internal.PolymodStaticClassReference;
 import polymod.hscript._internal.Printer;
 import polymod.util.Util;
@@ -117,7 +117,7 @@ class PolymodInterpEx extends Interp
         }
         catch (e)
         {
-          errorEx(EInvalidModule(importedClass.fullPath));
+          error(EInvalidModule(importedClass.fullPath));
         }
       }
 
@@ -127,7 +127,7 @@ class PolymodInterpEx extends Interp
         return Type.createInstance(cls, args);
       }
 
-      errorEx(EBlacklistedModule(importedClass.fullPath));
+      error(EBlacklistedModule(importedClass.fullPath));
     }
 
     // Attempt to resolve the class without overrides.
@@ -1446,7 +1446,7 @@ class PolymodInterpEx extends Interp
       }
       catch (e:Dynamic)
       {
-        errorEx(EInvalidFinalSet(f));
+        error(EInvalidFinalSet(f));
       }
     }
     else if (Std.isOfType(o, PolymodStaticClassReference))
