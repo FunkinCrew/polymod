@@ -106,43 +106,18 @@ class PolymodScriptClass
       var baseAbstractClassImpls:Map<String,
         {
           cls:Class<Dynamic>,
-          clsName:String,
+          polymodCls:Null<Class<Dynamic>>,
         }> = PolymodScriptClassMacro.listAbstractImpls();
 
       for (key => value in baseAbstractClassImpls)
       {
         if (value == null) continue;
 
-        _abstractClassImpls.set(key, new PolymodStaticAbstractReference(key, value.cls, value.clsName));
+        _abstractClassImpls.set(key, new PolymodStaticAbstractReference(key, value.cls, value.polymodCls));
       }
     }
 
     return _abstractClassImpls;
-  }
-
-  /**
-   * Define a list of `fieldName -> Class` pointing to the generated class containing a reference
-   * to each static field of each abstract.
-   */
-  public static var abstractClassStatics(get, never):Map<String, Class<Dynamic>>;
-
-  static var _abstractClassStatics:Map<String, Class<Dynamic>> = null;
-
-  static function get_abstractClassStatics():Map<String, Class<Dynamic>>
-  {
-    if (_abstractClassStatics == null)
-    {
-      _abstractClassStatics = new Map<String, Class<Dynamic>>();
-
-      var baseAbstractClassStatics:Map<String, Class<Dynamic>> = PolymodScriptClassMacro.listAbstractStatics();
-
-      for (key => value in baseAbstractClassStatics)
-      {
-        _abstractClassStatics.set(key, value);
-      }
-    }
-
-    return _abstractClassStatics;
   }
 
   /**
