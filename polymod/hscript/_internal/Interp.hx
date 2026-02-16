@@ -130,7 +130,11 @@ class Interp
 
   function assign(e1:Expr, e2:Expr):Dynamic
   {
-    var v = expr(e2);
+    return assignValue(e1, expr(e2));
+  }
+
+  function assignValue(e1:Expr, v:Dynamic, _abstractInlineAssign:Bool = false):Dynamic
+  {
     switch (Tools.expr(e1))
     {
       case EIdent(id):
@@ -154,7 +158,10 @@ class Interp
         }
 
       default:
-        error(EInvalidOp("="));
+        if (!_abstractInlineAssign)
+        {
+          error(EInvalidOp("="));
+        }
     }
     return v;
   }

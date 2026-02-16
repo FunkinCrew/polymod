@@ -408,7 +408,7 @@ class PolymodInterpEx extends Interp
     super.setVar(id, v);
   }
 
-  override function assign(e1:Expr, e2:Expr):Dynamic
+  override function assignValue(e1:Expr, v:Dynamic, _abstractInlineAssign:Bool = false):Dynamic
   {
     switch (Tools.expr(e1))
     {
@@ -417,8 +417,6 @@ class PolymodInterpEx extends Interp
         // Also ensures property functions are accounted for.
         if (_proxy != null && _proxy.superHasField(id))
         {
-          var v = expr(e2);
-
           if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
           {
             var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
@@ -440,7 +438,6 @@ class PolymodInterpEx extends Interp
                 final setName = 'set_$id';
                 if (!_propTrack.exists(setName))
                 {
-                  var v = expr(e2);
                   _propTrack.set(setName, true);
                   var out = _proxy.callFunction(setName, [v]);
                   _propTrack.remove(setName);
@@ -469,8 +466,6 @@ class PolymodInterpEx extends Interp
             {
               if (_proxy != null && _proxy.superHasField(id))
               {
-                var v = expr(e2);
-
                 if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
                 {
                   var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
@@ -508,7 +503,7 @@ class PolymodInterpEx extends Interp
       default:
     }
     // Fallback, which calls set()
-    return super.assign(e1, e2);
+    return super.assignValue(e1, v, _abstractInlineAssign);
   }
 
   override function increment(e:Expr, prefix:Bool, delta:Int)
@@ -899,14 +894,28 @@ class PolymodInterpEx extends Interp
         {
           case EField(e, f):
             var name = getIdent(e);
-            name = getClassDecl().imports.get(name)?.fullPath ?? name;
-            if (name != null && _scriptEnumDescriptors.exists(name))
+            if (name != null)
             {
-              var args = new Array();
-              for (p in params)
-                args.push(expr(p));
+              var imp = getClassDecl().imports.get(name);
+              if (imp != null)
+              {
+                if (_scriptEnumDescriptors.exists(imp.fullPath))
+                {
+                  var args = new Array();
+                  for (p in params)
+                    args.push(expr(p));
 
-              return new PolymodEnum(_scriptEnumDescriptors.get(name), f, args);
+                  return new PolymodEnum(_scriptEnumDescriptors.get(imp.fullPath), f, args);
+                }
+                else if (imp.abs != null && imp.abs.hasInlineFunction(f))
+                {
+                  var args = new Array();
+                  for (p in params)
+                    args.push(expr(p));
+
+                  return imp.abs.callInlineFunction(this, params[0], f, args);
+                }
+              }
             }
           default:
         }
@@ -1385,12 +1394,6 @@ class PolymodInterpEx extends Interp
       // }
       // #end
       // return result;
-    }
-
-    var abstractKey:String = '$oCls.$f';
-    if (PolymodScriptClass.abstractClassStatics.exists(abstractKey))
-    {
-      return Reflect.getProperty(PolymodScriptClass.abstractClassStatics[abstractKey], abstractKey.replace('.', '_'));
     }
 
     // Default behavior
