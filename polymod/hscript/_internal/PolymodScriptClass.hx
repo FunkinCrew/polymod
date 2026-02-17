@@ -616,6 +616,9 @@ class PolymodScriptClass
         }
         else
         {
+          // We don't want to remove variables that were defined as globals in the script.
+          if (this.findVar(a.name, true) != null) continue;
+
           _interp.variables.remove(a.name);
         }
       }
