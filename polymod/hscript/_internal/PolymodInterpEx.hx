@@ -1723,6 +1723,50 @@ class PolymodInterpEx extends Interp
    */
   public function callScriptClassStaticFunction(clsName:String, fnName:String, args:Array<Dynamic> = null):Dynamic
   {
+    // For functions listScriptClasses and scriptInit, we want to return the needed values without much checking.
+    if (fnName == "listScriptClasses")
+    {
+      return PolymodScriptClass.listScriptClassesExtending(clsName);
+    }
+
+    if (fnName == "scriptInit")
+    {
+      args = args ?? [];
+
+      if (args.length < 1)
+      {
+        error(EInvalidArgCount(" for function 'scriptInit'", 1, args.length));
+      }
+
+      var clsToInit:String = Std.string(args.shift());
+      var clsRef = PolymodStaticClassReference.tryBuild(clsToInit);
+
+      if (clsRef == null)
+      {
+        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
+          'Could not construct instance of scripted class ($clsToInit extends ' + clsName + ')\nUnknown error building class reference');
+        return null;
+      }
+
+      try
+      {
+        var result = clsRef.instantiate(args);
+        if (result == null)
+        {
+          Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
+            'Could not construct instance of scripted class ($clsToInit extends ' + clsName + '):\nUnknown error instantiating class');
+          return null;
+        }
+
+        return result;
+      }
+      catch (error)
+      {
+        Polymod.error(SCRIPT_RUNTIME_EXCEPTION, 'Could not construct instance of scripted class ($clsToInit extends ' + clsName + '):\n${error}');
+        return null;
+      }
+    }
+
     var fn:Null<FunctionDecl> = null;
     var imports:Map<String, ClassImport> = [];
 
@@ -1873,6 +1917,9 @@ class PolymodInterpEx extends Interp
 
   public function hasScriptClassStaticFunction(clsName:String, fnName:String):Bool
   {
+    // Every scripted class has these functions, so we force the check to return true.
+    if (["scriptInit", "listScriptClasses"].contains(fnName)) return true;
+
     var imports:Map<String, ClassImport> = [];
 
     var cls:Null<ClassDecl> = _scriptClassDescriptors.get(clsName);
