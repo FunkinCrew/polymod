@@ -30,7 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Use `Polymod.blacklistInstanceFields(Class, Array<String>)` to blacklist instance variables or functions from being accessed by scripts.
   - When using `final myValue = 12;`, attempting to reassign the value throws an error.
 - Added support for static extensions via the `using` keyword. () - by @KoloInDaCrib in [#218]
-- Added support for scripted classes to extend other scripted classes. () - by @NotHyper-474 in [#285]
+- Added support for scripted classes to extend other scripted classes. () - by @KoloInDaCrib in [#285]
 - Added support for typedef extensions, and optional fields in typedefs. () - by @Starexify in [#290]
 - Added support for string interpolation (i.e. you can now use `'${value}'` instead of string concatenation). () - by @NotHyper-474 in [#292]
 ## Changed
@@ -44,8 +44,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Cleaned up a lot of existing error messages to be more clear what they're doing.
 - Added a new CheckStyle config, and performed a lot of code cleanup across the project to standardize code style.
 - If a mod is skipped because its API version is invalid, it will now output a `MOD_API_VERSION_MISMATCH` warning.
-- File accesses are now case insensitive by default, to create similar behavior between Linux and Windows. Use `PolymodConfig.caseInsensitiveZipLoading` to configure. () - by @mikolka9144 in [#212]
-  - Functionality also implemented for the ZIPFileSystem. () - by @NotHyper-474 in [#204]
+- File accesses are now case insensitive by default, to create similar behavior between Linux and Windows. () - by @mikolka9144 in [#212]
+  - Functionality also implemented for the ZIPFileSystem. Use `PolymodConfig.caseInsensitiveZipLoading` to configure. () - by @NotHyper-474 in [#204]
 - Polymod will automatically clear any cached scripts before loading them again. () - by @KoloInDaCrib in [#247]
 - Function calls now support an arbitrary number of arguments, up from eight. () - by @NotHyper-474 in [#278]
 - Scripted classes no longer have to extend anything (a scripted class that has no superclass can only be instantiated from other scripts). () - by @NotHyper-474 in [#280]
