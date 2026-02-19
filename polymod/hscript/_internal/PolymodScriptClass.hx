@@ -166,7 +166,7 @@ class PolymodScriptClass
             Polymod.error(SCRIPT_PARSE_ERROR,
               'Error while parsing class ${path}#${errLine}: EClassUnresolvedSuperclass' + '\n' + 'Unresolved superclass "${cls}", ${reason}');
           default:
-            Polymod.error(SCRIPT_PARSE_ERROR, 'Error while executing script ${path}#${errLine}: ' + '\n' + 'An unknown error occurred: ${err}');
+            Polymod.error(SCRIPT_PARSE_ERROR, 'Error while parsing script ${path}#${errLine}: ' + '\n' + 'An unknown error occurred: ${err}');
         }
       }
     }
