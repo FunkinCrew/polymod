@@ -239,6 +239,13 @@ class PolymodScriptClassMacro
             var abstractImplType = abstractType.impl.get();
             var abstractImplStatics:Array<ClassField> = abstractImplType.statics.get();
 
+            var isAbstractImplExtern = abstractImplType.isExtern;
+            if (isAbstractImplExtern) {
+              // TODO: abstract externs tend to be problematic and cause lots of build errors,
+              // so we just skip them for now. If you can find a fix, feel free.
+              continue;
+            }
+
             for (field in abstractImplStatics)
             {
               switch (field.kind)
