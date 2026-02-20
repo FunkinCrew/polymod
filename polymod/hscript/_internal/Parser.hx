@@ -1005,6 +1005,18 @@ class Parser
         return parseExprNext(makeBinop(op, e1, parseExpr()));
       case TDot:
         var field = getIdent();
+
+        if (field == 'code')
+        {
+          switch (expr(e1))
+          {
+            case EConst(CString(s, _)):
+              if (s.length != 1) error(ECustom('String must be a single UTF8 char'), pmin(e1), pmax(e1));
+              return parseExprNext(mk(EConst(CInt(s.charCodeAt(0))), pmin(e1)));
+            default:
+          }
+        }
+
         return parseExprNext(mk(EField(e1, field), pmin(e1)));
       case TQuestionDot:
         var field = getIdent();
