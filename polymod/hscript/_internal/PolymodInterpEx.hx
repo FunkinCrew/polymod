@@ -194,7 +194,7 @@ class PolymodInterpEx extends Interp
     // https://github.com/HaxeFoundation/haxe/issues/11298
     if (f == "contains")
     {
-      func = get(o, "includes");
+      return get(o, "includes");
     }
     // For web: remove is inlined so we have to use something else.
     else if (f == "remove")
