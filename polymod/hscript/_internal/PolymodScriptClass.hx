@@ -586,7 +586,7 @@ class PolymodScriptClass
     if (fn != null)
     {
       // previousValues is used to restore variables after they are shadowed in the local scope.
-      var previousValues:Map<String, Dynamic> = _interp.setFunctionValues(fn, args, fnName);
+      var previousValues:Map<String, Dynamic> = [];
 
       // Copy the locals and store them for later.
       var localsCopy:Map<String, {r:Dynamic, ?isfinal:Null<Bool>}> = _interp.locals.copy();
@@ -594,6 +594,7 @@ class PolymodScriptClass
       var r:Dynamic = null;
       try
       {
+        previousValues = _interp.setFunctionValues(fn, args, fnName);
         r = _interp.executeEx(fn.expr);
       }
       catch (err:Expr.Error)
