@@ -516,7 +516,11 @@ class PolymodScriptClassMacro
         var abstractPath:String = element[0];
         var abstractImplPath:String = element[1];
         var abstractPolymodImplPath:Null<String> = element[2];
-        var abstractImplType:Class<Dynamic> = cast Type.resolveClass(abstractImplPath);
+        #if js
+        var abstractImplType:Null<Class<Dynamic>> = resolveClass(abstractPath);
+        #else
+        var abstractImplType:Null<Class<Dynamic>> = cast Type.resolveClass(abstractImplPath);
+        #end
 
         if (abstractImplType == null)
         {
@@ -576,6 +580,26 @@ class PolymodScriptClassMacro
       throw 'No typedefs found in PolymodScriptClassMacro!';
     }
   }
+
+  #if js
+  static var PACKAGE_NAME_INVALID = ~/[^.a-zA-Z0-9]/;
+
+  // Fucked up workaround, volatile and could break at any moment.
+  static function resolveClass(clsName:String):Class<Dynamic>
+  {
+    // Sanitize just in case someone tries to exploit this.
+    var sanitizedName = PACKAGE_NAME_INVALID.replace(clsName, '');
+    var parsedName = StringTools.replace(sanitizedName, '.', '_');
+    try
+    {
+      return js.Syntax.code('eval({0})', parsedName);
+    }
+    catch (e)
+    {
+      return null;
+    }
+  }
+  #end
 }
 
 typedef AbstractImplEntry =
