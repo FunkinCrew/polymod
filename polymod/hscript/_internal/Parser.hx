@@ -2037,6 +2037,11 @@ class Parser
           if (!idents[c])
           {
             pushBufId(i);
+            if (c == '$'.code)
+            {
+              state = Interp;
+              continue;
+            }
             state = Literal;
           }
       }
