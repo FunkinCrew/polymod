@@ -87,12 +87,12 @@ class PolymodConfig
    *
    * @default `.hxc`
    */
-  public static var scriptClassExt(get, default):String;
+  public static var scriptClassExt(get, default):Array<String>;
 
-  static function get_scriptClassExt():String
+  static function get_scriptClassExt():Array<String>
   {
     // If the value is null, retrieve the value as a Haxe define.
-    if (scriptClassExt == null) scriptClassExt = DefineUtil.getDefineString('POLYMOD_SCRIPT_CLASS_EXT', '.hxc');
+    if (scriptClassExt == null) scriptClassExt = DefineUtil.getDefineStringArray('POLYMOD_SCRIPT_CLASS_EXT', [".hxc", ".hx"]);
     return scriptClassExt;
   }
 
