@@ -14,6 +14,7 @@ import polymod.util.VersionUtil;
 import thx.semver.Version;
 import thx.semver.VersionRule;
 
+using Lambda;
 using StringTools;
 
 #if firetongue
@@ -660,7 +661,7 @@ class Polymod
 
       for (textPath in potentialScripts)
       {
-        if (textPath.endsWith(PolymodConfig.scriptClassExt))
+        if (PolymodConfig.scriptClassExt.exists(ext -> textPath.endsWith(ext)))
         {
           var path = textPath;
           if (!Polymod.assetLibrary.exists(path))
@@ -703,7 +704,7 @@ class Polymod
     var futures:Array<lime.app.Future<Bool>> = [];
     for (textPath in potentialScripts)
     {
-      if (textPath.endsWith(PolymodConfig.scriptClassExt))
+      if (PolymodConfig.scriptClassExt.exists(ext -> textPath.endsWith(ext)))
       {
         var path = textPath;
         if (!Polymod.assetLibrary.exists(path))
