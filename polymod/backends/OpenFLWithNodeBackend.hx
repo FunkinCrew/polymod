@@ -76,9 +76,9 @@ class OpenFLWithNodeBackend extends StubBackend
   {
     super();
     #if !openfl
-    Polymod.error(FAILED_CREATE_BACKEND, "OpenFLWithNodeBackend requires the openfl library, did you forget to install it?");
+    Polymod.error(BACKEND_INIT_FAILED, "OpenFLWithNodeBackend requires the openfl library, did you forget to install it?", INIT);
     #elseif !nodefs
-    Polymod.error(FAILED_CREATE_BACKEND, 'OpenFLWithNodeBackend requires the nodefs flag to be defined.');
+    Polymod.error(BACKEND_INIT_FAILED, 'OpenFLWithNodeBackend requires the nodefs flag to be defined.', INIT);
     #end
   }
 }

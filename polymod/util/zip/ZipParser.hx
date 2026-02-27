@@ -92,7 +92,7 @@ class ZipParser
     var cdfh = centralDirectoryRecords.get(localFileName);
     if (cdfh == null)
     {
-      Polymod.warning(FILE_MISSING, 'The file $localFileName was not found in the zip: $fileName');
+      Polymod.warning(ASSET_MISSING_FILE, 'The file $localFileName was not found in the zip: $fileName');
       return null;
     }
     fileHandle.seek(cdfh.localFileHeaderOffset, SeekBegin);
@@ -294,7 +294,6 @@ class LocalFileHeader extends Header
 
     if (bytesRead < compressedSize)
     {
-      // trace('[WARNING] Bytes read was fewer than requested (Requested: $compressedSize, Read: $bytesRead)');
       bytesBuf.addBytes(bytesToReturn, 0, bytesRead);
       while (bytesRead < compressedSize)
       {

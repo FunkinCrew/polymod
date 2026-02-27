@@ -1,5 +1,6 @@
 package polymod.fs;
 
+import polymod.Polymod.PolymodErrorOrigin;
 import thx.semver.VersionRule;
 import haxe.io.Bytes;
 import polymod.Polymod.ModMetadata;
@@ -11,14 +12,16 @@ class PolymodFileSystem
 {
   /**
    * Constructs a new PolymodFileSystem.
-       * @param cls An input file system. Might be an IFileSystem or a Class<IFileSystem>.
+   * @param cls An input file system. Might be an IFileSystem or a Class<IFileSystem>.
+   * @param params A set of parameters for initializing the file system.
+   * @return The constructed file system.
    */
-  public static function makeFileSystem(cls:Dynamic = null, params:PolymodFileSystemParams):IFileSystem
+  public static function makeFileSystem(?cls:Dynamic, params:PolymodFileSystemParams):IFileSystem
   {
     if (cls == null)
     {
       // No IFileSystem provided, choose one to use as default.
-      return _detectFileSystem(params);
+      return detectFileSystem(params);
     }
     else if (Std.isOfType(cls, IFileSystem))
     {
@@ -32,15 +35,15 @@ class PolymodFileSystem
     }
     else
     {
-      Polymod.error(BAD_CUSTOM_FILESYSTEM, "Passed an unknown type for a custom filesystem. Reverting to default...");
+      Polymod.error(FILESYSTEM_INIT_FAILED, "Passed an unknown type for a custom filesystem. Reverting to default...", INIT);
       return makeFileSystem(null, params);
     }
   }
 
   /**
-   * Determine which PolymodFileSystem to create based on the current platform.
+   * Automatically determine the file system to use, based on the current platform, and instantiate it.
    */
-  static function _detectFileSystem(params:PolymodFileSystemParams)
+  static function detectFileSystem(params:PolymodFileSystemParams):IFileSystem
   {
     #if sys
     // Sys/native file system.
@@ -130,7 +133,9 @@ interface IFileSystem
   /**
    * Provides the metadata for a given mod. Returns null if the mod does not exist.
    * @param modId The ID of the mod.
+   * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc).
+   *   Used for error reporting.
    * @return The mod metadata.
    */
-  public function getMetadata(modId:String):Null<ModMetadata>;
+  public function getMetadata(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>;
 }

@@ -203,7 +203,7 @@ class ScriptRunner
   {
     if (assetHandler == null)
     {
-      Polymod.error(PolymodErrorCode.SCRIPT_NO_ASSET_HANDLER, "Class does not import an Assets class for Polymod to fetch scripts with!");
+      Polymod.error(SCRIPT_NO_ASSET_HANDLER, "Class does not import an Assets class for Polymod to fetch scripts with!", SCRIPT_RUNTIME);
       return null;
     }
 
@@ -232,7 +232,7 @@ class ScriptRunner
     // If the script isn't loaded yet, do that now.
     if (!scripts.exists(name))
     {
-      Polymod.debug('Note: Late script load ($name). This is normal for dynamic pathNames.');
+      Polymod.debug('Scripted function loaded late (this is fine if the pathname is dynamic).');
       load(name, assetHandler);
     }
 
@@ -252,7 +252,7 @@ class ScriptRunner
     var script = get(name, assetHandler);
     if (script == null)
     {
-      Polymod.error(PolymodErrorCode.SCRIPT_NOT_FOUND, 'Could not load script $name for execution.');
+      Polymod.error(SCRIPT_NOT_FOUND, 'Could not load script $name for execution.', SCRIPT_RUNTIME);
     }
     return script.execute();
   }

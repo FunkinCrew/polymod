@@ -22,7 +22,7 @@ class PolymodEnum
 
     if (field == null)
     {
-      Polymod.error(SCRIPT_PARSE_ERROR, '${e.name}.${value} does not exist.');
+      Polymod.error(SCRIPT_PARSE_FAILED, '${e.name}.${value} does not exist.', SCRIPT_RUNTIME);
       return;
     }
 
@@ -30,7 +30,7 @@ class PolymodEnum
 
     if (args.length != field.args.length)
     {
-      Polymod.error(SCRIPT_PARSE_ERROR, '${e.name}.${value} got the wrong number of arguments.');
+      Polymod.error(SCRIPT_PARSE_FAILED, '${e.name}.${value} got the wrong number of arguments.', SCRIPT_RUNTIME);
       return;
     }
 

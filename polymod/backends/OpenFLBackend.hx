@@ -6,7 +6,7 @@ class OpenFLBackend extends StubBackend
   public function new()
   {
     super();
-    Polymod.error(FAILED_CREATE_BACKEND, "OpenFLBackend requires the openfl library, did you forget to install it?");
+    Polymod.error(BACKEND_INIT_FAILED, "OpenFLBackend requires the openfl library, did you forget to install it?", INIT);
   }
 }
 #else

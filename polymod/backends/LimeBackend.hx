@@ -40,12 +40,12 @@ class LimeBackend extends StubBackend
   public function new()
   {
     super();
-    Polymod.error(FAILED_CREATE_BACKEND, "LimeBackend requires the lime library, did you forget to install it?");
+    Polymod.error(BACKEND_INIT_FAILED, "LimeBackend requires the lime library, did you forget to install it?", INIT);
   }
 
   public function preloadImagesToCache():Void
   {
-    Polymod.error(FAILED_CREATE_BACKEND, "LimeBackend requires the lime library, did you forget to install it?");
+    Polymod.error(BACKEND_INIT_FAILED, "LimeBackend requires the lime library, did you forget to install it?", INIT);
   }
 }
 #else
@@ -121,9 +121,9 @@ class LimeBackend implements IBackend
 
     if (hasMoreThanDefault && params.assetLibraryPaths == null)
     {
-      Polymod.error(PolymodErrorCode.LIME_MISSING_ASSET_LIBRARY_INFO,
+      Polymod.error(BACKEND_LIME_MISSING_ASSET_LIBRARY_INFO,
         "Your Lime/OpenFL configuration is using custom asset libraries, but you have not provided the frameworkParams.assetLibraryPaths parameter in Polymod.init() that tells Polymod which asset libraries to expect and what their mod sub-directory prefixes should be.",
-        PolymodErrorOrigin.INIT);
+        INIT);
       return false;
     }
 
@@ -135,10 +135,10 @@ class LimeBackend implements IBackend
       {
         if (!params.assetLibraryPaths.exists(key) && key != 'default')
         {
-          Polymod.error(PolymodErrorCode.LIME_MISSING_ASSET_LIBRARY_REFERENCE,
+          Polymod.error(BACKEND_LIME_MISSING_ASSET_LIBRARY_REFERENCE,
             "Your Lime/OpenFL configuration is using custom asset libraries, and you provided frameworkParams in Polymod.init(), but we couldn't find a match for this asset library: (" +
             key + ')',
-            PolymodErrorOrigin.INIT);
+            INIT);
           return false;
         }
         else

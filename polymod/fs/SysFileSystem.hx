@@ -1,6 +1,7 @@
 package polymod.fs;
 
 #if sys
+import polymod.Polymod.PolymodErrorOrigin;
 import polymod.Polymod.ModMetadata;
 import polymod.fs.PolymodFileSystem;
 import polymod.util.Util;
@@ -52,7 +53,7 @@ class SysFileSystem implements IFileSystem
     }
     catch (e)
     {
-      Polymod.warning(DIRECTORY_MISSING, 'Could not find directory "${path}"');
+      Polymod.warning(ASSET_MISSING_DIRECTORY, 'Could not find directory "${path}"');
       return [];
     }
   }
@@ -87,14 +88,15 @@ class SysFileSystem implements IFileSystem
       var fullDir = Util.pathJoin(modRoot, dir);
       if (!isDirectory(fullDir)) continue;
 
-      var meta:ModMetadata = this.getMetadata(dir);
+      var meta:ModMetadata = this.getMetadata(dir, PolymodErrorOrigin.SCAN);
 
       if (meta == null) continue;
 
       if (!VersionUtil.match(meta.apiVersion, apiVersionRule))
       {
         Polymod.warning(MOD_API_VERSION_MISMATCH,
-          'Mod "${dir}" is not compatible with API version "${apiVersionRule.toString()}", got "${meta.apiVersion.toString()}"');
+          'Mod "${dir}" is not compatible with API version "${apiVersionRule.toString()}", got "${meta.apiVersion.toString()}"',
+          SCAN);
         continue;
       }
 
@@ -104,7 +106,7 @@ class SysFileSystem implements IFileSystem
     return result;
   }
 
-  public function getMetadata(modId:String)
+  public function getMetadata(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
     var modPath = Util.pathJoin(modRoot, modId);
     if (exists(modPath))
@@ -116,13 +118,13 @@ class SysFileSystem implements IFileSystem
 
       if (!exists(metaFile))
       {
-        Polymod.warning(MISSING_META, 'Could not find mod metadata file: $metaFile');
+        Polymod.warning(MOD_MISSING_METADATA, 'Could not find mod metadata file: $metaFile', origin);
         return null;
       }
       else
       {
         var metaText = getFileContent(metaFile);
-        meta = ModMetadata.fromJsonStr(metaText);
+        meta = ModMetadata.fromJsonStr(metaText, origin);
       }
 
       if (meta == null) return null;
@@ -132,7 +134,7 @@ class SysFileSystem implements IFileSystem
 
       if (!exists(iconFile))
       {
-        Polymod.warning(MISSING_ICON, 'Could not find mod icon file: $iconFile');
+        Polymod.warning(MOD_MISSING_ICON, 'Could not find mod icon file: $iconFile', origin);
       }
       else
       {
@@ -144,7 +146,7 @@ class SysFileSystem implements IFileSystem
     }
     else
     {
-      Polymod.error(MISSING_MOD, 'Could not find mod directory: $modId');
+      Polymod.error(MOD_MISSING_DIRECTORY, 'Could not find mod directory: $modId', origin);
     }
     return null;
   }

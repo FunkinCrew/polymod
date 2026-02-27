@@ -120,7 +120,7 @@ class CSVParseFormat implements BaseParseFormat
       }
       catch (msg:Dynamic)
       {
-        Polymod.error(APPEND, 'CSV append error ($id): $msg');
+        Polymod.error(ASSET_MERGE_FAILED, 'CSV append error ($id): $msg');
         return baseText;
       }
 
@@ -148,7 +148,7 @@ class CSVParseFormat implements BaseParseFormat
       {
         if (compareFields < Std.int(baseCSV.fields.length / 2))
         {
-          Polymod.error(APPEND, 'Mod file ($id) is missing most or all of the expected header fields', INIT);
+          Polymod.error(ASSET_APPEND_FAILED, 'Mod file ($id) is missing most or all of the expected header fields');
         }
       }
 
@@ -192,7 +192,7 @@ class CSVParseFormat implements BaseParseFormat
 
       for (baseField in missingFields)
       {
-        Polymod.warning(PolymodErrorCode.APPEND, 'Mod file ($id) is missing expected field "$baseField", values will default to empty string.', INIT);
+        Polymod.warning(ASSET_APPEND_FAILED, 'Mod file ($id) is missing expected field "$baseField", values will default to empty string.');
       }
 
       return finalText;
@@ -211,7 +211,7 @@ class CSVParseFormat implements BaseParseFormat
     }
     catch (msg:Dynamic)
     {
-      Polymod.error(MERGE, 'CSV merge error ($id): $msg');
+      Polymod.error(ASSET_MERGE_FAILED, 'CSV merge error ($id): $msg');
       return baseText;
     }
 
@@ -597,8 +597,6 @@ class JSONParseFormat implements BaseParseFormat
 
     var patchData = convertJSONToPatches(appendJson);
 
-    // trace('Applying patches: ${patchData}');
-
     var finalJson = JSONPatch.applyPatches(baseJson, patchData);
 
     return print(finalJson);
@@ -626,8 +624,6 @@ class JSONParseFormat implements BaseParseFormat
   {
     var baseJson:JSONData = parse(baseText);
     var mergeJson:JSONData = parse(mergeText);
-
-    // trace('Applying patches: ${mergeJson}');
 
     var finalJson = JSONPatch.applyPatches(baseJson, mergeJson);
 
@@ -683,7 +679,7 @@ class PlainTextParseFormat implements BaseParseFormat // <String>
 
   public function merge(baseText:String, mergeText:String, id:String):String
   {
-    Polymod.warning(MERGE, '($id) Plain text files do not support merge functionality!');
+    Polymod.warning(ASSET_MERGE_FAILED, '($id) Plain text files do not support merge functionality!');
     return baseText;
   }
 

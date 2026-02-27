@@ -170,14 +170,14 @@ class HScriptableMacro
                     {
                       // We failed to find the script!
                       // But we only care about that if the script is not optional.
-                      polymod.Polymod.error(polymod.Polymod.PolymodErrorCode.SCRIPT_NOT_FOUND, 'The script ' + $v{pathName} + ' could not be found.');
+                      polymod.Polymod.error(SCRIPT_NOT_FOUND, 'The scripted function ' + $v{pathName} + ' could not be found.', SCRIPT_RUNTIME);
 
                       // Prevent the script and the function body from executing.
                       wasCancelled = true;
                     }
                     else
                     {
-                      polymod.Polymod.debug('The script ' + $v{pathName} + ' could not be found, but that is fine because it is optional.');
+                      polymod.Polymod.debug('The scripted function ' + $v{pathName} + ' could not be found, but that is fine because it is optional.', SCRIPT_RUNTIME);
 
                       // Prevent the script from running but do not prevent the function body from executing.
                       // wasCancelled = true;
@@ -194,7 +194,7 @@ class HScriptableMacro
                     if ($v{hscriptCancellable})
                     {
                       script.set('cancel', function() {
-                        polymod.Polymod.debug('Script called cancel()');
+                        polymod.Polymod.debug('Scripted function called cancel()');
                         wasCancelled = true;
                       });
                     }
@@ -206,7 +206,7 @@ class HScriptableMacro
                 }
                 catch (e:Dynamic)
                 {
-                  polymod.Polymod.error(polymod.Polymod.PolymodErrorCode.SCRIPT_RUNTIME_EXCEPTION, 'Error: script ' + $v{pathName} + ' threw:\n$e');
+                  polymod.Polymod.error(SCRIPT_RUNTIME_EXCEPTION, 'Error: Scripted function ' + $v{pathName} + ' threw:\n$e', SCRIPT_RUNTIME);
                   script_error = e;
                 }
 

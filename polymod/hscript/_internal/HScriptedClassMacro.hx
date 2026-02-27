@@ -195,7 +195,7 @@ class HScriptedClassMacro
               if (clsRef == null)
               {
                 polymod.Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-                  'Could not construct instance of scripted class (${clsName} extends ' + $v{clsTypeName} + ')\nUnknown error building class reference');
+                  'Could not construct instance of scripted class (${clsName} extends ' + $v{clsTypeName} + ')\nUnknown error building class reference', SCRIPT_RUNTIME);
                 return null;
               }
 
@@ -205,7 +205,7 @@ class HScriptedClassMacro
                 if (result == null)
                 {
                   polymod.Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-                    'Could not construct instance of scripted class (${clsName} extends ' + $v{clsTypeName} + '):\nUnknown error instantiating class');
+                    'Could not construct instance of scripted class (${clsName} extends ' + $v{clsTypeName} + '):\nUnknown error instantiating class', SCRIPT_RUNTIME);
                   return null;
                 }
 
@@ -214,7 +214,7 @@ class HScriptedClassMacro
               catch (error)
               {
                 polymod.Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-                  'Could not construct instance of scripted class (${clsName} extends ' + $v{clsTypeName} + '):\n${error}');
+                  'Could not construct instance of scripted class (${clsName} extends ' + $v{clsTypeName} + '):\n${error}', SCRIPT_RUNTIME);
                 return null;
               }
             },
@@ -989,7 +989,6 @@ class HScriptedClassMacro
                   {
                     if (_asc.hasScriptFunction($v{funcName}))
                     {
-                      // trace('ASC: Calling $fieldName() in macro-generated function...');
                       $
                       {
                         doesReturnVoid ? (macro
@@ -1012,7 +1011,6 @@ class HScriptedClassMacro
                     }
                   }
                   // Fallback, call the original function.
-                  // trace('ASC: Fallback to original ${fieldName}');
                   $
                   {
                     doesReturnVoid ? (macro super.$funcName($a{func_callArgs})) : (macro return super.$funcName($a{func_callArgs}))
@@ -1034,9 +1032,7 @@ class HScriptedClassMacro
                 ret: func_ret,
                 expr: macro
                 {
-                  // var fieldName:String = $v{funcName};
                   // Fallback, call the original function.
-                  // trace('ASC: Force call to super ${fieldName}');
                   $
                   {
                     doesReturnVoid ? (macro super.$funcName($a{func_callArgs})) : (macro return super.$funcName($a{func_callArgs}))

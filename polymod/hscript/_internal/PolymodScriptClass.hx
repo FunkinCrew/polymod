@@ -154,7 +154,7 @@ class PolymodScriptClass
       var scriptBody = Polymod.assetLibrary.getText(path);
       if (scriptBody == null)
       {
-        Polymod.error(SCRIPT_PARSE_ERROR, 'Error while loading script "${path}", could not retrieve script contents!');
+        Polymod.error(SCRIPT_PARSE_FAILED, 'Error while loading script "${path}", could not retrieve script contents!', SCRIPT_RUNTIME);
         return;
       }
       try
@@ -171,13 +171,13 @@ class PolymodScriptClass
         #end
         {
           case EUnexpected(s):
-            Polymod.error(SCRIPT_PARSE_ERROR,
-              'Error while parsing function ${path}#${errLine}: EUnexpected' + '\n' + 'Unexpected token "${s}", is there invalid syntax on this line?');
+            Polymod.error(SCRIPT_PARSE_FAILED,
+              'Error while parsing function ${path}#${errLine}: EUnexpected' + '\n' + 'Unexpected token "${s}", is there invalid syntax on this line?', SCRIPT_RUNTIME);
           case EClassUnresolvedSuperclass(cls, reason):
-            Polymod.error(SCRIPT_PARSE_ERROR,
-              'Error while parsing class ${path}#${errLine}: EClassUnresolvedSuperclass' + '\n' + 'Unresolved superclass "${cls}", ${reason}');
+            Polymod.error(SCRIPT_PARSE_FAILED,
+              'Error while parsing class ${path}#${errLine}: EClassUnresolvedSuperclass' + '\n' + 'Unresolved superclass "${cls}", ${reason}', SCRIPT_RUNTIME);
           default:
-            Polymod.error(SCRIPT_PARSE_ERROR, 'Error while parsing script ${path}#${errLine}: ' + '\n' + 'An unknown error occurred: ${err}');
+            Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script ${path}#${errLine}: ' + '\n' + 'An unknown error occurred: ${err}', SCRIPT_RUNTIME);
         }
       }
     }
@@ -189,14 +189,13 @@ class PolymodScriptClass
 
     if (!Polymod.assetLibrary.exists(path))
     {
-      Polymod.error(SCRIPT_PARSE_ERROR, 'Error while loading script "${path}", could not retrieve contents of non-existent script!');
+      Polymod.error(SCRIPT_PARSE_FAILED, 'Error while loading script "${path}", could not retrieve contents of non-existent script!', SCRIPT_RUNTIME);
       return null;
     }
 
     Polymod.assetLibrary.loadText(path).onComplete((text) -> {
       try
       {
-        Polymod.debug('Fetched script class "$path", parsing...');
         registerScriptClassByString(text);
         promise.complete(true);
       }
@@ -210,22 +209,22 @@ class PolymodScriptClass
         #end
         {
           case EUnexpected(s):
-            Polymod.error(SCRIPT_PARSE_ERROR,
+            Polymod.error(SCRIPT_PARSE_FAILED,
               'Error while parsing script ${path}#${errLine}: EUnexpected' + '\n' +
-              'Unexpected error: Unexpected token "${s}", is there invalid syntax on this line?');
+              'Unexpected error: Unexpected token "${s}", is there invalid syntax on this line?', SCRIPT_RUNTIME);
           default:
-            Polymod.error(SCRIPT_PARSE_ERROR, 'Error while parsing script ${path}#${errLine}: ' + '\n' + 'An unknown error occurred: ${err}');
+            Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script ${path}#${errLine}: ' + '\n' + 'An unknown error occurred: ${err}', SCRIPT_RUNTIME);
         }
         promise.error(err);
       }
     }).onError((err) -> {
       if (err == "404")
       {
-        Polymod.error(SCRIPT_PARSE_ERROR, 'Error while loading script "${path}", could not retrieve script contents (404 error)!');
+        Polymod.error(SCRIPT_PARSE_FAILED, 'Error while loading script "${path}", could not retrieve script contents (404 error)!', SCRIPT_RUNTIME);
       }
       else
       {
-        Polymod.error(SCRIPT_PARSE_ERROR, 'Error while parsing script ${path}: ' + '\n' + 'An unknown error occurred: ${err}');
+        Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script ${path}: ' + '\n' + 'An unknown error occurred: ${err}', SCRIPT_RUNTIME);
         promise.error(err);
       }
     });
@@ -332,8 +331,8 @@ class PolymodScriptClass
         {
           // importedClass was defined but `cls` was null. This class must have been blacklisted.
           var clsName = classDecl.pkg != null ? '${classDecl.pkg.join('.')}.${classDecl.name}' : classDecl.name;
-          Polymod.error(SCRIPT_PARSE_ERROR,
-            'Could not parse superclass "${classDecl.name}" of scripted class "${clsName}". The superclass may be blacklisted.');
+          Polymod.error(SCRIPT_PARSE_FAILED,
+            'Could not parse superclass "${classDecl.name}" of scripted class "${clsName}". The superclass may be blacklisted.', SCRIPT_RUNTIME);
           return [];
         }
         else if (importedClass != null)
@@ -365,7 +364,7 @@ class PolymodScriptClass
       {
         // The superclass is not a scripted class or native class. Probably doesn't exist, throw an error.
         var clsName = classDecl.pkg != null ? '${classDecl.pkg.join('.')}.${classDecl.name}' : classDecl.name;
-        Polymod.error(SCRIPT_PARSE_ERROR, 'Could not parse superclass "$fullSuperClsName" of scripted class "${clsName}". Did you forget to import it?');
+        Polymod.error(SCRIPT_PARSE_FAILED, 'Could not parse superclass "$fullSuperClsName" of scripted class "${clsName}". Did you forget to import it?', SCRIPT_RUNTIME);
         return [];
       }
     }
@@ -420,21 +419,21 @@ class PolymodScriptClass
           }
           else if (importedClass != null && importedClass.cls == null)
           {
-            Polymod.error(SCRIPT_PARSE_ERROR, 'Could not determine target class for "${pth.join('.')}" (blacklisted type?)');
+            Polymod.error(SCRIPT_PARSE_FAILED, 'Could not determine target class for "${pth.join('.')}" (blacklisted type?)', SCRIPT_RUNTIME);
           }
           else
           {
-            Polymod.error(SCRIPT_PARSE_ERROR, 'Could not determine target class for "${pth.join('.')}" (unregistered type?)');
+            Polymod.error(SCRIPT_PARSE_FAILED, 'Could not determine target class for "${pth.join('.')}" (unregistered type?)', SCRIPT_RUNTIME);
           }
         }
         else
         {
-          Polymod.error(SCRIPT_PARSE_ERROR, 'Could not determine target class for "${pth.join('.')}" (unregistered type?)');
+          Polymod.error(SCRIPT_PARSE_FAILED, 'Could not determine target class for "${pth.join('.')}" (unregistered type?)', SCRIPT_RUNTIME);
         }
       default:
         if (c.extend != null)
         {
-          Polymod.error(SCRIPT_PARSE_ERROR, 'Could not determine target class for "${c.extend}" (unknown type?)');
+          Polymod.error(SCRIPT_PARSE_FAILED, 'Could not determine target class for "${c.extend}" (unknown type?)', SCRIPT_RUNTIME);
         }
     }
     _interp = new PolymodInterpEx(targetClass, this);
@@ -576,7 +575,7 @@ class PolymodScriptClass
     className ??= '???';
     fnName ??= '(anonymous)';
 
-    Polymod.error(SCRIPT_RUNTIME_EXCEPTION, 'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + message);
+    Polymod.error(SCRIPT_RUNTIME_EXCEPTION, 'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + message, SCRIPT_RUNTIME);
   }
 
   public function callFunction(fnName:String, ?args:Array<Dynamic>):Dynamic
@@ -588,8 +587,6 @@ class PolymodScriptClass
     {
       // previousValues is used to restore variables after they are shadowed in the local scope.
       var previousValues:Map<String, Dynamic> = _interp.setFunctionValues(fn, args, fnName);
-
-      // Polymod.debug('Calling scripted class function "${fullyQualifiedName}.${fnName}(${args})"', null);
 
       // Copy the locals and store them for later.
       var localsCopy:Map<String, {r:Dynamic, ?isfinal:Null<Bool>}> = _interp.locals.copy();
@@ -650,7 +647,7 @@ class PolymodScriptClass
       {
         Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
           'Error while calling function ${fnName}(): EInvalidAccess' + '\n' +
-          'Script does not have function "${fnName}"! Define it or call the correct script function or superclass function.');
+          'Script does not have function "${fnName}"! Define it or call the correct script function or superclass function.', SCRIPT_RUNTIME);
         return null;
       }
 
