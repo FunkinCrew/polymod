@@ -259,7 +259,7 @@ class Polymod
         {
           if (!VersionUtil.match(meta.apiVersion, params.apiVersionRule))
           {
-            error(VERSION_CONFLICT_API,
+            error(MOD_API_VERSION_MISMATCH,
               'Mod "${modId}" was built for incompatible API version ${meta.apiVersion.toString()}, expected "${params.apiVersionRule.toString()}"', INIT);
           }
 
@@ -282,7 +282,7 @@ class Polymod
     }
     else
     {
-      Polymod.warning(DEPENDENCY_CHECK_SKIPPED, "Dependency checks were skipped.");
+      Polymod.warning(MOD_DEPENDENCY_CHECK_SKIPPED, "Dependency checks were skipped.", INIT);
     }
 
     // Get the file path for each mod to load, in order.
@@ -321,7 +321,7 @@ class Polymod
     // Do scripted class initialization now that the assetLibrary is loaded.
     if (params.useScriptedClasses)
     {
-      Polymod.notice(PolymodErrorCode.SCRIPT_PARSING, 'Parsing script classes...');
+      Polymod.info(SCRIPT_PARSE_START, 'Parsing script classes...');
       Polymod.clearScripts();
 
       if (params.loadScriptsAsync)
@@ -333,7 +333,7 @@ class Polymod
         Polymod.registerAllScriptClasses();
 
         var classList = polymod.hscript._internal.PolymodScriptClass.listScriptClasses();
-        Polymod.notice(PolymodErrorCode.SCRIPT_PARSED, 'Parsed and registered ${classList.length} scripted classes.');
+        Polymod.info(SCRIPT_PARSE_DONE, 'Parsed and registered ${classList.length} scripted classes.');
       }
     }
 
@@ -353,7 +353,7 @@ class Polymod
   {
     if (assetLibrary == null)
     {
-      Polymod.warning(POLYMOD_NOT_LOADED, 'Polymod is not loaded yet, cannot return file system.', INIT);
+      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot return file system.', INIT);
       return null;
     }
     return assetLibrary.fileSystem;
@@ -373,7 +373,7 @@ class Polymod
     // Check if Polymod is loaded.
     if (prevParams == null || assetLibrary == null)
     {
-      Polymod.warning(POLYMOD_NOT_LOADED, 'Polymod is not loaded yet, cannot load mod "$modId".', INIT);
+      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot load mod "$modId".', INIT);
       return [];
     }
 
@@ -400,7 +400,7 @@ class Polymod
     // Check if Polymod is loaded.
     if (prevParams == null || assetLibrary == null)
     {
-      Polymod.warning(POLYMOD_NOT_LOADED, 'Polymod is not loaded yet, cannot load mod "$modIds".', INIT);
+      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot load mod "$modIds".', INIT);
       return [];
     }
 
@@ -427,7 +427,7 @@ class Polymod
     // Check if Polymod is loaded.
     if (prevParams == null || assetLibrary == null)
     {
-      Polymod.warning(POLYMOD_NOT_LOADED, 'Polymod is not loaded yet, cannot load mod "$modIds".', INIT);
+      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot load mod "$modIds".', INIT);
       return [];
     }
 
@@ -473,7 +473,7 @@ class Polymod
     // Check if Polymod is loaded.
     if (prevParams == null || assetLibrary == null)
     {
-      Polymod.warning(POLYMOD_NOT_LOADED, 'Polymod is not loaded yet, cannot load mod "$modId".', INIT);
+      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot load mod "$modId".', INIT);
       return [];
     }
 
@@ -502,7 +502,7 @@ class Polymod
     // Check if Polymod is loaded.
     if (prevParams == null || assetLibrary == null)
     {
-      Polymod.warning(POLYMOD_NOT_LOADED, 'Polymod is not loaded yet, cannot load mod "$modIds".', INIT);
+      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot load mod "$modIds".', INIT);
       return [];
     }
 
@@ -530,7 +530,7 @@ class Polymod
     // Check if Polymod is loaded.
     if (assetLibrary == null)
     {
-      Polymod.warning(POLYMOD_NOT_LOADED, 'Polymod is not loaded yet, cannot clear mods.', INIT);
+      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot clear mods.', INIT);
       return;
     }
 
@@ -554,7 +554,7 @@ class Polymod
     // Check if Polymod is loaded.
     if (assetLibrary == null)
     {
-      Polymod.warning(POLYMOD_NOT_LOADED, 'Polymod is not loaded yet, cannot clear mods.', INIT);
+      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot clear mods.', INIT);
       return;
     }
 
@@ -589,7 +589,7 @@ class Polymod
       // Scan using assetLibrary's file system.
       if (assetLibrary == null)
       {
-        Polymod.warning(POLYMOD_NOT_LOADED, 'Polymod is not loaded yet, cannot scan for mods.', INIT);
+        Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot scan for mods.', INIT);
         return [];
       }
 
@@ -625,7 +625,7 @@ class Polymod
   {
     if (assetLibrary == null)
     {
-      Polymod.warning(POLYMOD_NOT_LOADED, 'Polymod is not loaded yet, cannot clear cache.');
+      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot clear cache.', INIT);
       return;
     }
 
@@ -665,19 +665,17 @@ class Polymod
           var path = textPath;
           if (!Polymod.assetLibrary.exists(path))
           {
-            trace('Trying libraries: ${libraryIds}');
             for (libraryId in libraryIds)
             {
               if (Polymod.assetLibrary.exists('$libraryId:$textPath'))
               {
-                trace('Found file in library: $libraryId');
                 path = '$libraryId:$textPath';
                 break;
               }
             }
             if (!Polymod.assetLibrary.exists(path)) throw 'Couldn\'t find file "$textPath"';
           }
-          Polymod.debug('Registering script class "$path"');
+          Polymod.debug('Registering scripted class "$path"');
           polymod.hscript._internal.PolymodScriptClass.registerScriptClassByPath(path);
         }
       }
@@ -714,14 +712,13 @@ class Polymod
           {
             if (Polymod.assetLibrary.exists('$libraryId:$textPath'))
             {
-              trace('Found file in library: $libraryId');
               path = '$libraryId:$textPath';
               break;
             }
           }
           if (!Polymod.assetLibrary.exists(path)) throw 'Couldn\'t find file "$textPath" (tried libraries ${libraryIds})';
         }
-        Polymod.debug('Fetching script class "$path"');
+        Polymod.debug('Fetching scripted class "$path"');
         var future = polymod.hscript._internal.PolymodScriptClass.registerScriptClassByPathAsync(path);
         if (future != null) futures.push(future);
       }
@@ -732,6 +729,13 @@ class Polymod
     return futures;
   }
 
+  /**
+   * Dispatch an error message with the severity `PolymodErrorType.ERROR`.
+   * Use this for severe errors that the user should be notified about.
+   * @param code The error code.
+   * @param message The message to display.
+   * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc).
+   */
   public static function error(code:PolymodErrorCode, message:String, origin:PolymodErrorOrigin = UNKNOWN):Void
   {
     if (onError != null)
@@ -740,6 +744,13 @@ class Polymod
     }
   }
 
+  /**
+   * Dispatch an error message with the severity `PolymodErrorType.WARNING`.
+   * Use this for issues that the user might want to know about.
+   * @param code The error code.
+   * @param message The message to display.
+   * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc).
+   */
   public static function warning(code:PolymodErrorCode, message:String, origin:PolymodErrorOrigin = UNKNOWN):Void
   {
     if (onError != null)
@@ -748,21 +759,32 @@ class Polymod
     }
   }
 
-  public static function notice(code:PolymodErrorCode, message:String, origin:PolymodErrorOrigin = UNKNOWN):Void
+  /**
+   * Dispatch an error message with the severity `PolymodErrorType.INFO`.
+   * Use this for information developers would likely want to know about.
+   * @param code The error code.
+   * @param message The message to display.
+   * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc).
+   */
+  public static function info(code:PolymodErrorCode, message:String, origin:PolymodErrorOrigin = UNKNOWN):Void
   {
     if (onError != null)
     {
-      onError(new PolymodError(PolymodErrorType.NOTICE, code, message, origin));
+      onError(new PolymodError(PolymodErrorType.INFO, code, message, origin));
     }
   }
 
+  /**
+   * Dispatch an error message with the severity `PolymodErrorType.DEBUG`.
+   * Debug messages are only dispatched if `PolymodConfig.debug` is `true`, and have no error code.
+   * @param message The message to display.
+   * @param posInfo The position the function was called from.
+   */
   public static function debug(message:String, ?posInfo:haxe.PosInfos):Void
   {
     if (PolymodConfig.debug)
     {
-      if (posInfo != null) trace('[POLYMOD] (${posInfo.fileName}#${posInfo.lineNumber}): $message');
-      else
-        trace('[POLYMOD] $message');
+      onError(new PolymodError(PolymodErrorType.DEBUG, null, message, UNKNOWN));
     }
   }
 
@@ -771,7 +793,7 @@ class Polymod
    * @param type the type of asset you want (lime.utils.PolymodAssetType)
    * @return Array<String> a list of assets of the matching type
    */
-  public static function listModFiles(type:PolymodAssetType = null):Array<String>
+  public static function listModFiles(?type:PolymodAssetType):Array<String>
   {
     if (assetLibrary != null)
     {
@@ -779,7 +801,7 @@ class Polymod
     }
     else
     {
-      Polymod.warning(POLYMOD_NOT_LOADED, 'Polymod is not loaded yet, cannot list files.');
+      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot list files.', INIT);
       return [];
     }
   }
@@ -794,6 +816,10 @@ class Polymod
     PolymodScriptClass.importOverrides.set(importAlias, importClass);
   }
 
+  /**
+   * Remove an import alias previously defined by `addImportAlias()`.
+   * @param importAlias The full import class to use as an alias, to be removed.
+   */
   public static function removeImportAlias(importAlias:String):Void
   {
     PolymodScriptClass.importOverrides.remove(importAlias);
@@ -981,6 +1007,10 @@ class ModMetadata
     // No-op constructor.
   }
 
+  /**
+   * Converts a ModMetadata object to a JSON string.
+   * @return The JSON string.
+   */
   public function toJsonStr():String
   {
     var json = {};
@@ -1001,11 +1031,17 @@ class ModMetadata
     return Json.stringify(json, null, '    ');
   }
 
-  public static function fromJsonStr(str:String)
+  /**
+   * Constructs a ModMetadata object from a JSON string.
+   * @param str The JSON string.
+   * @param origin The context we are calling this from (for error reporting).
+   * @return The ModMetadata object, or `null` if it could not be loaded.
+   */
+  public static function fromJsonStr(str:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
     if (str == null || str == '')
     {
-      Polymod.error(PARSE_MOD_META, 'Error parsing mod metadata file, was null or empty.');
+      Polymod.error(MOD_METADATA_PARSE_FAILED, 'Error parsing mod metadata file: Contents were null or empty.', origin);
       return null;
     }
 
@@ -1016,7 +1052,7 @@ class ModMetadata
     }
     catch (msg:Dynamic)
     {
-      Polymod.error(PARSE_MOD_META, 'Error parsing mod metadata file: (${msg})');
+      Polymod.error(MOD_METADATA_PARSE_FAILED, 'Error parsing mod metadata file: (${msg})', origin);
       return null;
     }
 
@@ -1034,7 +1070,7 @@ class ModMetadata
     }
     catch (msg:Dynamic)
     {
-      Polymod.error(PARSE_MOD_API_VERSION, 'Error parsing API version: (${msg}) ${PolymodConfig.modMetadataFile} was ${str}');
+      Polymod.error(MOD_API_VERSION_PARSE_FAILED, 'Error parsing API version from metadata: ${msg}', origin);
       return null;
     }
     try
@@ -1043,7 +1079,7 @@ class ModMetadata
     }
     catch (msg:Dynamic)
     {
-      Polymod.error(PARSE_MOD_VERSION, 'Error parsing mod version: (${msg}) ${PolymodConfig.modMetadataFile} was ${str}');
+      Polymod.error(MOD_VERSION_PARSE_FAILED, 'Error parsing mod version from metadata: ${msg}', origin);
       return null;
     }
     m.license = JsonHelp.str(json, 'license');
@@ -1101,29 +1137,40 @@ enum abstract PolymodErrorOrigin(String) from String to String
   /**
    * This error occurred while scanning for mods.
    */
-  var SCAN:String = 'scan';
+  public var SCAN:String = 'scan';
 
   /**
    * This error occurred while initializing Polymod.
    */
-  var INIT:String = 'init';
+  public var INIT:String = 'init';
+
+  /**
+   * This error occurred before or during the execution of a script.
+   */
+  public var SCRIPT_RUNTIME:String = 'script_runtime';
 
   /**
    * This error occurred in an undefined location.
    */
-  var UNKNOWN:String = 'unknown';
+  public var UNKNOWN:String = 'unknown';
 }
 
 /**
- * Represents the severity level of a given error.
+ * Represents the severity level of a given message.
  */
 enum PolymodErrorType
 {
   /**
    * This message is merely an informational notice.
+   * You can simply ignore it.
+   */
+  DEBUG;
+
+  /**
+   * This message is merely an informational notice.
    * You can handle it with a popup, log it, or simply ignore it.
    */
-  NOTICE;
+  INFO;
 
   /**
    * This message is a warning.
@@ -1144,29 +1191,98 @@ enum PolymodErrorType
  */
 enum abstract PolymodErrorCode(String) from String to String
 {
+  //
+  // General Errors
+  //
+
+  /**
+   * You attempted to use a functionality of Polymod that is not fully implemented, or not implemented for the current framework.
+   * - Report the issue here, and describe your setup and provide the error message:
+   *   https://github.com/FunkinCrew/Polymod/issues
+   */
+  public var POLYMOD_FUNCTIONALITY_NOT_IMPLEMENTED:String = 'polymod_functionality_not_implemented';
+
+  /**
+   * You attempted to use a functionality of Polymod that has been deprecated and has/will be significantly reworked or altered.
+   * - New features and their associated documentation will be provided in future updates.
+   */
+  public var POLYMOD_FUNCTIONALITY_DEPRECATED:String = 'polymod_functionality_deprecated';
+
+  /**
+   * The app attempted to use a functionality of Polymod that requires Polymod to be initialized,
+   * but Polymod has not been initialized yet.
+   * - Make sure you call `Polymod.init()` before attempting to call this function.
+   */
+  public var POLYMOD_NOT_INITIALIZED:String = 'app_polymod_not_initialized';
+
+  //
+  // Mod Metadata Parsing Errors
+  //
+
+  /**
+   * You requested a mod to be loaded but that mod was not installed.
+   * - Make sure a mod with that ID is installed.
+   * - Make sure to run Polymod.scan to get the list of valid mod IDs.
+   */
+  public var MOD_MISSING_DIRECTORY:String = 'mod_missing_directory';
+
+  /**
+   * You requested a mod to be loaded but its mod folder is missing a metadata file.
+   * - Make sure the mod folder contains a metadata JSON file. Polymod won't recognize the mod without it.
+   */
+  public var MOD_MISSING_METADATA:String = 'mod_missing_metadata';
+
   /**
    * The mod's metadata file could not be parsed.
    * - Make sure the file contains valid JSON.
    */
-  var PARSE_MOD_META:String = 'parse_mod_meta';
+  public var MOD_METADATA_PARSE_FAILED:String = 'mod_metadata_parse_failed';
 
   /**
    * The mod's version string could not be parsed.
    * - Make sure the metadata JSON contains a valid Semantic Version string.
    */
-  var PARSE_MOD_VERSION:String = 'parse_mod_version';
+  public var MOD_VERSION_PARSE_FAILED:String = 'mod_version_parse_failed';
 
   /**
    * The mod's API version string could not be parsed.
    * - Make sure the metadata JSON contains a valid Semantic Version string.
    */
-  var PARSE_MOD_API_VERSION:String = 'parse_mod_api_version';
+  public var MOD_API_VERSION_PARSE_FAILED:String = 'mod_api_version_parse_failed';
 
   /**
-   * The app's API version string (passed to Polymod.init) could not be parsed.
-   * - Make sure the string is a valid Semantic Version string.
+   * A mod with the given ID is missing an icon file.
+   * - This is a warning and can be ignored. Polymod will still load your mod, but it looks better if you add an icon.
+   * - The default location for icons is `_polymod_icon.png`.
    */
-  var PARSE_API_VERSION:String = 'parse_api_version';
+  public var MOD_MISSING_ICON:String = 'mod_missing_icon';
+
+  //
+  // Mod Loading Errors
+  //
+
+  /**
+   * Polymod is preparing to load a particular mod.
+   * - This is an info message. You can log it or ignore it if you like.
+   */
+  public var MOD_LOAD_START:String = 'mod_load_start';
+
+  /**
+   * Polymod attempted to load a particular mod, but failed.
+   * - There will generally be another warning or error before this indicating the reason for the error.
+   */
+  public var MOD_LOAD_FAILED:String = 'mod_load_failed';
+
+  /**
+   * Polymod has successfully loaded a particular mod.
+   * - This is an info message. You can log it or ignore it if you like.
+   * - This is also a good trigger for a UI indicator like a toast notification.
+   */
+  public var MOD_LOAD_DONE:String = 'mod_load_done';
+
+  //
+  // Mod Dependency Errors
+  //
 
   /**
    * Polymod attempted to load a mod, but one or more of its dependencies were missing.
@@ -1174,7 +1290,7 @@ enum abstract PolymodErrorCode(String) from String to String
    * - This is an error if `skipDependencyErrors` is false, no mods will be loaded.
    * - Make sure to inform the user that the required mods are missing.
    */
-  var DEPENDENCY_UNMET:String = 'dependency_unmet';
+  public var MOD_DEPENDENCY_UNMET:String = 'mod_dependency_unmet';
 
   /**
    * Polymod attempted to load a mod, and its dependency was found,
@@ -1183,7 +1299,7 @@ enum abstract PolymodErrorCode(String) from String to String
    * - This is an error if `skipDependencyErrors` is false, no mods will be loaded.
    * - Make sure to inform the user that the required mods have a mismatched version.
    */
-  var DEPENDENCY_VERSION_MISMATCH:String = 'dependency_version_mismatch';
+  public var MOD_DEPENDENCY_VERSION_MISMATCH:String = 'mod_dependency_version_mismatch';
 
   /**
    * Polymod attempted to load a mod, but one of its dependencies created a loop.
@@ -1192,252 +1308,98 @@ enum abstract PolymodErrorCode(String) from String to String
    * - This is an error if `skipDependencyErrors` is false, no mods will be loaded.
    * - Inform the mod authors that the dependency issue exists and must be resolved.
    */
-  var DEPENDENCY_CYCLICAL:String = 'dependency_cyclical';
+  public var MOD_DEPENDENCY_CYCLICAL:String = 'mod_dependency_cyclical';
 
   /**
    * Polymod was configured to skip dependency checks when loading mods, and that mod order should not be checked.
    * - Make sure you are certain this behavior is correct and that you have properly configured Polymod.
    * - This is a warning and can be ignored.
    */
-  var DEPENDENCY_CHECK_SKIPPED:String = 'dependency_check_skipped';
+  public var MOD_DEPENDENCY_CHECK_SKIPPED:String = 'dependency_check_skipped';
+
+  //
+  // Mod Compatibility Errors
+  //
 
   /**
    * The given mod's API version does not match the version rule passed to Polymod.init.
    * - This generally indicates the mod is outdated and should be updated by the author.
    * - Depending on the changes made between API versions, it may be that the only necessary change is editing the version string in the metadata file.
    */
-  var MOD_API_VERSION_MISMATCH:String = 'mod_api_version_mismatch';
+  public var MOD_API_VERSION_MISMATCH:String = 'mod_api_version_mismatch';
+
+  //
+  // Polymod App Configuration Errors
+  //
 
   /**
-   * Polymod tried to access a file that was not found.
-   * - Make sure the file exists before attempting to access it.
+   * The app's API version string (passed to Polymod.init) could not be parsed.
+   * - Make sure the string is a valid Semantic Version string.
    */
-  var FILE_MISSING:String = "file_missing";
+  public var APP_API_VERSION_PARSE_FAILED:String = 'app_api_version_parse_failed';
 
   /**
-   * Polymod tried to access a directory that was not found.
-   * - Make sure the directory exists before attempting to access it.
+   * A bad `customFilesystem` argument was passed to `Polymod.init()`.
+   * - Ensure the input is either an `IFileSystem` or a `Class<IFileSystem>`.
    */
-  var DIRECTORY_MISSING:String = "directory_missing";
+  public var APP_BAD_CUSTOM_FILESYSTEM:String = 'app_bad_custom_filesystem';
+
+  //
+  // Polymod Framework and Backend Errors
+  //
 
   /**
-   * You requested a mod to be loaded but that mod was not installed.
-   * - Make sure a mod with that ID is installed.
-   * - Make sure to run Polymod.scan to get the list of valid mod IDs.
-   */
-  var MISSING_MOD:String = 'missing_mod';
-
-  /**
-   * You requested a mod to be loaded but its mod folder is missing a metadata file.
-   * - Make sure the mod folder contains a metadata JSON file. Polymod won't recognize the mod without it.
-   */
-  var MISSING_META:String = 'missing_meta';
-
-  /**
-   * A mod with the given ID is missing an icon file.
-   * - This is a warning and can be ignored. Polymod will still load your mod, but it looks better if you add an icon.
-   * - The default location for icons is `_polymod_icon.png`.
-   */
-  var MISSING_ICON:String = 'missing_icon';
-
-  /**
-   * We are preparing to load a particular mod.
-   * - This is an info message. You can log it or ignore it if you like.
-   */
-  var MOD_LOAD_PREPARE:String = 'mod_load_prepare';
-
-  /**
-   * We couldn't load a particular mod.
-   * - There will generally be a warning or error before this indicating the reason for the error.
-   */
-  var MOD_LOAD_FAILED:String = 'mod_load_failed';
-
-  /**
-   * We have successfully completed loading a particular mod.
-   * - This is an info message. You can log it or ignore it if you like.
-   * - This is also a good trigger for a UI indicator like a toast notification.
-   */
-  var MOD_LOAD_DONE:String = 'mod_load_done';
-
-  /**
-   * You passed a bad argument to Polymod.init({customFilesystem}).
-   * - Ensure the input is either an IFileSystem or a Class<IFileSystem>.
-   */
-  var BAD_CUSTOM_FILESYSTEM:String = 'bad_custom_filesystem';
-
-  /**
-   * You attempted to perform an operation that requires Polymod to be initialized.
-   * - Make sure you call Polymod.init before attempting to call this function.
-   */
-  var POLYMOD_NOT_LOADED:String = 'polymod_not_loaded';
-
-  /**
-   * A script file of the given name could not be found.
-   * - This happens when calling annotated functions in an HScriptable class when no script file exists.
-   * - Make sure the script file exists in the proper location in your assets folder.
-   * - Alternatively, you can expand your annotation to `@:hscript({optional: true})` to disable the error message,
-   *     if your function can resolve properly without a script.
-   */
-  var SCRIPT_NOT_FOUND:String = 'script_not_found';
-
-  /**
-   * The scripted class does not import an `Assets` class to handle script loading.
-   * - When loading scripts, the target of the HScriptable interface will call `Assets.getText` to read the relevant script file.
-   * - You will need to import `openfl.util.Assets` on the HScriptable class, even if you don't otherwise use it.
-   */
-  var SCRIPT_NO_ASSET_HANDLER:String = 'script_no_asset_handler';
-
-  /**
-   * You attempted to instantiate a scripted class that was not registered.
-   * - Make sure your script is in the assets folder.
-   * - Make sure that `useScriptedClasses` in your Polymod.init parameters is set to true.
-   * - If your scripted class extends another class, make sure that class exists as well.
-   */
-  var SCRIPT_CLASS_NOT_REGISTERED:String = 'script_class_not_registered';
-
-  /**
-   * You attempted to register a new scripted class with a name that is already in use.
-   * - Rename the scripted class to one that is unique and will not conflict with other scripted classes.
-   * - You can also use a package name to avoid conflicts, although you may have to refer to the class by its full name in some places.
-   * - If you need to clear all existing class descriptors, call `Polymod.clearScripts()`.
-   */
-  var SCRIPT_CLASS_ALREADY_REGISTERED:String = 'script_class_already_registered';
-
-  /**
-   * Your script file attempted to import a class that was already imported.
-   * - This is a warning and can be ignored.
-   * - Remove the duplicate import statement to remove the warning.
-   */
-  var SCRIPT_CLASS_MODULE_ALREADY_IMPORTED:String = 'script_class_module_already_imported';
-
-  /**
-   * Your script file attempted to import a class that could not be resolved.
-   * - Check the syntax of the import statement, and check for any typos.
-   */
-  var SCRIPT_CLASS_MODULE_NOT_FOUND:String = 'script_class_module_not_found';
-
-  /**
-   * Your script file attempted to import a blacklisted class.
-   * - This is a security measure to prevent malicious scripts from accessing sensitive classes.
-   * - Remove the import statement to remove the error.
-   */
-  var SCRIPT_CLASS_MODULE_BLACKLISTED:String = 'script_class_module_blacklisted';
-
-  /**
-   * Your script file attempted to access a blacklisted field.
-   * - This is a security measure to prevent malicious scripts from accessing sensitive fields.
-   * - Remove the field access to remove the error.
-   */
-  var SCRIPT_CLASS_FIELD_BLACKLISTED:String = 'script_class_field_blacklisted';
-
-  /**
-   * You attempted to register a new enum with a name that is already in use.
-   * - Rename the enum to one that is unique and will not conflict with other enums.
-   * - If you need to clear all existing enum descriptors, call `Polymod.clearScripts()`.
-   */
-  var SCRIPT_ENUM_ALREADY_REGISTERED:String = 'script_enum_already_registered';
-
-  /**
-   * One or more scripts are about to be parsed.
-   * - This is an info message. You can log it or ignore it if you like.
-   */
-  var SCRIPT_PARSING:String = 'script_parsing';
-
-  /**
-   * One or more scripts have been successfully parsed.
-   * - This is an info message. You can log it or ignore it if you like.
-   */
-  var SCRIPT_PARSED:String = 'script_parsed';
-
-  /**
-   * A script file could not be parsed for some unknown reason.
-   * - Check the syntax of the script file is proper Haxe.
-   * - Read the error message for more information.
-   */
-  var SCRIPT_PARSE_ERROR:String = 'script_parse_error';
-
-  /**
-   * While running a script, an exception was thrown.
-   * - Read the error message for more information.
-   * - Scripted functions will have the local variable `script_error` assigned, allowing you to handle the error gracefully.
-   */
-  var SCRIPT_RUNTIME_EXCEPTION:String = 'script_runtime_exception';
-
-  /**
-   * An installed mod is looking for another mod with a specific version, but the mod is not of that version.
-   * - The mod may be a modpack that includes that mod, or it may be a mod that has the other mod as a dependency.
-   * - Inform your users to install the proper mod version.
-   */
-  var VERSION_CONFLICT_MOD:String = 'version_conflict_mod';
-
-  /**
-   * The mod has an API version that conflicts with the application's API version.
-   * - This means that the mod needs to be updated, checking for compatibility issues with any changes to API version.
-   * - If you're getting this error even for patch versions, be sure to tweak the `POLYMOD_API_VERSION_MATCH` config option.
-   */
-  var VERSION_CONFLICT_API:String = 'version_conflict_api';
-
-  /**
-   * One of the version strings you provided to Polymod.init is invalid.
-   * - Make sure you're using a valid Semantic Version string.
-   */
-  var PARAM_MOD_VERSION:String = 'param_mod_version';
-
-  /**
-   * Indicates what asset framework Polymod has automatically detected for use.
+   * Indicates what asset framework Polymod has been automatically or manually configured to use.
    * - This is an info message, and can either be logged or ignored.
    */
-  var FRAMEWORK_AUTODETECT:String = 'framework_autodetect';
+  public var FRAMEWORK_INIT:String = 'framework_init';
 
   /**
-   * Indicates what asset framework Polymod has been manually configured to use.
-   * - This is an info message, and can either be logged or ignored.
+   * You configured Polymod to use the `CUSTOM` asset framework, then didn't provide a custom backend to Polymod.
+   * - Ensure that `params.customBackend` provides a `Class<IBackend>`.
    */
-  var FRAMEWORK_INIT:String = 'framework_init';
+  public var BACKEND_CUSTOM_UNDEFINED:String = 'backend_custom_undefined';
 
   /**
-   * You configured Polymod to use the `CUSTOM` asset framework, then didn't provide a value for `params.customBackend`.
-   * - Define a class which extends IBackend, and provide it to Polymod.
+   * Polymod could not create the provided backend for the detected framework.
+   * - Read the error message for more information.
+   * - For the `CUSTOM` backend, ensure that `params.customBackend` provides a `Class<IBackend>` that can be properly instantiated.
    */
-  var UNDEFINED_CUSTOM_BACKEND:String = 'undefined_custom_backend';
+  public var BACKEND_INIT_FAILED:String = 'backend_init_failed';
 
   /**
-   * Polymod could not create an instance of the class you provided for `params.customBackend`.
-   * - Check that the class extends IBackend, and can be instantiated properly.
+   * Polymod has successfully registered a core asset path redirect.
+   * All standard assets will be loaded from the target directory instead of the original `assets` folder.
    */
-  var FAILED_CREATE_BACKEND:String = 'failed_create_backend';
+  public var ASSET_REDIRECT_DONE:String = 'asset_redirect_init_done';
 
   /**
-   * You attempted to use a functionality of Polymod that is not fully implemented, or not implemented for the current framework.
-   * - Report the issue here, and describe your setup and provide the error message:
-   *   https://github.com/larsiusprime/polymod/issues
+   * Polymod has failed to register a core asset path redirect.
+   * - Read the error message for more information.
    */
-  var FUNCTIONALITY_NOT_IMPLEMENTED:String = 'functionality_not_implemented';
+  public var ASSET_REDIRECT_MISSING_DIRECTORY:String = 'asset_redirect_missing_directory';
 
   /**
-   * You attempted to use a functionality of Polymod that has been deprecated and has/will be significantly reworked or altered.
-   * - New features and their associated documentation will be provided in future updates.
+   * Polymod has failed to register a core asset path redirect.
+   * - Read the error message for more information.
    */
-  var FUNCTIONALITY_DEPRECATED:String = 'functionality_deprecated';
+  public var ASSET_REDIRECT_FAILED:String = 'asset_redirect_failed';
 
   /**
-   * There was a warning or error attempting to perform a merge operation on a file.
-   * - Check the source and target files are correctly formatted and try again.
+   * Could not initialize the provided file system.
    */
-  var MERGE:String = 'merge_error';
+  public var FILESYSTEM_INIT_FAILED:String = 'filesystem_init_failed';
 
-  /**
-   * There was a warning or error attempting to perform an append operation on a file.
-   * - Check the source and target files are correctly formatted and try again.
-   */
-  var APPEND:String = 'append_error';
+  //
+  // Backend-Specific Errors: Lime
+  //
 
   /**
    * On the Lime and OpenFL platforms, if the base app defines multiple asset libraries,
    * each asset library must be assigned a path to allow mods to override their files.
    * - Provide a `frameworkParams.assetLibraryPaths` object to Polymod.init().
    */
-  var LIME_MISSING_ASSET_LIBRARY_INFO = 'lime_missing_asset_library_info';
+  public var BACKEND_LIME_MISSING_ASSET_LIBRARY_INFO = 'backend_lime_missing_asset_library_info';
 
   /**
    * On the Lime and OpenFL platforms, if the base app defines multiple asset libraries,
@@ -1445,5 +1407,145 @@ enum abstract PolymodErrorCode(String) from String to String
    * - All libraries must have a value under `frameworkParams.assetLibraryPaths`.
    * - Set the value to `./` to fetch assets from the root of the mod folder.
    */
-  var LIME_MISSING_ASSET_LIBRARY_REFERENCE = 'lime_missing_asset_library_reference';
+  public var BACKEND_LIME_MISSING_ASSET_LIBRARY_REFERENCE = 'backend_lime_missing_asset_library_reference';
+
+  //
+  // Asset Access Errors
+  //
+
+  /**
+   * Polymod tried to access a file from its filesystem, but that file could not be retrieved because it was missing.
+   * - Make sure the file exists before attempting to access it.
+   */
+  public var ASSET_MISSING_FILE:String = 'asset_missing_file';
+
+  /**
+   * Polymod tried to access a directory that was not found.
+   * - Make sure the directory exists before attempting to access it.
+   */
+  public var ASSET_MISSING_DIRECTORY:String = 'asset_missing_directory';
+
+  /**
+   * There was a warning or error attempting to perform a merge operation on a file.
+   * - Check the source and target files are correctly formatted and try again.
+   */
+  public var ASSET_MERGE_FAILED:String = 'asset_merge_failed';
+
+  /**
+   * There was a warning or error attempting to perform an append operation on a file.
+   * - Check the source and target files are correctly formatted and try again.
+   */
+  public var ASSET_APPEND_FAILED:String = 'asset_append_failed';
+
+  //
+  // Script Parsing Errors
+  //
+
+  /**
+   * One or more scripts are about to be parsed.
+   * - This is an info message. You can log it or ignore it if you like.
+   */
+  public var SCRIPT_PARSE_START:String = 'script_parse_start';
+
+  /**
+   * One or more scripts have been successfully parsed.
+   * - This is an info message. You can log it or ignore it if you like.
+   */
+  public var SCRIPT_PARSE_DONE:String = 'script_parse_done';
+
+  /**
+   * A script file could not be parsed for some unknown reason.
+   * - Check the syntax of the script file is proper Haxe code.
+   * - Read the error message for more information.
+   */
+  public var SCRIPT_PARSE_FAILED:String = 'script_parse_failed';
+
+  //
+  // Script Execution Errors
+  //
+
+  /**
+   * While running a script, an exception was thrown.
+   * - Read the error message for more information.
+   * - Annotated functions will have the local variable `script_error` assigned, allowing you to handle the error gracefully.
+   * - Scripted classes will purge the offending function, preventing the error from occuring again until the script is reloaded.
+   */
+  public var SCRIPT_RUNTIME_EXCEPTION:String = 'script_runtime_exception';
+
+  //
+  // Scripted Function Loading Errors
+  //
+
+  /**
+   * Polymod attempted to load a specific script file, but could not find it.
+   * - This happens when calling annotated functions in an `HScriptable` class when no script file exists.
+   * - Make sure the script file exists in the proper location in your assets folder.
+   * - Alternatively, you can expand your annotation to `@:hscript({optional: true})` to disable the error message,
+   *     if your function can resolve properly without an attached script.
+   */
+  public var SCRIPT_NOT_FOUND:String = 'script_not_found';
+
+  /**
+   * The scripted class does not import an `Assets` class to handle script loading.
+   * - When using `HScriptable` to invoke scripts with annotated functions, `Assets.getText` will be used to load the relevant script.
+   * - You will need to import `openfl.util.Assets` on the HScriptable class, even if you don't otherwise use it.
+   */
+  public var SCRIPT_NO_ASSET_HANDLER:String = 'script_no_asset_handler';
+
+  //
+  // Scripted Class Loading Errors
+  //
+
+  /**
+   * You attempted to instantiate a scripted class when no scripted classes were initialized.
+   * - Make sure that `useScriptedClasses` in your Polymod.init parameters is set to true.
+   */
+  public var SCRIPTED_CLASS_NOT_INITIALIZED:String = 'scripted_class_not_initialized';
+
+  /**
+   * You attempted to instantiate a scripted class that was not registered.
+   * - Make sure the script file containing your scripted class is in the assets folder.
+   * - Make sure that `useScriptedClasses` in your Polymod.init parameters is set to true.
+   * - If your scripted class extends another class, make sure that class exists as well.
+   */
+  public var SCRIPTED_CLASS_NOT_REGISTERED:String = 'scripted_class_not_registered';
+
+  /**
+   * You attempted to register a new scripted class or enum with a name that is already in use.
+   * - Rename the scripted class to one that is unique and will not conflict with other scripted classes.
+   * - You can also use a package name to avoid conflicts, although you may have to refer to the class by its full name to use it.
+   * - If you need to clear all existing class descriptors, call `Polymod.clearScripts()`.
+   */
+  public var SCRIPTED_CLASS_ALREADY_REGISTERED:String = 'scripted_class_already_registered';
+
+  /**
+   * Your script file attempted to import a class or module that was already imported.
+   * - This is a warning and can be ignored.
+   * - Remove the duplicate import statement to resolve the warning.
+   */
+  public var SCRIPTED_CLASS_REDUNDANT_IMPORT:String = 'scripted_class_redundant_import';
+
+  /**
+   * Your script file attempted to import a class or module that could not be resolved.
+   * - Check the syntax of the import statement, and check for any typos.
+   */
+  public var SCRIPTED_CLASS_UNRESOLVED_IMPORT:String = 'scripted_class_unresolved_import';
+
+  //
+  // Scripted Class Runtime Errors
+  //
+
+  /**
+   * Your script file attempted to import a class that was blacklisted with `Polymod.blacklistImport()`.
+   * - This is a security measure to prevent malicious scripts from accessing sensitive classes.
+   * - Remove the import statement to remove the error.
+   */
+  public var SCRIPTED_CLASS_BLACKLISTED_MODULE:String = 'scripted_class_blacklisted_module';
+
+  /**
+   * Your script file attempted to access a field that was blacklisted with `Polymod.blacklistStaticFields()` or `Polymod.blacklistInstanceFields()`
+   * - This is a security measure to prevent malicious scripts from accessing sensitive fields.
+   * - Remove the field access to remove the error.
+   */
+  public var SCRIPTED_CLASS_BLACKLISTED_FIELD:String = 'scripted_class_blacklisted_field';
 }

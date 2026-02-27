@@ -15,7 +15,7 @@ class FlixelBackend extends StubBackend
   public function new()
   {
     super();
-    Polymod.error(FAILED_CREATE_BACKEND, "FlixelBackend requires the flixel library, did you forget to install it?");
+    Polymod.error(BACKEND_INIT_FAILED, "FlixelBackend requires the flixel library, did you forget to install it?", INIT);
   }
 }
 #else
@@ -35,7 +35,7 @@ class FlixelBackend extends OpenFLBackend
    */
   public override function clearCache()
   {
-    Polymod.notice(FUNCTIONALITY_NOT_IMPLEMENTED,
+    Polymod.info(POLYMOD_FUNCTIONALITY_NOT_IMPLEMENTED,
       "Watch out, the Flixel backend's clearCache function kinda sucks. " + "Ideally you should just disable Flixel's caching and manage everything yourself.");
     // To clarify, Flixel caches things in a way that is hard to clear automatically.
     // The FlxG.bitmap cache contains the following:

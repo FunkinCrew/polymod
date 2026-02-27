@@ -79,11 +79,11 @@ class PolymodAssets
     if (framework == null)
     {
       framework = autoDetectFramework();
-      Polymod.notice(PolymodErrorCode.FRAMEWORK_AUTODETECT, 'Framework: Autodetect, going with $framework');
+      Polymod.info(FRAMEWORK_INIT, 'Framework: Autodetect, going with $framework');
     }
     else
     {
-      Polymod.notice(PolymodErrorCode.FRAMEWORK_INIT, 'Framework: User specified $framework');
+      Polymod.info(FRAMEWORK_INIT, 'Framework: User specified $framework');
     }
     var backend:IBackend = null;
     #if !macro
@@ -105,7 +105,7 @@ class PolymodAssets
         }
         else
         {
-          Polymod.error(PolymodErrorCode.UNDEFINED_CUSTOM_BACKEND, "params.customBackend was not defined!");
+          Polymod.error(BACKEND_CUSTOM_UNDEFINED, "customBackend was not defined!", INIT);
           null;
         }
       default: null;
@@ -113,7 +113,7 @@ class PolymodAssets
     #end
     if (backend == null)
     {
-      Polymod.error(PolymodErrorCode.FAILED_CREATE_BACKEND, 'Could not create a backend for framework: $framework');
+      Polymod.error(BACKEND_INIT_FAILED, 'Could not initialize backend for framework: $framework', INIT);
       return null;
     }
 
@@ -126,8 +126,8 @@ class PolymodAssets
         || framework == polymod.Framework.CERAMIC
         || framework == polymod.Framework.CASTLE)
       {
-        Polymod.error(PolymodErrorCode.FUNCTIONALITY_NOT_IMPLEMENTED,
-          'Polymod currently does not support FireTongue localization for ${framework}! Nag us on GitHub about it.');
+        Polymod.error(POLYMOD_FUNCTIONALITY_NOT_IMPLEMENTED,
+          'Polymod currently does not support FireTongue localization for ${framework}! Nag us on GitHub about it.', INIT);
       }
     }
     #end

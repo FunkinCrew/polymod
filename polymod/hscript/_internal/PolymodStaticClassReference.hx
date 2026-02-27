@@ -49,7 +49,7 @@ class PolymodStaticClassReference
 
     if (asc == null)
     {
-      polymod.Polymod.error(SCRIPT_RUNTIME_EXCEPTION, 'Could not construct instance of scripted class (${getFullyQualifiedName()})');
+      polymod.Polymod.error(SCRIPT_RUNTIME_EXCEPTION, 'Could not construct instance of scripted class (${getFullyQualifiedName()})', SCRIPT_RUNTIME);
       return null;
     }
 

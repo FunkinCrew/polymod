@@ -469,8 +469,6 @@ class PolymodScriptClassMacro
 
     if (metaData.hscriptedClasses != null)
     {
-      // trace('Got hscriptedClasses: ' + metaData.hscriptedClasses);
-
       var result:Map<String, Class<Dynamic>> = [];
 
       // Each element is formatted as `[superClassPath, classPath]`.

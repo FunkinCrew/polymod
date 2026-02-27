@@ -24,7 +24,7 @@ class NMEBackend extends StubBackend
   public function new()
   {
     super();
-    Polymod.error(FAILED_CREATE_BACKEND, "NMEBackend requires the nme library, did you forget to install it?");
+    Polymod.error(BACKEND_INIT_FAILED, "NMEBackend requires the nme library, did you forget to install it?", INIT);
   }
 }
 #else

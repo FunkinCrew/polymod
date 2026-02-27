@@ -1,5 +1,6 @@
 package polymod.fs;
 
+import polymod.Polymod.PolymodErrorOrigin;
 import haxe.io.Bytes;
 import haxe.io.UInt8Array;
 import js.Browser;
@@ -167,7 +168,7 @@ class NodeFileSystem implements IFileSystem
   }
 
   // -----------------------------------------------------------------------------------------------
-  public function getMetadata(modId:String)
+  public function getMetadata(modId:String, ?origin:PolymodErrorOrigin):Void
   {
     if (exists(modId))
     {
@@ -178,16 +179,16 @@ class NodeFileSystem implements IFileSystem
 
       if (!exists(metaFile))
       {
-        Polymod.warning(MISSING_META, 'Could not find mod metadata file: $metaFile');
+        Polymod.warning(MOD_MISSING_METADATA, 'Could not find mod metadata file: $metaFile', origin);
       }
       else
       {
         var metaText = getFileContent(metaFile);
-        meta = ModMetadata.fromJsonStr(metaText);
+        meta = ModMetadata.fromJsonStr(metaText, origin);
       }
       if (!exists(iconFile))
       {
-        Polymod.warning(MISSING_ICON, 'Could not find mod icon file: $iconFile');
+        Polymod.warning(MOD_MISSING_ICON, 'Could not find mod icon file: $iconFile', origin);
       }
       else
       {
@@ -199,7 +200,7 @@ class NodeFileSystem implements IFileSystem
     }
     else
     {
-      Polymod.error(MISSING_MOD, 'Could not find mod directory: "$modId"');
+      Polymod.error(MOD_MISSING_DIRECTORY, 'Could not find mod directory: "$modId"', origin);
     }
     return null;
   }
@@ -219,7 +220,7 @@ class NodeFileSystem implements IFileSystem
 
       if (!isDirectory(testDir)) continue;
 
-      var meta:ModMetadata = this.getMetadata(dir);
+      var meta:ModMetadata = this.getMetadata(dir, PolymodErrorOrigin.SCAN);
 
       if (meta == null) continue;
 

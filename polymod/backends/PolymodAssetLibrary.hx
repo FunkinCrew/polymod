@@ -574,7 +574,7 @@ class PolymodAssetLibrary
 
   private function initMod(d:String):Void
   {
-    Polymod.notice(MOD_LOAD_PREPARE, 'Preparing to load mod $d');
+    Polymod.info(MOD_LOAD_START, 'Preparing to load mod $d');
     if (d == null) return;
 
     var all:Array<String> = null;
@@ -595,7 +595,7 @@ class PolymodAssetLibrary
       }
       catch (msg:Dynamic)
       {
-        Polymod.error(MOD_LOAD_FAILED, 'Failed to load mod $d : $msg');
+        Polymod.error(MOD_LOAD_FAILED, 'Failed to load mod $d : $msg', INIT);
         throw('ModAssetLibrary._initMod("$d") failed: $msg');
       }
     }
@@ -662,11 +662,11 @@ class PolymodAssetLibrary
       }
       #end
     }
-    Polymod.notice(MOD_LOAD_DONE, 'Done loading mod $d');
+    Polymod.info(MOD_LOAD_DONE, 'Done loading mod $d');
   }
 
   @:allow(polymod.backends.LimeCoreLibrary)
-  private function initRedirectPath(libraryId:String, redirectPath:String, pathPrefix:String = '')
+  private function initRedirectPath(libraryId:String, redirectPath:String, pathPrefix:String = ''):Void
   {
     if (!typeLibraries.exists(libraryId))
     {
@@ -687,13 +687,13 @@ class PolymodAssetLibrary
       }
       else
       {
-        Polymod.error(MOD_LOAD_FAILED, 'Failed to load core asset redirect $redirectPath : Directory does not exist!');
+        Polymod.error(ASSET_REDIRECT_MISSING_DIRECTORY, 'Failed to load core asset redirect $redirectPath : Directory does not exist!', INIT);
         throw('ModAssetLibrary.initRedirectPath("$redirectPath") failed: Directory does not exist!');
       }
     }
     catch (msg:Dynamic)
     {
-      Polymod.error(MOD_LOAD_FAILED, 'Failed to load core asset redirect $redirectPath : $msg');
+      Polymod.error(ASSET_REDIRECT_FAILED, 'Failed to load core asset redirect $redirectPath : $msg', INIT);
       throw('ModAssetLibrary.initRedirectPath("$redirectPath") failed: $msg');
     }
 
@@ -723,7 +723,7 @@ class PolymodAssetLibrary
       #end
     }
     var keyCount = typeLibraries.get(libraryId).length;
-    Polymod.notice(MOD_LOAD_DONE, 'Done loading core asset redirect $redirectPath ($keyCount keys)');
+    Polymod.info(ASSET_REDIRECT_DONE, 'Done loading core asset redirect $redirectPath ($keyCount keys)', INIT);
 
     _buildAllFilesCache();
   }

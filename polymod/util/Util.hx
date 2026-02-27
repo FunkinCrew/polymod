@@ -112,7 +112,7 @@ class Util
     }
     else
     {
-      Polymod.error(MERGE, "Could not merge file (" + id + "), no parse format was specified for extension (" + extension + ").");
+      Polymod.error(ASSET_MERGE_FAILED, "Could not merge file (" + id + "), no parse format was specified for extension (" + extension + ").");
       return baseText;
     }
     return baseText;

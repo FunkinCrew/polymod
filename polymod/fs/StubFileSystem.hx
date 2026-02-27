@@ -1,8 +1,9 @@
 package polymod.fs;
 
+import polymod.Polymod.ModMetadata;
+import polymod.Polymod.PolymodErrorOrigin;
 import polymod.fs.PolymodFileSystem;
 import thx.semver.VersionRule;
-import polymod.Polymod.ModMetadata;
 
 /**
  * This stub file system returns false for all requests.
@@ -35,6 +36,6 @@ class StubFileSystem implements PolymodFileSystem.IFileSystem
   public inline function scanMods(?apiVersionRule:VersionRule):Array<ModMetadata>
     return [];
 
-  public inline function getMetadata(modId:String)
+  public inline function getMetadata(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
     return null;
 }

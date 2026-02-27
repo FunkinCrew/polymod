@@ -7,7 +7,7 @@ class SysZipFileSystem extends polymod.fs.StubFileSystem
   public function new(params:ZipFileSystemParams)
   {
     super(params);
-    Polymod.warning(FUNCTIONALITY_NOT_IMPLEMENTED, "This file system not supported for this platform, and is only intended for use on sys targets");
+    Polymod.error(POLYMOD_FUNCTIONALITY_NOT_IMPLEMENTED, "This file system not supported for this platform, and is only intended for use on sys targets", INIT);
   }
 }
 #else
@@ -176,10 +176,10 @@ class SysZipFileSystem extends SysFileSystem
    */
   public function addAllZips():Void
   {
-    Polymod.notice(MOD_LOAD_PREPARE, 'Searching for ZIP files in ' + modRoot);
+    Polymod.debug('Searching for ZIP files in ' + modRoot);
     // Use SUPER because we don't want to add in files within the ZIPs.
     var modRootContents = super.readDirectory(modRoot);
-    Polymod.notice(MOD_LOAD_PREPARE, 'Found ${modRootContents.length} files in modRoot.');
+    Polymod.debug('Found ${modRootContents.length} files in modRoot.');
 
     for (modRootFile in modRootContents)
     {
@@ -191,7 +191,7 @@ class SysZipFileSystem extends SysFileSystem
       // Only process ZIP files.
       if (StringTools.endsWith(filePath, ".zip"))
       {
-        Polymod.notice(MOD_LOAD_PREPARE, '- Adding zip file: $filePath');
+        Polymod.debug('- Adding zip file: $filePath');
         addZipFile(filePath);
       }
     }

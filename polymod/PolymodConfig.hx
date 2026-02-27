@@ -85,7 +85,7 @@ class PolymodConfig
    * Set this option by setting the `POLYMOD_SCRIPT_CLASS_EXT` Haxe define at compile time,
    * or by setting this value in your code.
    *
-   * @default `.hclass`
+   * @default `.hxc`
    */
   public static var scriptClassExt(get, default):String;
 

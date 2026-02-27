@@ -231,8 +231,9 @@ class PolymodInterpEx extends Interp
 
     if (_scriptClassDescriptors.exists(name))
     {
-      Polymod.error(SCRIPT_CLASS_ALREADY_REGISTERED,
-        'Scripted class with fully qualified name "$name" has already been defined. Please change the class name or the package name to ensure uniqueness.');
+      Polymod.error(SCRIPTED_CLASS_ALREADY_REGISTERED,
+        'Scripted class with fully qualified name "$name" has already been defined. Please change the class name or the package name to ensure uniqueness.',
+        SCRIPT_RUNTIME);
       return;
     }
     else
@@ -292,13 +293,14 @@ class PolymodInterpEx extends Interp
 
     if (_scriptEnumDescriptors.exists(name))
     {
-      Polymod.error(SCRIPT_ENUM_ALREADY_REGISTERED,
-        'An enum with the fully qualified name "$name" has already been defined. Please change the enum name to ensure a unique name.');
+      Polymod.error(SCRIPTED_CLASS_ALREADY_REGISTERED,
+        'An enum with the fully qualified name "$name" has already been defined. Please change the enum name to ensure a unique name.',
+        SCRIPT_RUNTIME);
       return;
     }
     else
     {
-      Polymod.debug('Registering enum $name');
+      Polymod.debug('Registering scripted enum $name');
       _scriptEnumDescriptors.set(name, e);
     }
   }
@@ -394,7 +396,7 @@ class PolymodInterpEx extends Interp
           continue;
         }
 
-        Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import ${imp.fullPath}. Check to ensure the module exists and is spelled correctly.', clsPath);
+        Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not import ${imp.fullPath}. Check to ensure the module exists and is spelled correctly.', SCRIPT_RUNTIME);
       }
 
       // Check if the scripted classes extend the right type.
@@ -408,7 +410,7 @@ class PolymodInterpEx extends Interp
           case CTPath(path, params):
             if (params != null && params.length > 0)
             {
-              Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not extend ${superClassPath}, do not include type parameters in super class name.', clsPath);
+              Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not extend ${superClassPath}, do not include type parameters in super class name.', SCRIPT_RUNTIME);
             }
 
           default:
@@ -416,7 +418,7 @@ class PolymodInterpEx extends Interp
         }
 
         // Default
-        Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not extend ${superClassPath}. Make sure the type to extend has been imported.', clsPath);
+        Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not extend ${superClassPath}. Make sure the type to extend has been imported.', SCRIPT_RUNTIME);
       }
       else
       {
@@ -1464,7 +1466,7 @@ class PolymodInterpEx extends Interp
     // Check if the field is a blacklisted static field.
     if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
     {
-      Polymod.error(SCRIPT_CLASS_FIELD_BLACKLISTED, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.');
+      Polymod.error(SCRIPTED_CLASS_BLACKLISTED_FIELD, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
       return null;
     }
 
@@ -1473,7 +1475,7 @@ class PolymodInterpEx extends Interp
     {
       if (PolymodScriptClass.blacklistedInstanceFields.exists(oCls) && PolymodScriptClass.blacklistedInstanceFields.get(oCls).contains(f))
       {
-        Polymod.error(SCRIPT_CLASS_FIELD_BLACKLISTED, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.');
+        Polymod.error(SCRIPTED_CLASS_BLACKLISTED_FIELD, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
         return null;
       }
     }
@@ -1791,7 +1793,7 @@ class PolymodInterpEx extends Interp
     }
     else
     {
-      Polymod.error(SCRIPT_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.');
+      Polymod.error(SCRIPTED_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.', SCRIPT_RUNTIME);
       return null;
     }
 
@@ -1841,7 +1843,7 @@ class PolymodInterpEx extends Interp
     {
       Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
         'Error while calling static function ${clsName}.${fnName}(): EInvalidAccess' + '\n' +
-        'Static function "${fnName}" does not exist! Define it or call the correct function.');
+        'Static function "${fnName}" does not exist! Define it or call the correct function.', SCRIPT_RUNTIME);
       return null;
     }
   }
@@ -1943,7 +1945,7 @@ class PolymodInterpEx extends Interp
     }
     else
     {
-      Polymod.error(SCRIPT_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.');
+      Polymod.error(SCRIPTED_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.', SCRIPT_RUNTIME);
       return false;
     }
 
@@ -2102,7 +2104,7 @@ class PolymodInterpEx extends Interp
     }
     else
     {
-      Polymod.error(SCRIPT_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.');
+      Polymod.error(SCRIPTED_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.', SCRIPT_RUNTIME);
       return null;
     }
   }
@@ -2148,11 +2150,11 @@ class PolymodInterpEx extends Interp
           {
             if (imports.get(clsName) == null)
             {
-              Polymod.error(SCRIPT_CLASS_MODULE_BLACKLISTED, 'Scripted class ${clsName} is blacklisted and cannot be used in scripts.', origin);
+              Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Scripted class ${clsName} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
             }
             else
             {
-              Polymod.warning(SCRIPT_CLASS_MODULE_ALREADY_IMPORTED, 'Scripted class ${clsName} has already been imported.', origin);
+              Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Scripted class ${clsName} has already been imported.', SCRIPT_RUNTIME);
             }
             continue;
           }
@@ -2204,7 +2206,7 @@ class PolymodInterpEx extends Interp
                 continue;
               }
 
-              // Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import class ${importedClass.fullPath}', origin);
+              // Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import class ${importedClass.fullPath}', SCRIPT_RUNTIME);
               // this could be a scripted class or enum that hasn't been registered yet
               importsToValidate.set(importedClass.name, importedClass);
               continue;
@@ -2234,11 +2236,11 @@ class PolymodInterpEx extends Interp
           {
             if (usings.get(clsName) == null)
             {
-              Polymod.error(SCRIPT_CLASS_MODULE_BLACKLISTED, 'Scripted class ${clsName} is blacklisted and cannot be used in scripts.', origin);
+              Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Scripted class ${clsName} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
             }
             else
             {
-              Polymod.warning(SCRIPT_CLASS_MODULE_ALREADY_IMPORTED, 'Scripted class ${clsName} has already been used.', origin);
+              Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Scripted class ${clsName} has already been used.', SCRIPT_RUNTIME);
             }
             continue;
           }
@@ -2284,8 +2286,6 @@ class PolymodInterpEx extends Interp
             registerImportForPackage(pkg, importedClass, true);
             continue;
           }
-
-          // Polymod.debug('Using class ${importedClass.name} from ${importedClass.fullPath}');
           usings.set(importedClass.name, importedClass);
         case DClass(c):
           if (isImportFile) continue;

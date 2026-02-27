@@ -18,12 +18,12 @@ class MemoryZipFileSystem extends StubFileSystem
   public function new(params:ZipFileSystemParams)
   {
     super(params);
-    Polymod.warning(FUNCTIONALITY_NOT_IMPLEMENTED, "This file system not supported for this platform, and is only intended for use in html5");
+    Polymod.error(FUNCTIONALITY_NOT_IMPLEMENTED, "This file system not supported for this platform, and is only intended for use in html5");
   }
 
   public function addZipFile(zipName:String, zipBytes:Bytes)
   {
-    Polymod.warning(FUNCTIONALITY_NOT_IMPLEMENTED, "This file system not supported for this platform, and is only intended for use in html5");
+    Polymod.error(FUNCTIONALITY_NOT_IMPLEMENTED, "This file system not supported for this platform, and is only intended for use in html5");
   }
 }
 #else

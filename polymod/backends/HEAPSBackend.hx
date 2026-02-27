@@ -28,7 +28,7 @@ class HEAPSBackend extends StubBackend
   public function new()
   {
     super();
-    Polymod.error(FAILED_CREATE_BACKEND, "HEAPSBackend requires the heaps library, did you forget to install it?");
+    Polymod.error(BACKEND_INIT_FAILED, "HEAPSBackend requires the heaps library, did you forget to install it?");
   }
 }
 #else

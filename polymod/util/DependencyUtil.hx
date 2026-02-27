@@ -83,7 +83,7 @@ class DependencyUtil
       // If the dependency is not found, throw a warning/error.
       if (depMod == null)
       {
-        Polymod.warning(DEPENDENCY_UNMET, 'Dependency "${dep}" not found.');
+        Polymod.warning(MOD_DEPENDENCY_UNMET, 'Required dependency "${dep}" not found.', INIT);
         continue;
       }
 
@@ -97,7 +97,7 @@ class DependencyUtil
       }
       else
       {
-        Polymod.warning(DEPENDENCY_VERSION_MISMATCH, 'Dependency "${dep}" has version "${depMod.modVersion}" but requires "${depRule}".');
+        Polymod.warning(MOD_DEPENDENCY_VERSION_MISMATCH, 'Dependency "${dep}" has version "${depMod.modVersion}" but requires "${depRule}".', INIT);
         continue;
       }
     }
@@ -142,7 +142,7 @@ class DependencyUtil
       // If the dependency is not found, throw a warning/error.
       if (depMod == null)
       {
-        Polymod.error(DEPENDENCY_UNMET, 'Dependency "${dep}" not found.');
+        Polymod.error(MOD_DEPENDENCY_UNMET, 'Dependency "${dep}" not found.', INIT);
         return false;
       }
 
@@ -154,7 +154,7 @@ class DependencyUtil
       }
       else
       {
-        Polymod.error(DEPENDENCY_VERSION_MISMATCH, 'Dependency "${dep}" has version "${depMod.modVersion}" but requires "${depRule}".');
+        Polymod.error(MOD_DEPENDENCY_VERSION_MISMATCH, 'Dependency "${dep}" has version "${depMod.modVersion}" but requires "${depRule}".', INIT);
         return false;
       }
     }
@@ -212,8 +212,7 @@ class DependencyUtil
           }
           else
           {
-            // trace('Skipping optional dependency ' + depKey + ' for mod ' + mod.id);
-            // dependencies.set(mod.id, [mod.id]);
+            Polymod.info(MOD_DEPENDENCY_UNMET, 'Optional dependency "${depKey}" for mod "${mod.id}" not found, skipping.', INIT);
           }
         }
       }
@@ -246,12 +245,12 @@ class DependencyUtil
       }).join(', ');
       if (skipErrors)
       {
-        Polymod.warning(DEPENDENCY_CYCLICAL, 'Circular dependency detected between mods: ${modList}');
+        Polymod.warning(MOD_DEPENDENCY_CYCLICAL, 'Circular dependency detected between mods: ${modList}', INIT);
         return [];
       }
       else
       {
-        Polymod.error(DEPENDENCY_CYCLICAL, 'Circular dependency detected between mods: ${modList}');
+        Polymod.error(MOD_DEPENDENCY_CYCLICAL, 'Circular dependency detected between mods: ${modList}', INIT);
         return null;
       }
     }
