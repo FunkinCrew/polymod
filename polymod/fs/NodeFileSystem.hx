@@ -168,14 +168,41 @@ class NodeFileSystem implements IFileSystem
   }
 
   // -----------------------------------------------------------------------------------------------
-  public function getMetadata(modId:String, ?origin:PolymodErrorOrigin):Void
+  // -----------------------------------------------------------------------------------------------
+  public function scanMods(?apiVersionRule:VersionRule):Array<ModMetadata>
   {
-    if (exists(modId))
+    if (apiVersionRule == null) apiVersionRule = VersionUtil.DEFAULT_VERSION_RULE;
+
+    var dirs = readDirectory(modRoot);
+    var result:Array<ModMetadata> = [];
+    for (dir in dirs)
+    {
+      var testDir = Util.pathJoin(modRoot, dir);
+
+      if (!exists(testDir)) continue;
+
+      if (!isDirectory(testDir)) continue;
+
+      var meta:ModMetadata = this.getMetadataByDir(dir, PolymodErrorOrigin.SCAN);
+
+      if (meta == null) continue;
+
+      if (!VersionUtil.match(meta.apiVersion, apiVersionRule)) continue;
+
+      result.push(meta);
+    }
+
+    return result;
+  }
+
+  public function getMetadataByDir(dir:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
+  {
+    if (exists(dir))
     {
       var meta:ModMetadata = null;
 
-      var metaFile = Util.pathJoin(modId, PolymodConfig.modMetadataFile);
-      var iconFile = Util.pathJoin(modId, PolymodConfig.modIconFile);
+      var metaFile = Util.pathJoin(dir, PolymodConfig.modMetadataFile);
+      var iconFile = Util.pathJoin(dir, PolymodConfig.modIconFile);
 
       if (!exists(metaFile))
       {
@@ -200,35 +227,13 @@ class NodeFileSystem implements IFileSystem
     }
     else
     {
-      Polymod.error(MOD_MISSING_DIRECTORY, 'Could not find mod directory: "$modId"', origin);
+      Polymod.error(MOD_MISSING_DIRECTORY, 'Could not find mod directory: "$dir"', origin);
     }
     return null;
   }
 
-  // -----------------------------------------------------------------------------------------------
-  public function scanMods(?apiVersionRule:VersionRule):Array<ModMetadata>
+  public function getMetadataById(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
-    if (apiVersionRule == null) apiVersionRule = VersionUtil.DEFAULT_VERSION_RULE;
-
-    var dirs = readDirectory(modRoot);
-    var result:Array<ModMetadata> = [];
-    for (dir in dirs)
-    {
-      var testDir = Util.pathJoin(modRoot, dir);
-
-      if (!exists(testDir)) continue;
-
-      if (!isDirectory(testDir)) continue;
-
-      var meta:ModMetadata = this.getMetadata(dir, PolymodErrorOrigin.SCAN);
-
-      if (meta == null) continue;
-
-      if (!VersionUtil.match(meta.apiVersion, apiVersionRule)) continue;
-
-      result.push(meta);
-    }
-
-    return result;
+    return null;
   }
 }

@@ -15,7 +15,6 @@ import haxe.Constraints.IMap;
 import haxe.ds.StringMap;
 import haxe.io.Bytes;
 import haxe.io.Path;
-import polymod.Polymod.ModMetadata;
 import polymod.util.Util;
 import polymod.util.InsensitiveMap;
 import polymod.util.zip.ZipParser;

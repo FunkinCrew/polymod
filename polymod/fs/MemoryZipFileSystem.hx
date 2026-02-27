@@ -1,17 +1,14 @@
 package polymod.fs;
 
 // import format.zip.Reader;
-import haxe.ds.StringMap;
+import polymod.Polymod;
+import polymod.fs.ZipFileSystem.ZipFileSystemParams;
+import polymod.util.Util;
 import haxe.io.Bytes;
 import haxe.io.BytesInput;
 import haxe.io.Path;
 import haxe.zip.Entry;
 import haxe.zip.InflateImpl;
-import polymod.fs.PolymodFileSystem.IFileSystem;
-import polymod.fs.PolymodFileSystem.PolymodFileSystemParams;
-import polymod.fs.ZipFileSystem.ZipFileSystemParams;
-import polymod.util.Util;
-import polymod.Polymod;
 
 #if !html5
 class MemoryZipFileSystem extends StubFileSystem
@@ -69,7 +66,7 @@ class MemoryZipFileSystem extends MemoryFileSystem
    */
   public function addZipFile(zipName:String, zipBytes:Bytes)
   {
-    var bytesInput = new haxe.io.BytesInput(zipBytes);
+    var bytesInput = new BytesInput(zipBytes);
     var reader = new haxe.zip.Reader(bytesInput);
 
     var modId = Path.withoutExtension(zipName);
@@ -102,9 +99,14 @@ class MemoryZipFileSystem extends MemoryFileSystem
     return compressedBytes; // if it wasn't actually compressed
   }
 
-  public override function getMetadata(modId:String, ?origin:PolymodErrorOrigin)
+  public override function getMetadataByDir(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
-    return super.getMetadata(modId, origin);
+    return super.getMetadataByDir(dirName, origin);
+  }
+
+  public override function getMetadataById(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
+  {
+    return super.getMetadataById(modId, origin);
   }
 }
 #end
