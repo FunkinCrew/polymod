@@ -253,15 +253,15 @@ class Polymod
     {
       if (dirs[i] != null)
       {
-        var modId = dirs[i];
-        var meta:ModMetadata = fileSystem.getMetadata(modId);
+        var dir = dirs[i];
+        var meta:ModMetadata = fileSystem.getMetadataByDir(dir);
 
         if (meta != null)
         {
           if (!VersionUtil.match(meta.apiVersion, params.apiVersionRule))
           {
             error(MOD_API_VERSION_MISMATCH,
-              'Mod "${modId}" was built for incompatible API version ${meta.apiVersion.toString()}, expected "${params.apiVersionRule.toString()}"', INIT);
+              'Mod "${dir}" was built for incompatible API version ${meta.apiVersion.toString()}, expected "${params.apiVersionRule.toString()}"', INIT);
           }
 
           // API version matches
@@ -341,7 +341,7 @@ class Polymod
     return sortedModsToLoad;
   }
 
-  public static function getLoadedModIds():Array<String>
+  public static function getLoadedModDirs():Array<String>
   {
     return assetLibrary.dirs;
   }
@@ -369,18 +369,18 @@ class Polymod
    *
    * @return A list of all mods that were successfully loaded.
    */
-  public static function loadMod(modId:String):Array<ModMetadata>
+  public static function loadMod(dir:String):Array<ModMetadata>
   {
     // Check if Polymod is loaded.
     if (prevParams == null || assetLibrary == null)
     {
-      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot load mod "$modId".', INIT);
+      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot load mod "$dir".', INIT);
       return [];
     }
 
     var newParams = Reflect.copy(prevParams);
     // Add the mod to the list of mods to load.
-    newParams.dirs = newParams.dirs.concat([modId]);
+    newParams.dirs = newParams.dirs.concat([dir]);
     // Keep the same file system between reloads.
     newParams.customFilesystem = assetLibrary.fileSystem;
 
@@ -396,18 +396,18 @@ class Polymod
    *
    * @return A list of all mods that were successfully loaded.
    */
-  public static function loadMods(modIds:Array<String>):Array<ModMetadata>
+  public static function loadMods(modDirs:Array<String>):Array<ModMetadata>
   {
     // Check if Polymod is loaded.
     if (prevParams == null || assetLibrary == null)
     {
-      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot load mod "$modIds".', INIT);
+      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot load mod "$modDirs".', INIT);
       return [];
     }
 
     var newParams = Reflect.copy(prevParams);
     // Add the mods to the list of mods to load.
-    newParams.dirs = newParams.dirs.concat(modIds);
+    newParams.dirs = newParams.dirs.concat(modDirs);
     // Keep the same file system between reloads.
     newParams.customFilesystem = assetLibrary.fileSystem;
 
@@ -423,18 +423,18 @@ class Polymod
    *
    * @return A list of all mods that were successfully loaded.
    */
-  public static function loadOnlyMods(modIds:Array<String>):Array<ModMetadata>
+  public static function loadOnlyMods(modDirs:Array<String>):Array<ModMetadata>
   {
     // Check if Polymod is loaded.
     if (prevParams == null || assetLibrary == null)
     {
-      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot load mod "$modIds".', INIT);
+      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot load mod "$modDirs".', INIT);
       return [];
     }
 
     var newParams = Reflect.copy(prevParams);
     // Set the list of mods to load.
-    newParams.dirs = modIds;
+    newParams.dirs = modDirs;
     // Keep the same file system between reloads.
     newParams.customFilesystem = assetLibrary.fileSystem;
 
@@ -469,18 +469,18 @@ class Polymod
    *
    * @return A list of all mods that were successfully loaded.
    */
-  public static function unloadMod(modId:String):Array<ModMetadata>
+  public static function unloadMod(dir:String):Array<ModMetadata>
   {
     // Check if Polymod is loaded.
     if (prevParams == null || assetLibrary == null)
     {
-      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot load mod "$modId".', INIT);
+      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot load mod "$dir".', INIT);
       return [];
     }
 
     var newParams = Reflect.copy(prevParams);
     // Add the mod to the list of mods to load.
-    newParams.dirs.remove(modId);
+    newParams.dirs.remove(dir);
     // Keep the same file system between reloads.
     newParams.customFilesystem = assetLibrary.fileSystem;
 
@@ -498,20 +498,20 @@ class Polymod
    *
    * @return A list of all mods that were successfully loaded.
    */
-  public static function unloadMods(modIds:Array<String>):Array<ModMetadata>
+  public static function unloadMods(modDirs:Array<String>):Array<ModMetadata>
   {
     // Check if Polymod is loaded.
     if (prevParams == null || assetLibrary == null)
     {
-      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot load mod "$modIds".', INIT);
+      Polymod.warning(POLYMOD_NOT_INITIALIZED, 'Polymod is not loaded yet, cannot load mod "$modDirs".', INIT);
       return [];
     }
 
     var newParams = Reflect.copy(prevParams);
     // Add the mod to the list of mods to load.
-    for (modId in modIds)
+    for (dir in modDirs)
     {
-      newParams.dirs.remove(modId);
+      newParams.dirs.remove(dir);
     }
     // Keep the same file system between reloads.
     newParams.customFilesystem = assetLibrary.fileSystem;
@@ -1228,10 +1228,16 @@ enum abstract PolymodErrorCode(String) from String to String
 
   /**
    * You requested a mod to be loaded but that mod was not installed.
-   * - Make sure a mod with that ID is installed.
-   * - Make sure to run Polymod.scan to get the list of valid mod IDs.
+   * - Make sure a mod with that directory is installed.
+   * - Make sure to run Polymod.scan to get the list of valid mod directories.
    */
   public var MOD_MISSING_DIRECTORY:String = 'mod_missing_directory';
+
+  /**
+   * You requested a mod to be loaded but that mod was not installed.
+   * - Make sure a mod with that ID is installed.
+   */
+  public var MOD_MISSING_ID:String = 'mod_missing_id';
 
   /**
    * You requested a mod to be loaded but its mod folder is missing a metadata file.

@@ -11,7 +11,7 @@ import thx.semver.VersionRule;
  *
  * Your program won't crash, but mods WILL NOT LOAD if this is used.
  */
-class StubFileSystem implements PolymodFileSystem.IFileSystem
+class StubFileSystem implements IFileSystem
 {
   public function new(params:PolymodFileSystem.PolymodFileSystemParams) {}
 
@@ -36,6 +36,9 @@ class StubFileSystem implements PolymodFileSystem.IFileSystem
   public inline function scanMods(?apiVersionRule:VersionRule):Array<ModMetadata>
     return [];
 
-  public inline function getMetadata(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
+  public inline function getMetadataByDir(dir:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
+    return null;
+
+  public inline function getMetadataById(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
     return null;
 }

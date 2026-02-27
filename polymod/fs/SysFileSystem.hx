@@ -88,7 +88,7 @@ class SysFileSystem implements IFileSystem
       var fullDir = Util.pathJoin(modRoot, dir);
       if (!isDirectory(fullDir)) continue;
 
-      var meta:ModMetadata = this.getMetadata(dir, PolymodErrorOrigin.SCAN);
+      var meta:ModMetadata = this.getMetadataByDir(dir, PolymodErrorOrigin.SCAN);
 
       if (meta == null) continue;
 
@@ -106,7 +106,7 @@ class SysFileSystem implements IFileSystem
     return result;
   }
 
-  public function getMetadata(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
+  public function getMetadataByDir(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
     var modPath = Util.pathJoin(modRoot, dirName);
     if (exists(modPath))
@@ -149,6 +149,35 @@ class SysFileSystem implements IFileSystem
     {
       Polymod.error(MOD_MISSING_DIRECTORY, 'Could not find mod directory: $dirName', origin);
     }
+    return null;
+  }
+
+  public function getMetadataById(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
+  {
+    for (dir in readDirectory(modRoot))
+    {
+      var modPath = Util.pathJoin(modRoot, dir);
+      if (exists(modPath))
+      {
+        var meta:ModMetadata = null;
+
+        var metaFile = Util.pathJoin(modPath, PolymodConfig.modMetadataFile);
+
+        if (!exists(metaFile)) continue;
+        else
+        {
+          var metaText = getFileContent(metaFile);
+          meta = ModMetadata.fromJsonStr(metaText, origin);
+        }
+
+        if (meta == null) continue;
+
+        if (meta.id != modId && dir != modId) continue;
+
+        return meta;
+      }
+    }
+    Polymod.error(MOD_MISSING_ID, 'Could not find mod with ID: $modId', origin);
     return null;
   }
 

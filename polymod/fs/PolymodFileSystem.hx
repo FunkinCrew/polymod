@@ -132,10 +132,19 @@ interface IFileSystem
 
   /**
    * Provides the metadata for a given mod. Returns null if the mod does not exist.
+   * @param modId The directory of the mod.
+   * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc).
+   *   Used for error reporting.
+   * @return The mod metadata.
+   */
+  public function getMetadataByDir(dir:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>;
+
+  /**
+   * Provides the metadata for a given mod. Returns null if the mod does not exist.
    * @param modId The ID of the mod.
    * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc).
    *   Used for error reporting.
    * @return The mod metadata.
    */
-  public function getMetadata(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>;
+  public function getMetadataById(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>;
 }
