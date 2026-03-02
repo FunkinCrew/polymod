@@ -212,7 +212,7 @@ class DependencyUtil
           }
           else
           {
-            Polymod.info(MOD_DEPENDENCY_UNMET, 'Optional dependency "${depKey}" for mod "${mod.id}" not found, skipping.', INIT);
+            Polymod.info(MOD_OPTIONAL_DEPENDENCY_UNMET, 'Optional dependency "${depKey}" for mod "${mod.id}" not found, skipping.', INIT);
           }
         }
       }
