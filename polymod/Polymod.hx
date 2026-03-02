@@ -1289,6 +1289,14 @@ enum abstract PolymodErrorCode(String) from String to String
    * Polymod attempted to load a mod, but one or more of its dependencies were missing.
    * - This is a warning if `skipDependencyErrors` is true, the problematic mod will be skipped.
    * - This is an error if `skipDependencyErrors` is false, no mods will be loaded.
+   * - Make sure to inform the user that the optional mods are missing.
+   */
+  public var MOD_OPTIONAL_DEPENDENCY_UNMET:String = 'mod_optional_dependency_unmet';
+
+  /**
+   * Polymod attempted to load a mod, but one or more of its dependencies were missing.
+   * - This is a warning if `skipDependencyErrors` is true, the problematic mod will be skipped.
+   * - This is an error if `skipDependencyErrors` is false, no mods will be loaded.
    * - Make sure to inform the user that the required mods are missing.
    */
   public var MOD_DEPENDENCY_UNMET:String = 'mod_dependency_unmet';
