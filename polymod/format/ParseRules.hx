@@ -31,6 +31,7 @@ class ParseRules
       case JSON: new JSONParseFormat();
       case LINES: new LinesParseFormat(EndLineType.LF);
       case PLAINTEXT: new PlainTextParseFormat();
+      case SCRIPT: new ScriptParseFormat();
       default: new PlainTextParseFormat();
     }
     formats.set(extension, format);
@@ -59,6 +60,13 @@ class ParseRules
     rules.addFormat('xml', new XMLParseFormat());
     rules.addFormat('json', new JSONParseFormat());
     rules.addFormat('txt', new PlainTextParseFormat());
+
+    rules.addFormat("hxc", new ScriptParseFormat());
+    for (ext in PolymodConfig.scriptClassExt)
+    {
+      rules.addFormat(ext, new ScriptParseFormat());
+    }
+
     return rules;
   }
 }
@@ -697,6 +705,7 @@ enum TextFileFormat
   TSV;
   XML;
   JSON;
+  SCRIPT;
 }
 
 enum EndLineType

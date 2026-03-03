@@ -432,6 +432,238 @@ class Printer
     }
   }
 
+  public function modulesToString(m:Array<ModuleDecl>):String
+  {
+    var output:String = "";
+    if (m.length == 0) return output;
+
+    // Order the modules by priority (see hscript.Expr.ModuleDecl).
+    m.sort(function(a:ModuleDecl, b:ModuleDecl) {
+      var orderA:Int = Type.enumIndex(a);
+      var orderB:Int = Type.enumIndex(b);
+
+      return orderA == orderB ? 0 : orderA > orderB ? 1 : -1;
+    });
+
+    // Stringify every ModuleDecl.
+    for (module in m)
+    {
+      switch (module)
+      {
+        case DPackage(path):
+          output += "package " + path.join(".") + ";";
+
+        case DImport(path, star, name):
+          output += "import " + path.join(".");
+          if ((star ?? false))
+          {
+            output += ".*";
+          }
+          else
+          {
+            if (name != null) output += " as " + name;
+          }
+          output += ";";
+
+        case DUsing(path):
+          output += "using " + path.join(".") + ";";
+
+        case DClass(c):
+          output += metaToString(c.meta);
+          output += c.isPrivate ? "private " : "";
+          output += c.isExtern ? "extern " : "";
+          output += "class " + c.name;
+          if (Reflect.fields(c.params).length > 0) output += "<>"; // Once params are actually functional, this should be implemented.
+          output += " ";
+
+          if (c.extend != null) output += "extends " + this.typeToString(c.extend) + " ";
+          for (imp in c.implement)
+          {
+            output += "implements " + imp + " ";
+          }
+
+          output += "\n{";
+          output += classFieldsToString(c.fields);
+          output += "}";
+
+        case DTypedef(t):
+          output += metaToString(t.meta);
+          output += t.isPrivate ? "private " : "";
+          output += "typedef " + t.name;
+          if (Reflect.fields(t.params).length > 0) output += "<>"; // Once params are actually functional, this should be implemented.
+          output += " = " + switch (t.t)
+          {
+            case CTAnon(fields):
+              // For anonymous structures we have to account for extensions.
+              var output:String = "{";
+
+              if (t.extensions.length > 0)
+              {
+                for (ext in t.extensions)
+                {
+                  output += "\n> ";
+                  output += this.typeToString(ext);
+                  output += ",";
+                }
+
+                output += "\n";
+              }
+
+              for (fld in fields)
+              {
+                output += "\n";
+                if (fld.meta != null) output += metaToString(fld.meta);
+                output += "var " + switch (fld.t)
+                {
+                  case CTOpt(t):
+                    "?" + fld.name + ":" + this.typeToString(t);
+                  default:
+                    fld.name + ":" + this.typeToString(fld.t);
+                }
+
+                output += ";\n";
+              }
+
+              output += "}";
+              output;
+            default:
+              this.typeToString(t.t);
+          }
+
+        case DEnum(e):
+          output += "enum " + e.name;
+          output += "\n{\n";
+
+          for (fld in e.fields)
+          {
+            output += fld.name;
+            if (fld.args.length > 0)
+            {
+              output += "(";
+              for (i in 0...fld.args.length)
+              {
+                var arg:EnumArgDecl = fld.args[i];
+                output += arg.name + (arg.type != null ? ':${this.typeToString(arg.type)}' : "");
+                if (i < fld.args.length - 1) output += ", ";
+              }
+              output += ")";
+            }
+            output += ";\n";
+          }
+
+          output += "}";
+
+        case DInterface(i):
+          output += metaToString(i.meta);
+          output += i.isPrivate ? "private " : "";
+          output += i.isExtern ? "extern " : "";
+
+          output += "interface " + i.name;
+          if (Reflect.fields(i.params).length > 0) output += "<>"; // Once params are actually functional, this should be implemented.
+          output += " ";
+
+          for (ext in (i.extend ?? [])) output += "extends " + this.typeToString(ext) + " ";
+
+          output += "\n{";
+          output += classFieldsToString(i.fields, true);
+          output += "}";
+      }
+
+      output += "\n";
+    }
+
+    return output;
+  }
+
+  function classFieldsToString(fields:Array<FieldDecl>, ignoreValues:Bool = false):String
+  {
+    if (fields.length == 0) return "\n";
+    var output:String = "\n";
+    for (fld in fields)
+    {
+      output += metaToString(fld.meta);
+
+      for (acc in fld.access)
+      {
+        switch (acc)
+        {
+          case APublic:
+            output += "public ";
+          case APrivate:
+            output += "private ";
+          case AInline:
+            output += "inline ";
+          case AOverride:
+            output += "override ";
+          case AStatic:
+            output += "static ";
+          case AMacro:
+            output += "macro ";
+        }
+      }
+
+      switch (fld.kind)
+      {
+        case KFunction(f):
+          output += "function " + fld.name + "(";
+          for (i in 0...f.args.length)
+          {
+            var arg:Argument = f.args[i];
+            if (arg.opt ?? false) output += "?";
+            output += arg.name + ":" + this.typeToString(arg.t);
+            if (arg.value != null) output += " = " + this.exprToString(arg.value);
+
+            if (i < f.args.length - 1) output += ", ";
+          }
+
+          output += ")";
+          if (f.ret != null) output += ':${this.typeToString(f.ret)}';
+
+          output += ignoreValues ? ";" : (" " + this.exprToString(f.expr));
+
+        case KVar(v):
+          output += "var " + fld.name;
+          if (v.get != null || v.set != null)
+          {
+            output += "(" + (v.get ?? "default") + ", " + (v.set ?? "default") + ")";
+          }
+
+          if (v.type != null) output += ':${this.typeToString(v.type)}';
+          if (v.expr != null && !ignoreValues) output += " = " + this.exprToString(v.expr);
+          output += ";";
+      }
+
+      output += "\n";
+    }
+
+    return output;
+  }
+
+  function metaToString(meta:Metadata):String
+  {
+    if (meta.length == 0) return "";
+
+    var output:String = "";
+    for (m in meta)
+    {
+      output += "@" + m.name;
+      if (m.params != null)
+      {
+        output += "(";
+        for (i in 0...m.params.length)
+        {
+          var param:Expr = m.params[i];
+          output += this.exprToString(param);
+          if (i < m.params.length - 1) output += ", ";
+        }
+        output += ")";
+      }
+      output += "\n";
+    }
+
+    return output;
+  }
+
   /**
    * Same as `exprToString`, but without the need to create a Printer.
    * @param e The AST node to convert.

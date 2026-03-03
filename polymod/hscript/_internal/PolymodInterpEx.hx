@@ -2367,6 +2367,9 @@ class PolymodInterpEx extends Interp
             {
               pkg: pkg,
               name: e.name,
+              meta: e.meta,
+              params: e.params,
+              isPrivate: e.isPrivate,
               fields: e.fields,
             };
 

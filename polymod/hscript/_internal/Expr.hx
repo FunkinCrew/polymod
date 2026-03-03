@@ -301,7 +301,7 @@ typedef ClassImport =
 
 typedef EnumDecl =
 {
-  var name:String;
+  > ModuleType,
   var fields:Array<EnumFieldDecl>;
 }
 
