@@ -1574,6 +1574,7 @@ class Parser
           });
       case "enum":
         var name = getIdent();
+        var params = parseParams();
 
         var fields = [];
         ensure(TBrOpen);
@@ -1586,6 +1587,9 @@ class Parser
         return DEnum(
           {
             name: name,
+            meta: meta,
+            params: params,
+            isPrivate: isPrivate,
             fields: fields
           });
       case "interface":
