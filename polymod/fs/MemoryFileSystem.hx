@@ -2,7 +2,7 @@ package polymod.fs;
 
 import haxe.io.Bytes;
 import haxe.io.Path;
-import polymod.Polymod.ModMetadata;
+import polymod.Polymod;
 import polymod.fs.PolymodFileSystem;
 import polymod.util.Util;
 import polymod.util.VersionUtil;

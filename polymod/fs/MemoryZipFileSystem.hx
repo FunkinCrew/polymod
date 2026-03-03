@@ -11,6 +11,7 @@ import polymod.fs.PolymodFileSystem.IFileSystem;
 import polymod.fs.PolymodFileSystem.PolymodFileSystemParams;
 import polymod.fs.ZipFileSystem.ZipFileSystemParams;
 import polymod.util.Util;
+import polymod.Polymod;
 
 #if !html5
 class MemoryZipFileSystem extends StubFileSystem
@@ -101,9 +102,9 @@ class MemoryZipFileSystem extends MemoryFileSystem
     return compressedBytes; // if it wasn't actually compressed
   }
 
-  public override function getMetadata(modId:String)
+  public override function getMetadata(modId:String, ?origin:PolymodErrorOrigin)
   {
-    return super.getMetadata(modId);
+    return super.getMetadata(modId, origin);
   }
 }
 #end
