@@ -7,7 +7,6 @@ import haxe.macro.Type;
 import haxe.macro.Type.ClassType;
 import polymod.util.MacroUtil;
 #end
-import haxe.rtti.Meta;
 
 using StringTools;
 
@@ -17,6 +16,11 @@ using StringTools;
  */
 class PolymodScriptClassMacro
 {
+  /**
+   * The name for the Haxe resource that stores Generation Metadata.
+   */
+  static inline final METADATA_RESOURCE_NAME:String = 'PolymodScriptClassMacro_METADATA';
+
   /**
    * Returns a `Map<String, Class<Dynamic>>` which maps superclass paths to scripted classes.
    * So `class ScriptedStage extends Stage implements HScriptable` will be `"Stage" -> ScriptedStage`
@@ -78,9 +82,9 @@ class PolymodScriptClassMacro
     // Reset these, since onGenerate persists across multiple builds.
     var hscriptedClassType:ClassType = MacroUtil.getClassType('polymod.hscript.HScriptedClass');
 
-    var hscriptedClassEntries:Array<Expr> = [];
-    var abstractImplEntries:Array<Expr> = [];
-    var typedefEntries:Array<Expr> = [];
+    var hscriptedClassEntries:Array<Array<String>> = [];
+    var abstractImplEntries:Array<Array<String>> = [];
+    var typedefEntries:Array<Array<String>> = [];
 
     var startTime:Float = Sys.time();
 
@@ -105,8 +109,8 @@ class PolymodScriptClassMacro
             if (superClass == null) throw 'No superclass for ' + classPath;
 
             var superClassPath:String = '${superClass.pack.concat([superClass.name]).join(".")}';
-            var entryData = [macro $v{superClassPath}, macro $v{classPath}];
-            hscriptedClassEntries.push(macro $a{entryData});
+            var entryData = [superClassPath, classPath];
+            hscriptedClassEntries.push(entryData);
           }
 
         case TType(t, _params):
@@ -129,25 +133,25 @@ class PolymodScriptClassMacro
             case TAbstract(t, _params):
               var targetPath:String = t.toString();
 
-              var entryData = [macro $v{typedefPath}, macro $v{targetPath}];
+              var entryData = [typedefPath, targetPath];
 
-              typedefEntries.push(macro $a{entryData});
+              typedefEntries.push(entryData);
 
             case TEnum(t, _params):
               var targetEnum:EnumType = t.get();
               var targetEnumPath:String = '${targetEnum.pack.concat([targetEnum.name]).join(".")}';
 
-              var entryData = [macro $v{typedefPath}, macro $v{targetEnumPath}];
+              var entryData = [typedefPath, targetEnumPath];
 
-              typedefEntries.push(macro $a{entryData});
+              typedefEntries.push(entryData);
 
             case TInst(t, _params):
               var targetClass:ClassType = t.get();
               var targetClassPath:String = '${targetClass.pack.concat([targetClass.name]).join(".")}';
 
-              var entryData = [macro $v{typedefPath}, macro $v{targetClassPath}];
+              var entryData = [typedefPath, targetClassPath];
 
-              typedefEntries.push(macro $a{entryData});
+              typedefEntries.push(entryData);
 
             default:
               // Unknown typedef target type?
@@ -180,16 +184,25 @@ class PolymodScriptClassMacro
           catch (e) {}
 
           var entryData = [
-            macro $v{abstractPath},
-            macro $v{abstractImplPath},
-            hasPolymodImpl ? macro $v{polymodImplPath} : macro $v{null}
+            abstractPath,
+            abstractImplPath,
+            hasPolymodImpl ? polymodImplPath : null
           ];
 
-          abstractImplEntries.push(macro $a{entryData});
+          abstractImplEntries.push(entryData);
         default:
           continue;
       }
     }
+
+    var metaData = {
+      hscriptedClasses: hscriptedClassEntries,
+      abstractImpls: abstractImplEntries,
+      typedefs: typedefEntries
+    };
+
+    var metaDataHXSF = haxe.Serializer.run(metaData);
+    Context.addResource(METADATA_RESOURCE_NAME, haxe.io.Bytes.ofString(metaDataHXSF));
 
     var endTime:Float = Sys.time();
 
@@ -201,14 +214,6 @@ class PolymodScriptClassMacro
       + '${typedefEntries.length} typedefs '
       + 'in ${duration} sec.',
       Context.currentPos());
-
-    var polymodScriptClassClassType:ClassType = MacroUtil.getClassType('polymod.hscript._internal.PolymodScriptClassMacro');
-    polymodScriptClassClassType.meta.remove('hscriptedClasses');
-    polymodScriptClassClassType.meta.add('hscriptedClasses', hscriptedClassEntries, Context.currentPos());
-    polymodScriptClassClassType.meta.remove('abstractImpls');
-    polymodScriptClassClassType.meta.add('abstractImpls', abstractImplEntries, Context.currentPos());
-    polymodScriptClassClassType.meta.remove('typedefs');
-    polymodScriptClassClassType.meta.add('typedefs', typedefEntries, Context.currentPos());
   }
 
   static function onAfterTyping(types:Array<ModuleType>):Void
@@ -465,7 +470,7 @@ class PolymodScriptClassMacro
 
   public static function fetchHScriptedClasses():Map<String, Class<Dynamic>>
   {
-    var metaData = Meta.getType(PolymodScriptClassMacro);
+    var metaData = fetchMetadata();
 
     if (metaData.hscriptedClasses != null)
     {
@@ -473,7 +478,8 @@ class PolymodScriptClassMacro
 
       // Each element is formatted as `[superClassPath, classPath]`.
 
-      for (element in metaData.hscriptedClasses)
+      var hscriptedClasses:Array<Array<String>> = cast metaData.hscriptedClasses;
+      for (element in hscriptedClasses)
       {
         if (element.length != 2)
         {
@@ -496,7 +502,7 @@ class PolymodScriptClassMacro
 
   public static function fetchAbstractImpls():Map<String, AbstractImplEntry>
   {
-    var metaData = Meta.getType(PolymodScriptClassMacro);
+    var metaData = fetchMetadata();
 
     if (metaData.abstractImpls != null)
     {
@@ -504,7 +510,8 @@ class PolymodScriptClassMacro
 
       // Each element is formatted as `[abstractPath, abstractImplPath, ?abstractPolymodImplPath]`.
 
-      for (element in metaData.abstractImpls)
+      var abstractImpls:Array<Array<String>> = cast metaData.abstractImpls;
+      for (element in abstractImpls)
       {
         if (element.length != 3)
         {
@@ -551,13 +558,14 @@ class PolymodScriptClassMacro
 
   public static function fetchTypedefs():Map<String, Class<Dynamic>>
   {
-    var metaData = Meta.getType(PolymodScriptClassMacro);
+    var metaData = fetchMetadata();
 
     if (metaData.typedefs != null)
     {
       var result:Map<String, Class<Dynamic>> = [];
 
-      for (element in metaData.typedefs)
+      var typedefs:Array<Array<String>> = cast metaData.typedefs;
+      for (element in typedefs)
       {
         if (element.length != 2)
         {
@@ -577,6 +585,16 @@ class PolymodScriptClassMacro
     {
       throw 'No typedefs found in PolymodScriptClassMacro!';
     }
+  }
+
+  static var _metadata:Dynamic = null;
+  static function fetchMetadata():Dynamic
+  {
+    if (_metadata != null) return _metadata;
+
+    var metaDataHXSF:String = haxe.Resource.getString(METADATA_RESOURCE_NAME);
+    _metadata = haxe.Unserializer.run(metaDataHXSF);
+    return _metadata;
   }
 
   #if js
