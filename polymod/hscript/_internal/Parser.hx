@@ -67,7 +67,7 @@ class Parser
   /**
     allows to check for #if / #else in code
   **/
-  public var preprocesorValues:Map<String, Dynamic> = new Map();
+  public static var preprocesorValues(get, default):Map<String, Dynamic>;
 
   /**
     activate JSON compatiblity
@@ -2539,4 +2539,22 @@ class Parser
       case TPrepro(id): "#" + id;
     }
   }
+
+  static function get_preprocesorValues()
+  {
+    if (preprocesorValues == null) preprocesorValues = getDefines();
+    return preprocesorValues;
+  }
+
+  macro static function getDefines():haxe.macro.Expr
+  {
+    return macro $v{getDefinesRaw()};
+  }
+
+  #if macro
+  static function getDefinesRaw()
+  {
+    return haxe.macro.Context.getDefines();
+  }
+  #end
 }
