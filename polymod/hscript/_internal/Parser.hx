@@ -2387,10 +2387,36 @@ class Parser
         return !evalPreproCond(e);
       case EParent(e):
         return evalPreproCond(e);
-      case EBinop("&&", e1, e2):
-        return evalPreproCond(e1) && evalPreproCond(e2);
-      case EBinop("||", e1, e2):
-        return evalPreproCond(e1) || evalPreproCond(e2);
+      case EBinop(op, e1, e2):
+        inline function evalPreproValue(e:Expr)
+        {
+          return switch (expr(e))
+          {
+            case EIdent(id): id;
+            case EConst(CString(str, _)): str;
+            case EConst(CInt(num)): Std.string(num);
+            case EConst(CFloat(num)): Std.string(num);
+            default: null;
+          }
+        }
+
+        var value1 = evalPreproValue(e1);
+        var value2 = evalPreproValue(e2);
+
+        return switch (op)
+        {
+          case "&&": evalPreproCond(e1) && evalPreproCond(e2);
+          case "||": evalPreproCond(e1) || evalPreproCond(e2);
+          case ">=": (preprocValue(value1) ?? value1) >= (preprocValue(value2) ?? value2);
+          case ">": (preprocValue(value1) ?? value1) > (preprocValue(value2) ?? value2);
+          case "<=": (preprocValue(value1) ?? value1) <= (preprocValue(value2) ?? value2);
+          case "<": (preprocValue(value1) ?? value1) < (preprocValue(value2) ?? value2);
+          case "==": (preprocValue(value1) ?? value1) == (preprocValue(value2) ?? value2);
+          case "!=": (preprocValue(value1) ?? value1) != (preprocValue(value2) ?? value2);
+          default:
+            error(EInvalidPreprocessor("Invalid operator " + op), currentPos, currentPos);
+            return false;
+        }
       default:
         error(EInvalidPreprocessor("Can't eval " + expr(e).getName()), currentPos, currentPos);
         return false;
