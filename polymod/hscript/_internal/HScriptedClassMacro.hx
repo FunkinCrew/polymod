@@ -429,9 +429,9 @@ class HScriptedClassMacro
           })
       };
 
-    var function_staticScriptHas:Field =
+    var function_scriptStaticHas:Field =
       {
-        name: 'staticScriptHas',
+        name: 'scriptStaticHas',
         doc: 'Determines if a static field of a scripted class exists or not.',
         access: [APublic],
         meta: null,
@@ -461,7 +461,7 @@ class HScriptedClassMacro
       function_scriptStaticCall,
       function_scriptStaticGet,
       function_scriptStaticSet,
-      function_staticScriptHas
+      function_scriptStaticHas
     ];
   }
 
