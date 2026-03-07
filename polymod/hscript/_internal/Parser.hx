@@ -23,6 +23,7 @@
 package polymod.hscript._internal;
 
 import polymod.hscript._internal.Expr;
+import polymod.util.DefineUtil;
 
 enum Token
 {
@@ -2568,19 +2569,7 @@ class Parser
 
   static function get_preprocesorValues()
   {
-    if (preprocesorValues == null) preprocesorValues = getDefines();
+    if (preprocesorValues == null) preprocesorValues = DefineUtil.getDefines();
     return preprocesorValues;
   }
-
-  macro static function getDefines():haxe.macro.Expr
-  {
-    return macro $v{getDefinesRaw()};
-  }
-
-  #if macro
-  static function getDefinesRaw()
-  {
-    return haxe.macro.Context.getDefines();
-  }
-  #end
 }

@@ -8,6 +8,11 @@ class DefineUtil
 {
   // Only macros should be able to use these.
   #if macro
+  public static function getDefinesRaw()
+  {
+    return Context.getDefines();
+  }
+
   public static function getDefineStringArrayRaw(key:String, ?defaultValue:Array<String>):Array<String>
   {
     if (defaultValue == null) defaultValue = new Array<String>();
@@ -41,5 +46,10 @@ class DefineUtil
   public static macro function getDefineBool(key:String, defaultValue:Bool = false):haxe.macro.Expr
   {
     return macro $v{getDefineBoolRaw(key, defaultValue)};
+  }
+
+  public static macro function getDefines():haxe.macro.Expr
+  {
+    return macro $v{getDefinesRaw()};
   }
 }
