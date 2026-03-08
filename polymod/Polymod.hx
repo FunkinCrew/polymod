@@ -8,6 +8,7 @@ import polymod.backends.PolymodAssets;
 import polymod.format.JsonHelp;
 import polymod.format.ParseRules;
 import polymod.fs.PolymodFileSystem;
+import polymod.hscript._internal.Parser;
 import polymod.hscript._internal.PolymodScriptClass;
 import polymod.util.DependencyUtil;
 import polymod.util.VersionUtil;
@@ -217,6 +218,12 @@ class Polymod
    */
   private static var prevParams:PolymodParams = null;
 
+	/**
+	 * The mods loaded when `init()` was last called.
+	 * Useful for removing old mods from the preprocessor map.
+	 */
+	private static var prevModsLoaded:Array<ModMetadata> = [];
+
   /**
    * Initializes Polymod, while loading the chosen mod or mods.
    *
@@ -325,6 +332,13 @@ class Polymod
       Polymod.info(SCRIPT_PARSE_START, 'Parsing script classes...');
       Polymod.clearScripts();
 
+			// Add the loaded mods to the Parser's preprocessor values.
+			for (mod in prevModsLoaded)
+				Parser.preprocesorValues.remove(mod.id);
+
+			for (mod in sortedModsToLoad)
+				Parser.preprocesorValues.set(mod.id, mod.modVersion.toString());
+
       if (params.loadScriptsAsync)
       {
         Polymod.registerAllScriptClassesAsync();
@@ -337,6 +351,9 @@ class Polymod
         Polymod.info(SCRIPT_PARSE_DONE, 'Parsed and registered ${classList.length} scripted classes.');
       }
     }
+
+		// Store the mods for the later `init()` calls.
+		prevModsLoaded = sortedModsToLoad.copy();
 
     return sortedModsToLoad;
   }
