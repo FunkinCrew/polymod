@@ -99,6 +99,12 @@ class MemoryZipFileSystem extends MemoryFileSystem
     return compressedBytes; // if it wasn't actually compressed
   }
 
+  @:deprecated("getMetadata is deprecated, use getMetadataByDir")
+  public function getMetadata(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
+  {
+    return getMetadataByDir(dirName, origin);
+  }
+
   public override function getMetadataByDir(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
     return super.getMetadataByDir(dirName, origin);
