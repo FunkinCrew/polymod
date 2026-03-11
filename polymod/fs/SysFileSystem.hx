@@ -106,6 +106,12 @@ class SysFileSystem implements IFileSystem
     return result;
   }
 
+  @:deprecated("getMetadata is deprecated, use getMetadataByDir")
+  public function getMetadata(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
+  {
+    return getMetadataByDir(dirName, origin);
+  }
+
   public function getMetadataByDir(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
     var modPath = Util.pathJoin(modRoot, dirName);
