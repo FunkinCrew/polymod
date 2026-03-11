@@ -185,6 +185,7 @@ class Parser
   {
     // line=1 - don't reset line : it might be set manualy
     preprocStack = [];
+    preprocessing = false;
     #if hscriptPos
     this.origin = origin;
     readPos = 0;
@@ -461,6 +462,7 @@ class Parser
         switch (tk)
         {
           case TPClose:
+            preprocessing = false;
             if (maybe(TOp("->")))
             {
               var arg = exprToArg(e);
@@ -2343,7 +2345,7 @@ class Parser
             {
               char = readChar();
               if (StringTools.isEof(char)) char = 0;
-              if (!idents[char])
+              if (!idents[char] && (!preprocessing || char != '.'.code))
               {
                 this.char = char;
                 return TId(id);
@@ -2364,11 +2366,13 @@ class Parser
   }
 
   var preprocStack:Array<{r:Bool}>;
+  var preprocessing:Bool;
 
-  function parsePreproCond()
+  function parsePreproCond():Expr
   {
-    var tk = token();
-    return switch (tk)
+    preprocessing = true;
+    var tk:Token = token();
+    var result:Expr = switch (tk)
     {
       case TPOpen:
         push(TPOpen);
@@ -2378,8 +2382,11 @@ class Parser
       case TOp("!"):
         mk(EUnop("!", true, parsePreproCond()), tokenMin, tokenMax);
       default:
+        preprocessing = false;
         unexpected(tk);
     }
+    preprocessing = false;
+    return result;
   }
 
   function evalPreproCond(e:Expr)
