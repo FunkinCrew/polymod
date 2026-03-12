@@ -8,13 +8,22 @@ import polymod.hscript._internal.Printer;
 using Lambda;
 
 /**
- * A parse format for scripts. While Imports and Usings automatically get added and Packages get ignored,
- * the metadata is used to determine how Modules (Classes, Typedefs, etc.) are handled.
- * - `@:merge_add` - Directly add the Module, if one with the same name doesn't exist. Also works on Class Fields.
- * - `@:merge_override` - Override the Module, if one with the same name exists. Otherwise, add it normally. Also works on Class Fields
- * - `@:merge_combine` - Combine the fields of the two Modules, if the base one exists. Otherwise, add it normally. Only works on Classes.
- * - `@:merge_insert(index)` - Insert the expression into the base class at a specified index. Only works on Functions.
- * If a Module has more than one metadata, only the one with the highest priority is used, with the order being Combine > Insert > Add > Override.
+ * A parse format for scripts that allows merging.
+ * The metadata is used to determine how Modules (`class`, `typedef`, `enum`, etc.) and Fields (`function`, `var`, etc.) are handled.
+ *
+ *
+ * Note: Imports and Usings automatically get added and Packages get ignored.
+ *
+ *
+ * Available Metadatas:
+ * - `@:merge_add` - Directly add the Module or Field, if one with the same name doesn't exist.
+ * - `@:merge_combine` - Combine the fields of the two Modules, if the base one exists. Otherwise, add it normally. (Only works on Classes)
+ * - `@:merge_override` - Override the Module or Field, if one with the same name exists. Otherwise, add it normally.
+ * - `@:merge_insert(index:Int)` - Insert the expression into the original function at a specified index. (Only works on Functions)
+ *
+ *
+ * Note: If a Module or Field has more than one metadata, only the one with the highest priority is used.
+ * The merge priority order is: Combine > Insert > Add > Override.
  */
 class ScriptParseFormat implements BaseParseFormat
 {
