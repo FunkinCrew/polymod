@@ -5,6 +5,8 @@ import polymod.hscript._internal.Expr;
 import polymod.hscript._internal.Parser;
 import polymod.hscript._internal.Printer;
 
+using Lambda;
+
 /**
  * A parse format for scripts. While Imports and Usings automatically get added and Packages get ignored,
  * the metadata is used to determine how Modules (Classes, Typedefs, etc.) are handled.
@@ -16,10 +18,10 @@ import polymod.hscript._internal.Printer;
  */
 class ScriptParseFormat implements BaseParseFormat
 {
-  public static final ADD_META:String = ":merge_add";
-  public static final COMBINE_META:String = ":merge_combine";
-  public static final OVERRIDE_META:String = ":merge_override";
-  public static final INSERT_META:String = ":merge_insert";
+  public static final ADD_METAS:Array<String> = [":merge_add", ":Unique", ":Add", ":add"];
+  public static final COMBINE_METAS:Array<String> = [":merge_combine", ":Combine", ":combine"];
+  public static final OVERRIDE_METAS:Array<String> = [":merge_override", ":Overwrite", ":override"];
+  public static final INSERT_METAS:Array<String> = [":merge_insert", ":Inject", ":insert"];
 
   public var format(default, null):TextFileFormat;
 
@@ -83,9 +85,11 @@ class ScriptParseFormat implements BaseParseFormat
         case DClass(c1):
           // See the comment for ScriptParseFormat for how Classes are handled.
           var metaNames:Array<String> = [for (m in c1.meta) m.name];
-          if (metaNames.length == 0)
+          var metaName:Null<String> = metaNames.find((n) -> COMBINE_METAS.contains(n) || ADD_METAS.contains(n) || OVERRIDE_METAS.contains(n));
+
+          if (metaName == null)
           {
-            Polymod.warning(ASSET_MERGE_FAILED, 'Merge class ${c1.name} has no metadata. Skipping.');
+            Polymod.warning(ASSET_MERGE_FAILED, 'Merge class ${c1.name} has no recognized metadata. Skipping.');
             continue;
           }
 
@@ -106,41 +110,44 @@ class ScriptParseFormat implements BaseParseFormat
             }
           }
 
-          if (metaNames.contains(COMBINE_META))
-          {
-            c1.meta.remove(c1.meta[metaNames.indexOf(COMBINE_META)]);
+          // Check for Class Metadata
+          c1.meta.remove(c1.meta[metaNames.indexOf(metaName)]);
 
+          if (COMBINE_METAS.contains(metaName))
+          {
+            // Add the class normally if it doesn't exist.
             if (baseDecl == null)
             {
-              // Add the class normally if it doesn't exist.
               baseDecls.push(decl);
               continue;
             }
 
+            // Handle class Field merging
             for (fld in c1.fields)
             {
               var fldMetaNames:Array<String> = [for (m in fld.meta) m.name];
+              var fldMetaName:Null<String> = fldMetaNames.find(n -> INSERT_METAS.contains(n) || OVERRIDE_METAS.contains(n) || ADD_METAS.contains(n));
 
               var baseFieldNames:Array<String> = [for (fld in baseClass.fields) fld.name];
               var baseFieldIndex:Int = baseFieldNames.indexOf(fld.name);
 
               // If the field has no metadata, do nothing.
-              if (fldMetaNames.length == 0)
+              if (fldMetaName == null)
               {
-                Polymod.warning(ASSET_MERGE_FAILED, 'Field ${fld.name} from the merge class ${c1.name} has no metadata. Skipping.');
+                Polymod.warning(ASSET_MERGE_FAILED, 'Field ${fld.name} from the merge class ${c1.name} has no recognized metadata. Skipping.');
                 continue;
               }
 
-              if (fldMetaNames.contains(INSERT_META))
-              {
-                var meta:Dynamic = fld.meta[fldMetaNames.indexOf(INSERT_META)];
-                fld.meta.remove(meta);
+              var meta = fld.meta[fldMetaNames.indexOf(fldMetaName)];
+              fld.meta.remove(meta);
 
+              if (INSERT_METAS.contains(fldMetaName))
+              {
                 // If the insert field doesn't have the index field, do nothing.
                 if ((meta.params?.length ?? 0) == 0)
                 {
                   Polymod.warning(ASSET_MERGE_FAILED,
-                    'The insert metadata from the field ${fld.name} of the merge class ${c1.name} has no parameters. Skipping.');
+                  'The insert metadata from the field ${fld.name} of the merge class ${c1.name} has no parameters. Skipping.');
                   continue;
                 }
 
@@ -185,20 +192,14 @@ class ScriptParseFormat implements BaseParseFormat
 
                 continue;
               }
-
-              if (fldMetaNames.contains(OVERRIDE_META))
+              else if (OVERRIDE_METAS.contains(fldMetaName))
               {
-                fld.meta.remove(fld.meta[fldMetaNames.indexOf(OVERRIDE_META)]);
-
                 baseClass.fields.remove(baseClass.fields[baseFieldIndex]);
                 baseClass.fields.push(fld);
                 continue;
               }
-
-              if (fldMetaNames.contains(ADD_META))
+              else if (ADD_METAS.contains(fldMetaName))
               {
-                fld.meta.remove(fld.meta[fldMetaNames.indexOf(ADD_META)]);
-
                 if (baseFieldIndex != -1)
                 {
                   Polymod.warning(ASSET_MERGE_FAILED, 'Field ${fld.name} from the merge class ${c1.name} already exists in the base class. Skipping.');
@@ -213,14 +214,9 @@ class ScriptParseFormat implements BaseParseFormat
 
               Polymod.warning(ASSET_MERGE_FAILED, 'Field ${fld.name} from the merge class ${c1.name} doesn\'t have any merge metadata. Skipping.');
             }
-
-            continue;
           }
-
-          if (metaNames.contains(ADD_META))
+          else if (ADD_METAS.contains(metaName))
           {
-            c1.meta.remove(c1.meta[metaNames.indexOf(ADD_META)]);
-
             if (baseDecl != null)
             {
               Polymod.warning(ASSET_MERGE_FAILED, 'A class with the name ${c1.name} already exists. Skipping.');
@@ -229,14 +225,9 @@ class ScriptParseFormat implements BaseParseFormat
             {
               baseDecls.push(decl);
             }
-
-            continue;
           }
-
-            if (metaNames.contains(OVERRIDE_META))
+          else if (OVERRIDE_METAS.contains(metaName))
           {
-            c1.meta.remove(c1.meta[metaNames.indexOf(OVERRIDE_META)]);
-
             baseDecls.remove(baseDecl);
             baseDecls.push(decl);
             continue;
@@ -247,9 +238,11 @@ class ScriptParseFormat implements BaseParseFormat
         case DTypedef(t1):
           // See the comment for ScriptParseFormat for how Typedefs are handled.
           var metaNames:Array<String> = [for (m in t1.meta) m.name];
-          if (metaNames.length == 0)
+          var metaName:Null<String> = metaNames.find((n) -> COMBINE_METAS.contains(n) || ADD_METAS.contains(n) || OVERRIDE_METAS.contains(n));
+
+          if (metaName == null)
           {
-            Polymod.warning(ASSET_MERGE_FAILED, 'Merge typedef ${t1.name} has no metadata. Skipping.');
+            Polymod.warning(ASSET_MERGE_FAILED, 'Merge typedef ${t1.name} has no recognized metadata. Skipping.');
             continue;
           }
 
@@ -268,10 +261,10 @@ class ScriptParseFormat implements BaseParseFormat
             }
           }
 
-          if (metaNames.contains(ADD_META))
-          {
-            t1.meta.remove(t1.meta[metaNames.indexOf(ADD_META)]);
+          t1.meta.remove(t1.meta[metaNames.indexOf(metaName)]);
 
+          if (ADD_METAS.contains(metaName))
+          {
             if (baseDecl != null)
             {
               Polymod.warning(ASSET_MERGE_FAILED, 'A typedef with the name ${t1.name} already exists. Skipping.');
@@ -283,11 +276,8 @@ class ScriptParseFormat implements BaseParseFormat
 
             continue;
           }
-
-          if (metaNames.contains(OVERRIDE_META))
+          else if (OVERRIDE_METAS.contains(metaName))
           {
-            t1.meta.remove(t1.meta[metaNames.indexOf(OVERRIDE_META)]);
-
             baseDecls.remove(baseDecl);
             baseDecls.push(decl);
             continue;
@@ -298,9 +288,10 @@ class ScriptParseFormat implements BaseParseFormat
         case DEnum(e1):
           // See the comment for ScriptParseFormat for how Enums are handled.
           var metaNames:Array<String> = [for (m in e1.meta) m.name];
-          if (metaNames.length == 0)
+          var metaName:Null<String> = metaNames.find((n) -> COMBINE_METAS.contains(n) || ADD_METAS.contains(n) || OVERRIDE_METAS.contains(n));
+          if (metaName == null)
           {
-            Polymod.warning(ASSET_MERGE_FAILED, 'Merge enum ${e1.name} has no metadata. Skipping.');
+            Polymod.warning(ASSET_MERGE_FAILED, 'Merge enum ${e1.name} has no recognized metadata. Skipping.');
             continue;
           }
 
@@ -319,10 +310,10 @@ class ScriptParseFormat implements BaseParseFormat
             }
           }
 
-          if (metaNames.contains(ADD_META))
-          {
-            e1.meta.remove(e1.meta[metaNames.indexOf(ADD_META)]);
+          e1.meta.remove(e1.meta[metaNames.indexOf(metaName)]);
 
+          if (ADD_METAS.contains(metaName))
+          {
             if (baseDecl != null)
             {
               Polymod.warning(ASSET_MERGE_FAILED, 'A typedef with the name ${e1.name} already exists. Skipping.');
@@ -334,11 +325,8 @@ class ScriptParseFormat implements BaseParseFormat
 
             continue;
           }
-
-          if (metaNames.contains(OVERRIDE_META))
+          else if (OVERRIDE_METAS.contains(metaName))
           {
-            e1.meta.remove(e1.meta[metaNames.indexOf(OVERRIDE_META)]);
-
             baseDecls.remove(baseDecl);
             baseDecls.push(decl);
             continue;
@@ -349,9 +337,10 @@ class ScriptParseFormat implements BaseParseFormat
         case DInterface(i1):
           // See the comment for ScriptParseFormat for how Interfaces are handled.
           var metaNames:Array<String> = [for (m in i1.meta) m.name];
-          if (metaNames.length == 0)
+          var metaName:Null<String> = metaNames.find((n) -> COMBINE_METAS.contains(n) || ADD_METAS.contains(n) || OVERRIDE_METAS.contains(n));
+          if (metaName == null)
           {
-            Polymod.warning(ASSET_MERGE_FAILED, 'Merge interface ${i1.name} has no metadata. Skipping.');
+            Polymod.warning(ASSET_MERGE_FAILED, 'Merge interface ${i1.name} has no recognized metadata. Skipping.');
             continue;
           }
 
@@ -370,10 +359,10 @@ class ScriptParseFormat implements BaseParseFormat
             }
           }
 
-          if (metaNames.contains(ADD_META))
-          {
-            i1.meta.remove(i1.meta[metaNames.indexOf(ADD_META)]);
+          i1.meta.remove(i1.meta[metaNames.indexOf(metaName)]);
 
+          if (ADD_METAS.contains(metaName))
+          {
             if (baseDecl != null)
             {
               Polymod.warning(ASSET_MERGE_FAILED, 'An interface with the name ${i1.name} already exists. Skipping.');
@@ -385,11 +374,8 @@ class ScriptParseFormat implements BaseParseFormat
 
             continue;
           }
-
-          if (metaNames.contains(OVERRIDE_META))
+          else if (OVERRIDE_METAS.contains(metaName))
           {
-            i1.meta.remove(i1.meta[metaNames.indexOf(OVERRIDE_META)]);
-
             baseDecls.remove(baseDecl);
             baseDecls.push(decl);
             continue;
@@ -408,3 +394,4 @@ class ScriptParseFormat implements BaseParseFormat
     return output;
   }
 }
+
