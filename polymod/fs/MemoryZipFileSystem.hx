@@ -100,7 +100,7 @@ class MemoryZipFileSystem extends MemoryFileSystem
   }
 
   @:deprecated("getMetadata is deprecated, use getMetadataByDir")
-  public function getMetadata(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
+  public override function getMetadata(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
     return getMetadataByDir(dirName, origin);
   }
