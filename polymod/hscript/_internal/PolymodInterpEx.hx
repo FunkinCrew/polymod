@@ -204,6 +204,15 @@ class PolymodInterpEx extends Interp
     }
     #end
 
+    // Functions natively don't have the .bind() function, so we have to do them here.
+    if (f == "bind" && Reflect.isFunction(o))
+    {
+      return Reflect.makeVarArgs(function(bindArgs:Array<Dynamic>)
+      {
+        return Reflect.callMethod(null, o, args.concat(bindArgs));
+      });
+    }
+
     if (Std.isOfType(o, HScriptedClass))
     {
       // This is a scripted class!
