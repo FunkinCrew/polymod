@@ -1657,6 +1657,7 @@ class Parser
         case "function":
           var name = getIdent();
           var inf = parseFunctionDecl();
+          maybe(TSemicolon);
           return {
             name: name,
             meta: meta,
