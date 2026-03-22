@@ -8,13 +8,13 @@ class PolymodEnum
 {
   private static final scriptInterp = new PolymodInterpEx(null, null);
 
-  private var _e:PolymodEnumDeclEx;
+  private var _e:EnumDecl;
 
   private var _value:String;
 
   private var _args:Array<Dynamic>;
 
-  public function new(e:PolymodEnumDeclEx, value:String, args:Array<Dynamic>)
+  public function new(e:EnumDecl, value:String, args:Array<Dynamic>)
   {
     this._e = e;
 
