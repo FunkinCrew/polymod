@@ -56,6 +56,9 @@ private enum InterpState
   Expr(depth:Int, ?quoteChar:Int);
 }
 
+#if hscript_typer
+@:access(polymod.hscript._internal.PolymodTyperEx)
+#end
 class Parser
 {
   // config / variables
@@ -1414,6 +1417,16 @@ class Parser
       push(tk);
       decls.push(parseModuleDecl());
     }
+
+    #if hscript_typer
+    PolymodTyperEx.allModules.push(
+      {
+        decls: decls,
+        code: content,
+        origin: origin,
+      });
+    #end
+
     return decls;
   }
 

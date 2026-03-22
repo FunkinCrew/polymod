@@ -1747,7 +1747,7 @@ class PolymodInterpEx extends Interp
 
   public function addModule(moduleContents:String, ?origin:String = "hscript")
   {
-    var parser = new PolymodParserEx();
+    var parser = new Parser();
     var decls = parser.parseModule(moduleContents, origin);
     registerModules(decls, origin);
   }

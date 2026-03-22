@@ -260,14 +260,14 @@ class ScriptRunner
 
 class Script
 {
-  private static var parser:polymod.hscript._internal.PolymodParserEx;
+  private static var parser:polymod.hscript._internal.Parser;
 
   public var program:Expr;
   public var interp:polymod.hscript._internal.PolymodInterpEx;
 
-  public static function buildParser():polymod.hscript._internal.PolymodParserEx
+  public static function buildParser():polymod.hscript._internal.Parser
   {
-    return new polymod.hscript._internal.PolymodParserEx();
+    return new polymod.hscript._internal.Parser();
   }
 
   public static function buildInterp():polymod.hscript._internal.PolymodInterpEx
