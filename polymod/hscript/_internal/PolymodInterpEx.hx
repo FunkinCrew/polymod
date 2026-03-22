@@ -290,9 +290,9 @@ class PolymodInterpEx extends Interp
     return _scriptClassDescriptors.get(name);
   }
 
-  private static var _scriptEnumDescriptors:Map<String, PolymodEnumDeclEx> = new Map<String, PolymodEnumDeclEx>();
+  private static var _scriptEnumDescriptors:Map<String, EnumDecl> = new Map<String, EnumDecl>();
 
-  private static function registerScriptEnum(e:PolymodEnumDeclEx)
+  private static function registerScriptEnum(e:EnumDecl)
   {
     var name = e.name;
     if (e.pkg != null)
@@ -2381,7 +2381,7 @@ class PolymodInterpEx extends Interp
               });
           }
 
-          var enumDecl:PolymodEnumDeclEx =
+          var enumDecl:EnumDecl =
             {
               pkg: pkg,
               name: e.name,
