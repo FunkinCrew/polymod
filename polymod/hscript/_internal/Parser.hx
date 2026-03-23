@@ -730,6 +730,7 @@ class Parser
     }
   }
 
+  var inSwitchCase:Bool = false;
   function parseStructure(id)
   {
     #if hscriptPos
@@ -898,6 +899,7 @@ class Parser
           switch (tk)
           {
             case TId("case"):
+              inSwitchCase = true;
               var c = {values: [], expr: null};
               cases.push(c);
               while (true)
@@ -910,6 +912,7 @@ class Parser
                   case TComma:
                     // next expr
                   case TDoubleDot:
+                    inSwitchCase = false;
                     break;
                   default:
                     unexpected(tk);
@@ -2326,6 +2329,7 @@ class Parser
               if (!ops[char])
               {
                 this.char = char;
+                if (inSwitchCase && op == '|') return TComma; // In switch case handle | as a ,
                 return TOp(op);
               }
               var pop = op;
