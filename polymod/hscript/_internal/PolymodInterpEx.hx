@@ -1941,15 +1941,24 @@ class PolymodInterpEx extends Interp
     if (args == null) return;
 
     var minParams = 0;
+    var maxAllowed = params.length;
+
     for (i in 0...params.length)
     {
       var p = params[i];
       if (!p.opt && p.value == null) minParams = i + 1;
     }
 
+    final funcName:String = (name != null) ? " for function '" + name + "'" : "";
     if (args.length < minParams)
     {
-      error(EInvalidArgCount((name != null) ? " for function '" + name + "'" : "", minParams, args.length));
+      error(EInvalidArgCount(funcName, minParams, args.length));
+    }
+    else if (args.length > maxAllowed)
+    {
+      // Manual return for `new` as parameter count shouldn't matter here
+      if (name == "new") return;
+      error(EExceedArgsCount(funcName, maxAllowed, args.length));
     }
   }
 
