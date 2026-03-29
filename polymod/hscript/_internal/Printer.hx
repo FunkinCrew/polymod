@@ -166,6 +166,8 @@ class Printer
     }
   }
 
+  var ignoreNextField:Bool = false;
+
   function expr(e:Expr):Void
   {
     if (e == null)
@@ -206,6 +208,47 @@ class Printer
         }
         else
         {
+          // account for null coalescing
+          if (el.length == 2)
+          {
+            switch (#if hscriptPos el[0].e #else el[0] #end)
+            {
+              case EVar(n, _, e):
+                if (n.indexOf("__a_") == 0)
+                {
+                  switch (#if hscriptPos el[1].e #else el[1] #end)
+                  {
+                    case ETernary(c, e11, e12):
+                      switch (#if hscriptPos c.e #else c #end)
+                      {
+                        case EBinop(op, _, _):
+                          if (op == "==")
+                          {
+                            expr(e);
+                            add("?");
+                            ignoreNextField = true;
+                            expr(e12);
+                            return;
+                          }
+
+                          if (op == "!=")
+                          {
+                            expr(e);
+                            add("?");
+                            ignoreNextField = true;
+                            expr(e11);
+                            return;
+                          }
+
+                        default:
+                      }
+                    default:
+                  }
+                }
+              default:
+            }
+          }
+
           tabs += "\t";
           add("{\n");
           for (e in el)
@@ -218,7 +261,8 @@ class Printer
           add("}");
         }
       case EField(e, f):
-        expr(e);
+        if (!ignoreNextField) expr(e);
+        ignoreNextField = false;
         add("." + f);
       case EBinop(op, e1, e2):
         expr(e1);
