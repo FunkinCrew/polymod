@@ -1941,7 +1941,7 @@ class PolymodInterpEx extends Interp
     if (args == null) return;
 
     var minParams = 0;
-    var maxAllowed = params.length;
+    //var maxAllowed = params.length;
 
     for (i in 0...params.length)
     {
@@ -1954,12 +1954,12 @@ class PolymodInterpEx extends Interp
     {
       error(EInvalidArgCount(funcName, minParams, args.length));
     }
-    else if (args.length > maxAllowed)
-    {
-      // Manual return for `new` as parameter count shouldn't matter here
-      if (name == "new") return;
-      error(EExceedArgsCount(funcName, maxAllowed, args.length));
-    }
+//    else if (args.length > maxAllowed)
+//    {
+//      // Manual return for `new` as parameter count shouldn't matter here
+//      if (name == "new") return;
+//      error(EExceedArgsCount(funcName, maxAllowed, args.length));
+//    }
   }
 
   public function hasScriptClassStaticFunction(clsName:String, fnName:String):Bool
