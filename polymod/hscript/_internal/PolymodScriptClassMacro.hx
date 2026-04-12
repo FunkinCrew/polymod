@@ -74,7 +74,6 @@ class PolymodScriptClassMacro
   }
 
   #if macro
-  @:persistent
   static var onGenerateCallbackRegistered:Bool = false;
   @:persistent
   static var onAfterTypingCallbackRegistered:Bool = false;
