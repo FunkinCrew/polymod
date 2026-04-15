@@ -880,7 +880,7 @@ class PolymodScriptClass
           _cachedVarDecls.set(f.name, v);
           if (v.expr != null)
           {
-            var varValue = this._interp.expr(v.expr);
+            var varValue = this._interp.exprWithType(v.expr, v.type);
             this._interp.variables.set(f.name, varValue);
           }
         default:
