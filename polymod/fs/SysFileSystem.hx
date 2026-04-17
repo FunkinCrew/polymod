@@ -168,6 +168,7 @@ class SysFileSystem implements IFileSystem
         var meta:ModMetadata = null;
 
         var metaFile = Util.pathJoin(modPath, PolymodConfig.modMetadataFile);
+        var iconFile = Util.pathJoin(modPath, PolymodConfig.modIconFile);
 
         if (!exists(metaFile)) continue;
         else
@@ -179,7 +180,20 @@ class SysFileSystem implements IFileSystem
         if (meta == null) continue;
 
         if (meta.id != modId && dir != modId) continue;
-
+        meta.dirName = dir;
+        meta.modPath = modPath;
+  
+        if (!exists(iconFile))
+        {
+          Polymod.warning(MOD_MISSING_ICON, 'Could not find mod icon file: $iconFile', origin);
+        }
+        else
+        {
+          var iconBytes = getFileBytes(iconFile);
+          meta.icon = iconBytes;
+          meta.iconPath = iconFile;
+        }
+    
         return meta;
       }
     }
