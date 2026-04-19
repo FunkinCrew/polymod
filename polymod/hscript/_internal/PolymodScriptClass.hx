@@ -415,7 +415,15 @@ class PolymodScriptClass
           var importedClass:ClassImport = c.imports.get(clsName);
           if (importedClass != null && importedClass.cls != null)
           {
-            targetClass = importedClass.cls;
+            if (untyped !importedClass.cls._isHScriptedClass)
+            {
+              Polymod.error(SCRIPT_PARSE_FAILED, 'Cannot extend non-scriptable class ("${Util.getFullClassName(c)}" tried extending "${pth.join('.')}").', SCRIPT_RUNTIME);
+              return;
+            }
+            else
+            {
+              targetClass = importedClass.cls;
+            }
           }
           else if (importedClass != null && importedClass.cls == null)
           {
