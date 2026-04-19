@@ -84,7 +84,7 @@ class PolymodAssetLibrary
   // Cache for directory listings to avoid repeated file system scans
   private var _dirCache:Map<String, Array<String>> = new Map();
   // Fast lookup for ignored files using Map instead of array searches
-  private var _ignoredFilesSet:Map<String, Bool> = null;
+  private var _ignoredFilesCache:Map<String, Bool> = new Map();
   // Cache for file existence checks
   private var _fileExistsCache:Map<String, Bool> = new Map();
   // Cache for asset types to avoid repeated extension parsing
@@ -137,8 +137,6 @@ class PolymodAssetLibrary
     }
     #end
 
-    _buildIgnoredSet();
-
     backend.clearCache();
     init();
 
@@ -173,6 +171,7 @@ class PolymodAssetLibrary
   private function _clearCaches():Void
   {
     _dirCache = new Map();
+    _ignoredFilesCache = new Map();
     _fileExistsCache = new Map();
     _assetTypeCache = new Map();
     _allFilesCache = null;
@@ -760,28 +759,24 @@ class PolymodAssetLibrary
     return '$assetPrefix$id';
   }
 
-  private function _buildIgnoredSet():Void
-  {
-    _ignoredFilesSet = new Map();
-    if (ignoredFiles == null) return;
-
-    for (pattern in ignoredFiles)
-      _ignoredFilesSet.set(pattern, true);
-  }
-
   public function isAssetExcluded(id:String):Bool
   {
     if (ignoredFiles.length == 0) return false;
+    if (_ignoredFilesCache.exists(id)) return _ignoredFilesCache.get(id);
 
     var idStripped = stripAssetsPrefix(id);
     var idPrepend = prependAssetsPrefix(idStripped);
 
-    // TODO: This is MASSIVELY SLOW, any other solutions for this?
-    // for (pattern in ignoredFiles) {
-    // 	var regex = new EReg('^${pattern}$', 'i');
-    // 	if (regex.match(idStripped) || regex.match(idPrepend)) return true;
-    // }
+    for (pattern in ignoredFiles)
+    {
+      if (Util.uIndexOf(idStripped, pattern) == 0 || Util.uIndexOf(idPrepend, pattern) == 0)
+      {
+        _ignoredFilesCache.set(id, true);
+        return true;
+      }
+    }
 
-    return _ignoredFilesSet.exists(idStripped) || _ignoredFilesSet.exists(idPrepend);
+    _ignoredFilesCache.set(id, false);
+    return false;
   }
 }
