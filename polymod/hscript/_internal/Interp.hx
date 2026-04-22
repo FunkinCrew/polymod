@@ -448,6 +448,8 @@ class Interp
         throw SBreak;
       case EContinue:
         throw SContinue;
+      case ECast(e, t):
+        return expr(e);
       case EReturn(e):
         returnValue = e == null ? null : expr(e);
         throw SReturn;

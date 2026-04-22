@@ -61,6 +61,7 @@ enum Expr
   EFor(v:String, it:Expr, e:Expr);
   EBreak;
   EContinue;
+  ECast(e:Expr, ?t:CType);
   EFunction(args:Array<Argument>, e:Expr, ?name:String, ?ret:CType);
   EReturn(?e:Expr);
   EArray(e:Expr, index:Expr);

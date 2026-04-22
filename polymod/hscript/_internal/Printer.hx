@@ -336,6 +336,15 @@ class Printer
         add("break");
       case EContinue:
         add("continue");
+      case ECast(e, t):
+        add("cast(");
+        expr(e);
+        if (t != null)
+        {
+          add(", ");
+          type(t);
+        }
+        add(")");
       case EFunction(params, e, name, ret):
         add("function");
         if (name != null) add(" " + name);
