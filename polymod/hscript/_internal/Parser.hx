@@ -964,6 +964,20 @@ class Parser
           }
         }
         mk(ESwitch(e, cases, def), p1, tokenMax);
+      case "cast":
+        if (maybe(TPOpen))
+        {
+          var e = parseExpr();
+          var t = null;
+          if (allowTypes && maybe(TComma)) t = parseType();
+          ensure(TPClose);
+          return mk(ECast(e, t), p1, tokenMax);
+        }
+        else
+        {
+          var e = parseExpr();
+          return mk(ECast(e, null), p1, pmax(e));
+        }
       default:
         null;
     }
