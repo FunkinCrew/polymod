@@ -246,7 +246,10 @@ class Polymod
         modRoot = './mods';
       }
     }
-    var dirs = params.dirs == null ? [] : params.dirs;
+
+    params.dirs ??= [];
+
+    var dirs = params.dirs;
 
     if (params.fileSystemParams == null) params.fileSystemParams = {modRoot: modRoot};
     if (params.fileSystemParams.modRoot == null) params.fileSystemParams.modRoot = modRoot;
