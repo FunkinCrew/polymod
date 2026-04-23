@@ -2154,6 +2154,59 @@ class PolymodInterpEx extends Interp
     }
   }
 
+  /**
+   * Tries to resolve the type of an imported class, which will end up in `cls`, `enm` or `abs`.
+   * @param importedClass The import to resolve.
+   * @param ignoreEnums Whether to skip resolving enums. Used when resolving a `using` import.
+   * @return `false` if this import was blacklisted, otherwise always `true`.
+   */
+  function resolveImportedClass(importedClass:ClassImport, ignoreEnums:Bool = false):Bool
+  {
+    // The path without the possibly included module name, which resolve methods disregard.
+    final modulelessPath:String = importedClass.pkg.slice(0, -1).concat([importedClass.name]).join('.');
+    for (fullPath in [importedClass.fullPath, modulelessPath])
+    {
+      if (PolymodScriptClass.importOverrides.exists(fullPath))
+      {
+        // importOverrides can exist but be null (if it was set to null).
+        // If so, that means the class is blacklisted.
+        importedClass.cls = PolymodScriptClass.importOverrides.get(fullPath) ?? return false;
+        break;
+      }
+      else if (PolymodScriptClass.abstractClassImpls.exists(fullPath))
+      {
+        // We used a macro to map each abstract to its implementation.
+        importedClass.abs = PolymodScriptClass.abstractClassImpls.get(fullPath);
+        break;
+      }
+      else if (PolymodScriptClass.typedefs.exists(fullPath))
+      {
+        importedClass.cls = PolymodScriptClass.typedefs.get(fullPath);
+        break;
+      }
+      else
+      {
+        var resultCls:Class<Dynamic> = Type.resolveClass(fullPath);
+        if (resultCls != null)
+        {
+          importedClass.cls = resultCls;
+          break;
+        }
+
+        if (ignoreEnums) continue;
+        // If the class is not found, try to find it as an enum.
+        var resultEnm:Enum<Dynamic> = Type.resolveEnum(fullPath);
+        if (resultEnm != null)
+        {
+          importedClass.enm = resultEnm;
+          break;
+        }
+      }
+    }
+
+    return true;
+  }
+
   public function registerModules(module:Array<ModuleDecl>, ?origin:String = "hscript"):Void
   {
     var isImportFile:Bool = (new haxe.io.Path(origin).file == "import");
@@ -2188,8 +2241,7 @@ class PolymodInterpEx extends Interp
         case DPackage(path):
           pkg = path;
         case DImport(path, _, name):
-          var clsName = path[path.length - 1];
-          if (name != null) clsName = name;
+          var clsName:String = name != null ? name : path[path.length - 1];
 
           if (imports.exists(clsName))
           {
@@ -2214,36 +2266,13 @@ class PolymodInterpEx extends Interp
               abs: null
             };
 
-          if (PolymodScriptClass.importOverrides.exists(importedClass.fullPath))
-          {
-            // importOverrides can exist but be null (if it was set to null).
-            // If so, that means the class is blacklisted.
-
-            importedClass.cls = PolymodScriptClass.importOverrides.get(importedClass.fullPath);
-          }
-          else if (PolymodScriptClass.abstractClassImpls.exists(importedClass.fullPath))
-          {
-            // We used a macro to map each abstract to its implementation.
-            importedClass.abs = PolymodScriptClass.abstractClassImpls.get(importedClass.fullPath);
-          }
-          else if (PolymodScriptClass.typedefs.exists(importedClass.fullPath))
-          {
-            importedClass.cls = PolymodScriptClass.typedefs.get(importedClass.fullPath);
-          }
-          else if (_scriptEnumDescriptors.exists(importedClass.fullPath))
+          if (_scriptEnumDescriptors.exists(importedClass.fullPath))
           {
             // do nothing
           }
           else
           {
-            var resultCls:Class<Dynamic> = Type.resolveClass(importedClass.fullPath);
-
-            // If the class is not found, try to find it as an enum.
-            var resultEnm:Enum<Dynamic> = null;
-            if (resultCls == null) resultEnm = Type.resolveEnum(importedClass.fullPath);
-
-            // If the class is still not found, skip this import entirely.
-            if (resultCls == null && resultEnm == null)
+            if (resolveImportedClass(importedClass) && importedClass.cls == null && importedClass.enm == null && importedClass.abs == null)
             {
               if (isImportFile)
               {
@@ -2255,14 +2284,6 @@ class PolymodInterpEx extends Interp
               // this could be a scripted class or enum that hasn't been registered yet
               importsToValidate.set(importedClass.name, importedClass);
               continue;
-            }
-            else if (resultCls != null)
-            {
-              importedClass.cls = resultCls;
-            }
-            else if (resultEnm != null)
-            {
-              importedClass.enm = resultEnm;
             }
           }
 
@@ -2300,30 +2321,14 @@ class PolymodInterpEx extends Interp
               abs: null
             };
 
-          if (PolymodScriptClass.importOverrides.exists(importedClass.fullPath))
-          {
-            // importOverrides can exist but be null (if it was set to null).
-            // If so, that means the class is blacklisted.
-
-            importedClass.cls = PolymodScriptClass.importOverrides.get(importedClass.fullPath);
-          }
-          else if (PolymodScriptClass.abstractClassImpls.exists(importedClass.fullPath))
-          {
-            // We used a macro to map each abstract to its implementation.
-            importedClass.abs = PolymodScriptClass.abstractClassImpls.get(importedClass.fullPath);
-          }
-          else if (_scriptEnumDescriptors.exists(importedClass.fullPath))
+          if (_scriptEnumDescriptors.exists(importedClass.fullPath))
           {
             // do nothing
           }
           else
           {
-            var resultCls:Class<Dynamic> = Type.resolveClass(importedClass.fullPath);
-
             // If the class is still not found, skip this import entirely.
-            if (resultCls == null) continue;
-
-            importedClass.cls = resultCls;
+            if (!resolveImportedClass(importedClass, true) || importedClass.cls == null && importedClass.enm == null && importedClass.abs == null) continue;
           }
 
           if (isImportFile)
