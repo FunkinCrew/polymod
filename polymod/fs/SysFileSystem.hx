@@ -8,7 +8,7 @@ import polymod.util.Util;
 import polymod.util.VersionUtil;
 import thx.semver.VersionRule;
 
-#if linux
+#if (!windows)
 using StringTools;
 #end
 
@@ -27,7 +27,7 @@ class SysFileSystem implements IFileSystem
 
   public function exists(path:String)
   {
-    #if linux
+    #if (!windows)
     return getPathLike(path) != null;
     #else
     return sys.FileSystem.exists(path);
@@ -36,7 +36,7 @@ class SysFileSystem implements IFileSystem
 
   public function isDirectory(path:String)
   {
-    #if linux
+    #if (!windows)
     path = getPathLike(path);
     #end
     return sys.FileSystem.isDirectory(path);
@@ -46,7 +46,7 @@ class SysFileSystem implements IFileSystem
   {
     try
     {
-      #if linux
+      #if (!windows)
       path = getPathLike(path);
       #end
       return sys.FileSystem.readDirectory(path);
@@ -60,7 +60,7 @@ class SysFileSystem implements IFileSystem
 
   public function getFileContent(path:String)
   {
-    #if linux
+    #if (!windows)
     path = getPathLike(path);
     #end
     return getFileBytes(path).toString();
@@ -68,7 +68,7 @@ class SysFileSystem implements IFileSystem
 
   public function getFileBytes(path:String)
   {
-    #if linux
+    #if (!windows)
     path = getPathLike(path);
     if (path == null) return null;
     #else
@@ -218,7 +218,7 @@ class SysFileSystem implements IFileSystem
     return all;
   }
 
-  #if linux
+  #if (!windows)
   /**
    * Returns a path to the existing file similar to the given one.
    * (For instance "mod/firelight" and  "Mod/FireLight" are *similar* paths)
