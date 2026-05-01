@@ -995,18 +995,26 @@ class HScriptedClassMacro
                           {_asc.callFunction($v{funcName}, [$a{func_callArgs}]); return;}) : (macro return _asc.callFunction($v{funcName}, [$a{func_callArgs}]))
                       }
                     }
-                    // If another scripted class is being extended, call if the function exists there
-                    else if ((_asc.superClass is polymod.hscript._internal.PolymodScriptClass)
-                      && _asc.superClass.hasScriptFunction($v{funcName}))
+                    else
                     {
-                      var _super = (_asc.superClass : polymod.hscript._internal.PolymodScriptClass);
-                      $
+                      // If another scripted class is being extended, call if the function exists there
+                      var _super = _asc.superClass;
+                      while (_super is polymod.hscript._internal.PolymodScriptClass)
                       {
-                        doesReturnVoid ? (macro
+                        var _scriptSuper = (_super : polymod.hscript._internal.PolymodScriptClass);
+                        if (_scriptSuper.hasScriptFunction($v{funcName}))
+                        {
+                          $
                           {
-                            _super.callFunction($v{funcName}, [$a{func_callArgs}]);
-                            return;
-                          }) : (macro return _super.callFunction($v{funcName}, [$a{func_callArgs}]))
+                            doesReturnVoid ? (macro
+                              {
+                                _scriptSuper.callFunction($v{funcName}, [$a{func_callArgs}]);
+                                return;
+                              }) : (macro return _scriptSuper.callFunction($v{funcName}, [$a{func_callArgs}]))
+                          }
+                        }
+
+                        _super = _scriptSuper.superClass;
                       }
                     }
                   }
