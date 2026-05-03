@@ -118,7 +118,7 @@ class HScriptableMacro
             {
               var module:String = Context.getLocalModule();
               module = StringTools.replace(module, '.', '/');
-              pathName = $v{'$module/$pathName'};
+              pathName = '$module/$pathName';
             }
 
             // If pathName is a string, set it.
