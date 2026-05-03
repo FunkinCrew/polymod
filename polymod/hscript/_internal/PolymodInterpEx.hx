@@ -647,12 +647,8 @@ class PolymodInterpEx extends Interp
   public override function expr(e:Expr):Dynamic
   {
     // Override to provide some fixes, falling back to super.expr() when not needed.
-    #if hscriptPos
     curExpr = e;
     switch (e.e)
-    #else
-    switch (e)
-    #end
     {
       // These overrides are used to handle specific cases where problems occur.
       case EVar(name, type, expression):
@@ -885,11 +881,7 @@ class PolymodInterpEx extends Interp
         }
         catch (error:Error)
         {
-          #if hscriptPos
           var err = error.e;
-          #else
-          var err = error;
-          #end
           // restore vars
           restore(old);
           inTry = oldTry;
@@ -1051,12 +1043,9 @@ class PolymodInterpEx extends Interp
       return this.expr(e);
     }
 
-    #if hscriptPos
     curExpr = e;
+
     switch (e.e)
-    #else
-    switch (e)
-    #end
     {
       case EArrayDecl(arr):
         // Initialize an array (or map) from a declaration.
@@ -1084,9 +1073,7 @@ class PolymodInterpEx extends Interp
                 }
                 else
                 {
-                  #if hscriptPos
                   curExpr = e;
-                  #end
                   var err = 'Invalid expression in map initialization (expected key=>value, got ${Printer.toString(e)})';
                   error(ECustom(err));
                 }
@@ -1105,9 +1092,7 @@ class PolymodInterpEx extends Interp
                 }
                 else
                 {
-                  #if hscriptPos
                   curExpr = e;
-                  #end
                   var err = 'Invalid expression in array initialization (expected no key=>value pairs, got ${Printer.toString(e)})';
                   error(ECustom(err));
                 }
@@ -1146,9 +1131,8 @@ class PolymodInterpEx extends Interp
         default:
           // Complain about anything else.
           // This error message has been modified to provide more information.
-          #if hscriptPos
           curExpr = e;
-          #end
+
           var err = 'Invalid expression in map initialization (expected key=>value, got ${Printer.toString(e)})';
           error(ECustom(err));
       }
@@ -1194,7 +1178,7 @@ class PolymodInterpEx extends Interp
 
   function getIdent(e:Expr):Null<String>
   {
-    switch (#if hscriptPos e.e #else e #end)
+    switch (e.e)
     {
       case EIdent(v):
         return v;

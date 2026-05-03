@@ -175,7 +175,7 @@ class Printer
       add("??NULL??");
       return;
     }
-    switch (#if hscriptPos e.e #else e #end)
+    switch (e.e)
     {
       case EConst(c):
         addConst(c);
@@ -211,15 +211,15 @@ class Printer
           // account for null coalescing
           if (el.length == 2)
           {
-            switch (#if hscriptPos el[0].e #else el[0] #end)
+            switch (el[0].e)
             {
               case EVar(n, _, e):
                 if (n.indexOf("__a_") == 0)
                 {
-                  switch (#if hscriptPos el[1].e #else el[1] #end)
+                  switch (el[1].e)
                   {
                     case ETernary(c, e11, e12):
-                      switch (#if hscriptPos c.e #else c #end)
+                      switch (c.e)
                       {
                         case EBinop(op, _, _):
                           if (op == "==")
@@ -282,7 +282,7 @@ class Printer
       case ECall(e, args):
         if (e == null) expr(e);
         else
-          switch (#if hscriptPos e.e #else e #end)
+          switch (e.e)
           {
             case EField(_), EIdent(_), EConst(_):
               expr(e);
@@ -730,12 +730,12 @@ class Printer
   /**
    * Converts an `Error` object into a human-readable `String` representation.
    * @param e The error to convert.
-   * @param includePosInfo Prepends the origin and line position number, only works if `hscriptPos` is defined.
+   * @param includePosInfo Prepends the origin and line position number.
    * @return String
    */
   public static function errorToString(e:Expr.Error, includePosInfo:Bool = true):String
   {
-    var message = switch (#if hscriptPos e.e #else e #end)
+    var message = switch (e.e)
     {
       case EInvalidChar(c): "Invalid character: '" + (StringTools.isEof(c) ? "EOF" : String.fromCharCode(c)) + "' (" + c + ")";
       case EUnexpected(s): "Unexpected token: \"" + s + "\"";
@@ -769,9 +769,9 @@ class Printer
       case EScriptThrow(v): "User script threw an exception: " + v;
       case ECustom(msg): msg;
     };
-    #if hscriptPos
+
     if (includePosInfo) message = e.origin + ":" + e.line + ": " + message;
-    #end
+
     return message;
   }
 }

@@ -163,12 +163,8 @@ class PolymodScriptClass
       }
       catch (err:Expr.Error)
       {
-        var errLine:String = #if hscriptPos '${err.line}' #else "#???" #end;
-        #if hscriptPos
+        var errLine:String = '${err.line}';
         switch (err.e)
-        #else
-        switch (err)
-        #end
         {
           case EUnexpected(s):
             Polymod.error(SCRIPT_PARSE_FAILED,
@@ -201,12 +197,8 @@ class PolymodScriptClass
       }
       catch (err:Expr.Error)
       {
-        var errLine:String = #if hscriptPos '${err.line}' #else "#???" #end;
-        #if hscriptPos
+        var errLine:String = '${err.line}';
         switch (err.e)
-        #else
-        switch (err)
-        #end
         {
           case EUnexpected(s):
             Polymod.error(SCRIPT_PARSE_FAILED,
@@ -571,8 +563,8 @@ class PolymodScriptClass
 
   public static function reportError(err:Expr.Error, ?className:String, ?fnName:String):Void
   {
-    var errLine:String = #if hscriptPos '${err.line}' #else "???" #end;
-    var message:String = switch (#if hscriptPos err.e #else err #end)
+    var errLine:String = '${err.line}';
+    var message:String = switch (err.e)
     {
       case ECustom(msg):
         'An unknown error occurred: $msg';

@@ -509,17 +509,13 @@ class Checker
 
   inline function edef(e:Expr)
   {
-    #if hscriptPos
     return e.e;
-    #else
-    return e;
-    #end
   }
 
   inline function error(msg:String, curExpr:Expr)
   {
     var e = ECustom(msg);
-    #if hscriptPos var e = new Error(e, curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line); #end
+    var e = new Error(e, curExpr.pmin, curExpr.pmax, curExpr.origin, curExpr.line);
     if (!isCompletion) throw e;
   }
 
@@ -1043,17 +1039,13 @@ class Checker
 
   function mk(e, p):Expr
   {
-    #if hscriptPos
     return {
       e: e,
       pmin: p.pmin,
       pmax: p.pmax,
       origin: p.origin,
       line: p.line
-    };
-    #else
-    return e;
-    #end
+    }
   }
 
   function isString(t:TType)

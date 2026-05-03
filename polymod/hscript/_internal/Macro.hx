@@ -23,9 +23,7 @@
 package polymod.hscript._internal;
 
 import polymod.hscript._internal.Expr.Error;
-#if hscriptPos
 import polymod.hscript._internal.Expr.ErrorDef;
-#end
 import haxe.macro.Expr;
 
 class Macro
@@ -185,7 +183,7 @@ class Macro
   public function convert(e:hscript.Expr):Expr
   {
     return {
-      expr: switch (#if hscriptPos e.e #else e #end)
+      expr: switch (e.e)
       {
         case EConst(c):
           EConst( switch (c)
@@ -223,7 +221,7 @@ class Macro
         case EDoWhile(c, e):
           EWhile(convert(c), convert(e), false);
         case EFor(v, it, efor):
-          var p = #if (!macro && hscriptPos)
+          var p = #if !macro
             {file: p.file, min: e.pmin, max: e.pmax} #else p #end;
           EFor({expr: EBinop(OpIn, {expr: EConst(CIdent(v)), pos: p}, convert(it)), pos: p}, convert(efor));
         case EForGen(it, efor):
@@ -282,13 +280,13 @@ class Macro
               {values: [for (v in c.values) convert(v)], expr: convert(c.expr)}
           ], edef == null ? null : convert(edef));
         case EMeta(m, params, esub):
-          var mpos = #if (!macro && hscriptPos)
+          var mpos = #if !macro
             {file: p.file, min: e.pmin, max: e.pmax} #else p #end;
           EMeta({name: m, params: params == null ? [] : [for (p in params) convert(p)], pos: mpos}, convert(esub));
         case ECheckType(e, t):
           ECheckType(convert(e), convertType(t));
       },
-      pos: #if (!macro && hscriptPos)
+      pos: #if !macro
       {file: p.file, min: e.pmin, max: e.pmax} #else p #end
     }
   }

@@ -45,9 +45,7 @@ class Interp
   var declared:Array<{n:String, old:{r:Dynamic, ?isfinal:Bool}}>;
   var returnValue:Dynamic;
 
-  #if hscriptPos
   var curExpr:Expr;
-  #end
 
   public function new()
   {
@@ -75,9 +73,7 @@ class Interp
 
   public function posInfos():PosInfos
   {
-    #if hscriptPos
     if (curExpr != null) return cast {fileName: curExpr.origin, lineNumber: curExpr.line};
-    #end
     return cast {fileName: "hscript", lineNumber: 0};
   }
 
@@ -209,10 +205,8 @@ class Interp
 
   function increment(e:Expr, prefix:Bool, delta:Int):Dynamic
   {
-    #if hscriptPos
     curExpr = e;
     var e = e.e;
-    #end
     switch (e)
     {
       case EIdent(id):
@@ -323,9 +317,9 @@ class Interp
     }
   }
 
-  inline function error(e:#if hscriptPos ErrorDef #else Error #end, rethrow = false):Dynamic
+  inline function error(e:ErrorDef, rethrow = false):Dynamic
   {
-    #if hscriptPos var e = new Error(e, curExpr?.pmin ?? 0, curExpr?.pmax ?? 0, curExpr?.origin ?? 'unknown', curExpr?.line ?? 0); #end
+    var e = new Error(e, curExpr?.pmin ?? 0, curExpr?.pmax ?? 0, curExpr?.origin ?? 'unknown', curExpr?.line ?? 0);
     if (rethrow) this.rethrow(e)
     else
       throw e;
@@ -350,10 +344,8 @@ class Interp
 
   public function expr(e:Expr):Dynamic
   {
-    #if hscriptPos
     curExpr = e;
     var e = e.e;
-    #end
     switch (e)
     {
       case EConst(c):
@@ -435,9 +427,7 @@ class Interp
         Tools.getKeyIterator(it, function(vk, vv, it) {
           if (vk == null)
           {
-            #if hscriptPos
             curExpr = it;
-            #end
             error(ECustom("Invalid for expression"));
             return;
           }
@@ -549,9 +539,7 @@ class Interp
                 keys.push(expr(eKey));
                 values.push(expr(eValue));
               default:
-                #if hscriptPos
                 curExpr = e;
-                #end
                 error(ECustom("Invalid map key=>value expression"));
             }
           }

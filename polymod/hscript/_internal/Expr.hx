@@ -29,7 +29,6 @@ enum Const
   CString(s:String, ?interpolated:Bool);
 }
 
-#if hscriptPos
 typedef Expr =
 {
   var e:ExprDef;
@@ -40,11 +39,6 @@ typedef Expr =
 }
 
 enum ExprDef
-#else
-typedef ExprDef = Expr;
-
-enum Expr
-#end
 {
   EConst(c:Const);
   EIdent(v:String);
@@ -99,7 +93,6 @@ enum CType
   CTExpr(e:Expr); // for type parameters only
 }
 
-#if hscriptPos
 /**
  * Stores information about an error.
  */
@@ -147,9 +140,6 @@ class Error
 }
 
 enum ErrorDef
-#else
-enum Error
-#end
 {
   EInvalidChar(c:Int);
   EUnexpected(s:String);

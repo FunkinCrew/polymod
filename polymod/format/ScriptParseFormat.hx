@@ -51,7 +51,7 @@ class ScriptParseFormat implements BaseParseFormat
     }
     catch (e:Error)
     {
-      Polymod.error(ASSET_MERGE_FAILED, 'Script merge error: ${e#if hscriptPos .toString() #end}');
+      Polymod.error(ASSET_MERGE_FAILED, 'Script merge error: ${e.toString()}');
       return [];
     }
 
@@ -160,7 +160,7 @@ class ScriptParseFormat implements BaseParseFormat
                   continue;
                 }
 
-                var insertIndex:Int = switch (meta.params[0]#if hscriptPos .e #end)
+                var insertIndex:Int = switch (meta.params[0].e)
                 {
                   case EConst(c):
                     switch (c)
@@ -177,7 +177,7 @@ class ScriptParseFormat implements BaseParseFormat
                     switch (baseClass.fields[baseFieldIndex].kind)
                     {
                       case KFunction(f2):
-                        var funcExpr = #if hscriptPos f2.expr.e; #else f2.expr; #end
+                        var funcExpr = f2.expr.e;
 
                         // If the function isn't in a block, turn it into a block.
                         switch (funcExpr)

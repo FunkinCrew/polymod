@@ -135,11 +135,9 @@ class Bytes
 
   function doEncode(e:Expr)
   {
-    #if hscriptPos
     doEncodeString(e.origin);
     doEncodeInt(e.line);
     var e = e.e;
-    #end
     bout.addByte(exprIndex(e));
     switch (e)
     {
@@ -296,24 +294,26 @@ class Bytes
 
   function doDecode():Expr
   {
-  #if hscriptPos
-  if (bin.get(pin) == 255)
-  {
-    pin++;
-    return null;
+    if (bin.get(pin) == 255)
+    {
+      pin++;
+      return null;
+    }
+
+    var origin = doDecodeString();
+    var line = doDecodeInt();
+
+    return {
+      e: _doDecode(),
+      pmin: 0,
+      pmax: 0,
+      origin: origin,
+      line: line
+    }
   }
-  var origin = doDecodeString();
-  var line = doDecodeInt();
-  return {
-    e: _doDecode(),
-    pmin: 0,
-    pmax: 0,
-    origin: origin,
-    line: line
-  };
-  } function _doDecode():ExprDef
+
+  function _doDecode():ExprDef
   {
-  #end
     return switch (bin.get(pin++))
     {
       case 0:

@@ -42,37 +42,31 @@ class Async
   public var asyncIdents:Map<String, Bool>;
 
   static var nullExpr:Expr =
-    #if hscriptPos
-    {
-      e: null,
-      pmin: 0,
-      pmax: 0,
-      origin: "<null>",
-      line: 0
-    }
-    #else
-    null
-    #end;
+  {
+    e: null,
+    pmin: 0,
+    pmax: 0,
+    origin: "<null>",
+    line: 0
+  }
+
   static var nullId = mk(EIdent("null"), nullExpr);
 
   inline static function expr(e:Expr)
   {
-    return #if hscriptPos e.e #else e #end;
+    return e.e;
   }
 
   inline static function mk(e, inf:Expr):Expr
   {
-    return #if hscriptPos
-      {
-        e: e,
-        pmin: inf.pmin,
-        pmax: inf.pmax,
-        origin: inf.origin,
-        line: inf.line
-      }
-    #else
-      e
-    #end;
+    return
+    {
+      e: e,
+      pmin: inf.pmin,
+      pmax: inf.pmax,
+      origin: inf.origin,
+      line: inf.line
+    }
   }
 
   /**

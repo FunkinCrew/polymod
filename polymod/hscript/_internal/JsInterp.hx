@@ -92,13 +92,9 @@ class JsInterp extends Interp
 
   function addPos(estr:String)
   {
-    #if hscriptPos
     var expr = curExpr;
     var p = '{pmin:,pmax:,origin:"",line:}';
     return '($$i._p(${expr.pmin},${expr.pmax},"${expr.origin}",${expr.line}),$estr)';
-    #else
-    return estr;
-    #end
   }
 
   function isContext(v:String)
@@ -145,10 +141,8 @@ class JsInterp extends Interp
 
   function exprJS(expr:Expr):String
   {
-    #if hscriptPos
     curExpr = expr;
     var expr = expr.e;
-    #end
     switch (expr)
     {
       case EConst(c):
@@ -346,9 +340,7 @@ class JsInterp extends Interp
                 keys.push(exprValue(eKey));
                 values.push(exprValue(eValue));
               default:
-                #if hscriptPos
                 curExpr = e;
-                #end
                 error(ECustom("Invalid map key=>value expression"));
             }
           }
@@ -427,7 +419,6 @@ class JsInterp extends Interp
     return Std.isOfType(v1, v2);
   }
 
-  #if hscriptPos
   function _p(pmin, pmax, origin, line)
   {
     curExpr =
@@ -439,5 +430,4 @@ class JsInterp extends Interp
         line: line
       };
   }
-  #end
 }
