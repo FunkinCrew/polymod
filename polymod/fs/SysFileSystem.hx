@@ -160,6 +160,7 @@ class SysFileSystem implements IFileSystem
 
   public function getMetadataById(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
+    // TODO: Cache mod IDs so we don't iterate over the whole mods folder every time we call this!
     for (dir in readDirectory(modRoot))
     {
       var modPath = Util.pathJoin(modRoot, dir);
@@ -182,7 +183,7 @@ class SysFileSystem implements IFileSystem
         if (meta.id != modId && dir != modId) continue;
         meta.dirName = dir;
         meta.modPath = modPath;
-  
+
         if (!exists(iconFile))
         {
           Polymod.warning(MOD_MISSING_ICON, 'Could not find mod icon file: $iconFile', origin);
@@ -193,7 +194,7 @@ class SysFileSystem implements IFileSystem
           meta.icon = iconBytes;
           meta.iconPath = iconFile;
         }
-    
+
         return meta;
       }
     }

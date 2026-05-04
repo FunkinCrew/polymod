@@ -83,10 +83,10 @@ class PlayState extends FlxState
 
 		if (enabled) {
 			enabled = false;
-			Polymod.disableModdedAssets();
+			loadMods([]);
 		} else {
 			enabled = true;
-			Polymod.enableModdedAssets();
+			reloadMods();
 		}
 
 		refresh();
@@ -275,9 +275,9 @@ class PlayState extends FlxState
 		loadMods(theMods);
 	}
 
-	private function loadMods(dirs:Array<String>)
+	private function loadMods(modIds:Array<String>)
 	{
-		trace('Loading mods: ${dirs}');
+		trace('Loading mods: ${modIds}');
 
 		var modDir:String = '../../../mods';
 		#if mac
@@ -287,7 +287,7 @@ class PlayState extends FlxState
 
 		var results = Polymod.init({
 			modRoot: modDir,
-			dirs: dirs,
+			modIds: modIds,
 			errorCallback: onError,
 			ignoredFiles: Polymod.getDefaultIgnoreList(),
 			framework: Framework.FLIXEL

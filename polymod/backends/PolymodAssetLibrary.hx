@@ -24,10 +24,16 @@ typedef PolymodAssetLibraryParams =
   backend:IBackend,
 
   /**
-   * paths to each mod's root directories.
-   * This takes precedence over the 'Dir' parameter and the order matters -- mod files will load from first to last, with last taking precedence
+   * IDs of the mods to load.
+   * order matters -- mod files will load from first to last, with last taking precedence
    */
-  dirs:Array<String>,
+  modIds:Array<String>,
+
+  /**
+   * paths to each mod's root directories.
+   * order matters -- mods will load from first to last, with last taking precedence
+   */
+  modDirs:Array<String>,
 
   /**
    * the file system used to fetch your mod assets from storage
@@ -74,7 +80,8 @@ class PolymodAssetLibrary
   public var typeLibraries(default, null):Map<String, Array<String>>;
 
   public var assetPrefix(default, null):String = "assets/";
-  public var dirs:Array<String> = null;
+  public var modIds:Array<String> = null;
+  public var modDirs:Array<String> = null;
   public var ignoredFiles:Array<String> = null;
 
   private var parseRules:ParseRules = null;
@@ -120,7 +127,8 @@ class PolymodAssetLibrary
     backend = params.backend;
     fileSystem = params.fileSystem;
     backend.polymodLibrary = this;
-    dirs = params.dirs;
+    modIds = params.modIds;
+    modDirs = params.modDirs;
     parseRules = params.parseRules;
     frameworkParams = params.frameworkParams;
     ignoredFiles = params.ignoredFiles != null ? params.ignoredFiles.copy() : [];
@@ -168,7 +176,7 @@ class PolymodAssetLibrary
     Polymod.clearScripts();
   }
 
-  private function _clearCaches():Void
+  function _clearCaches():Void
   {
     _dirCache = new Map();
     _ignoredFilesCache = new Map();
@@ -186,7 +194,7 @@ class PolymodAssetLibrary
       return _textCache.get(cacheKey);
     }
 
-    modText = Util.mergeAndAppendText(modText, id, dirs, getTextDirectly, fileSystem, parseRules);
+    modText = Util.mergeAndAppendText(modText, id, modDirs, getTextDirectly, fileSystem, parseRules);
 
     if (PolymodConfig.enableTextCache)
     {
@@ -295,7 +303,7 @@ class PolymodAssetLibrary
     _clearCaches();
   }
 
-  public function list(type:PolymodAssetType = null):Array<String>
+  public function list(?type:PolymodAssetType):Array<String>
   {
     // Use pre-built cache when possible
     if (type == null && _allFilesCache != null)
@@ -311,7 +319,7 @@ class PolymodAssetLibrary
     return backend.listLibraries();
   }
 
-  public function listModFiles(type:PolymodAssetType = null):Array<String>
+  public function listModFiles(?type:PolymodAssetType):Array<String>
   {
     // Use pre-built cache
     if (_allFilesCache != null)
@@ -351,7 +359,7 @@ class PolymodAssetLibrary
    * @param	id
    * @return
    */
-  public function check(id:String, type:PolymodAssetType = null):Bool
+  public function check(id:String, ?type:PolymodAssetType):Bool
   {
     var exists = _checkExists(id);
     if (exists && type != null && type != PolymodAssetType.BYTES)
@@ -372,16 +380,16 @@ class PolymodAssetLibrary
     return null;
   }
 
-  public function checkDirectly(id:String, dir:String = ''):Bool
+  public function checkDirectly(id:String, modDir:String = ''):Bool
   {
     id = stripAssetsPrefix(id);
-    if (dir == null || dir == '')
+    if (modDir == null || modDir == '')
     {
       return _cachedFileSystemExists(id);
     }
     else
     {
-      var thePath = Util.uCombine([dir, Util.sl(), id]);
+      var thePath = Util.uCombine([modDir, Util.sl(), id]);
       return _cachedFileSystemExists(thePath);
     }
   }
@@ -392,18 +400,18 @@ class PolymodAssetLibrary
    * @param	id
    * @return
    */
-  public function file(id:String, theDir:String = ''):String
+  public function file(id:String, fileDir:String = ''):String
   {
     var idStripped = stripAssetsPrefix(id);
-    if (theDir != '')
+    if (fileDir != '')
     {
-      if (idStripped.startsWith(theDir)) return idStripped;
-      return Util.pathJoin(theDir, idStripped);
+      if (idStripped.startsWith(fileDir)) return idStripped;
+      return Util.pathJoin(fileDir, idStripped);
     }
 
     var result = '';
     var resultLocalized = false;
-    for (modDir in dirs)
+    for (modDir in modDirs)
     {
       #if firetongue
       if (localeAssetPrefix != null)
@@ -450,7 +458,7 @@ class PolymodAssetLibrary
     return null;
   }
 
-  private function _cachedFileSystemExists(path:String):Bool
+  function _cachedFileSystemExists(path:String):Bool
   {
     if (_fileExistsCache.exists(path))
     {
@@ -462,23 +470,23 @@ class PolymodAssetLibrary
     return exists;
   }
 
-  private function _checkExists(id:String):Bool
+  function _checkExists(id:String):Bool
   {
     if (isAssetExcluded(id)) return false;
 
     id = stripAssetsPrefix(id);
-    for (d in dirs)
+    for (modDir in modDirs)
     {
       #if firetongue
       if (localeAssetPrefix != null)
       {
-        var localePath = Util.pathJoin(d, Util.pathJoin(localeAssetPrefix, id));
+        var localePath = Util.pathJoin(modDir, Util.pathJoin(localeAssetPrefix, id));
         if (_cachedFileSystemExists(localePath)) return true;
       }
       // Else, FireTongue not enabled.
       #end
 
-      var filePath = Util.pathJoin(d, id);
+      var filePath = Util.pathJoin(modDir, id);
       if (_cachedFileSystemExists(filePath))
       {
         return true;
@@ -488,7 +496,7 @@ class PolymodAssetLibrary
     return false;
   }
 
-  private function init()
+  function init():Void
   {
     type = [];
     typeLibraries = ['default' => []];
@@ -504,16 +512,16 @@ class PolymodAssetLibrary
 
     initExtensions();
     if (parseRules == null) parseRules = ParseRules.getDefault();
-    if (dirs != null)
+    if (modDirs != null)
     {
-      for (d in dirs)
+      for (modDir in modDirs)
       {
-        initMod(d);
+        initMod(modDir);
       }
     }
   }
 
-  private function _buildAllFilesCache():Void
+  function _buildAllFilesCache():Void
   {
     _allFilesCache = [];
     for (id in type.keys())
@@ -523,7 +531,7 @@ class PolymodAssetLibrary
     }
   }
 
-  private function initExtensions()
+  function initExtensions():Void
   {
     if (extensions == null) extensions = new Map<String, PolymodAssetType>();
 
@@ -563,7 +571,7 @@ class PolymodAssetLibrary
     _extensionSet('webm', VIDEO);
   }
 
-  private function _extensionSet(str:String, type:PolymodAssetType)
+  function _extensionSet(str:String, type:PolymodAssetType):Void
   {
     if (extensions.exists(str) == false)
     {
@@ -571,7 +579,7 @@ class PolymodAssetLibrary
     }
   }
 
-  private function initMod(d:String):Void
+  function initMod(d:String):Void
   {
     Polymod.info(MOD_LOAD_START, 'Preparing to load mod $d');
     if (d == null) return;
@@ -599,7 +607,7 @@ class PolymodAssetLibrary
       }
     }
 
-    if (all == null) all = [];
+    all ??= [];
 
     for (f in all)
     {
@@ -665,7 +673,7 @@ class PolymodAssetLibrary
   }
 
   @:allow(polymod.backends.LimeCoreLibrary)
-  private function initRedirectPath(libraryId:String, redirectPath:String, pathPrefix:String = ''):Void
+  function initRedirectPath(libraryId:String, redirectPath:String, pathPrefix:String = ''):Void
   {
     if (!typeLibraries.exists(libraryId))
     {

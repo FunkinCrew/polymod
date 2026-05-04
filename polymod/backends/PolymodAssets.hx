@@ -32,10 +32,16 @@ typedef PolymodAssetsParams =
   frameworkParams:FrameworkParams,
 
   /**
-   * paths to each mod's root directories.
-   * This takes precedence over the 'Dir' parameter and the order matters -- mod files will load from first to last, with last taking precedence
+   * IDs of the mods to load.
+   * order matters -- mod files will load from first to last, with last taking precedence
    */
-  dirs:Array<String>,
+  modIds:Array<String>,
+
+  /**
+   * paths to each mod's root directories.
+   * order matters -- mods will load from first to last, with last taking precedence
+   */
+  modDirs:Array<String>,
 
   /**
    * (optional) parsing rules for various data formats
@@ -140,7 +146,8 @@ class PolymodAssets
     library = new PolymodAssetLibrary(
       {
         backend: backend,
-        dirs: params.dirs,
+        modIds: params.modIds,
+        modDirs: params.modDirs,
         parseRules: params.parseRules,
         ignoredFiles: params.ignoredFiles,
         extensionMap: params.extensionMap,
