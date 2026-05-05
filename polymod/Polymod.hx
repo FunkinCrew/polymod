@@ -759,9 +759,30 @@ class Polymod
   }
 
   /**
+   * Re-sort the list of mods such that dependency order is satisfied.
+   *
+   * @param modMetadatas The list of mods to reorder.
+   * @param strict If `true`, return `[]` if a required dependency is unmet.
+   * @return The sorted list.
+   */
+  public static function sortModsByDependencies(modMetadatas:Array<ModMetadata>, strict:Bool = false):Array<ModMetadata> {
+    return DependencyUtil.sortByDependencies(modMetadatas, !strict);
+  }
+
+  /**
+   * Determines whether all mandatory dependencies are met for each mod in the list.
+   *
+   * @param modMetadatas The list of mods to validate.
+   * @return Whether all required, non-optional dependencies are met.
+   */
+  public static function validateModDependencies(modMetadatas:Array<ModMetadata>):Bool {
+    return DependencyUtil.validateDependencies(modMetadatas);
+  }
+
+  /**
    * Tells Polymod to force the current backend to clear any asset caches.
    */
-  public static function clearCache()
+  public static function clearCache():Void
   {
     if (assetLibrary == null)
     {

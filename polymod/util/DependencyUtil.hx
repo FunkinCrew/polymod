@@ -16,7 +16,7 @@ class DependencyUtil
    * Given an ordered list of mods, return a reordered list of mods which satisfies dependency order.
    *
    * @param mods The list of mods to reorder.
-   * @param ignoreErrors If true, omit mods which cannot be reordered or whose dependencies are not met.
+   * @param skipErrors If true, omit mods which cannot be reordered or whose dependencies are not met.
    *                     If false, raise an error in these cases and return `[]`.
    * @return The reordered list of mods, or `[]` if an error occurred.
    */
@@ -27,9 +27,6 @@ class DependencyUtil
       // If skipErrors is true, a mod with unmet dependencies will call Polymod.warn() and be omitted from the list.
       var filteredMods = filterDependencies(modList);
 
-      var test = filteredMods.map(function(mod:ModMetadata) {
-        return mod.id;
-      });
       return buildTopologyForDependencies(filteredMods, true);
     }
     else
@@ -107,8 +104,11 @@ class DependencyUtil
 
   /**
    * Given an unordered list of mods, return true only if all dependencies are met.
+   *
+   * @param modList The list of mods to validate.
+   * @return `true` if all dependencies are met, `false` otherwise.
    */
-  static function validateDependencies(modList:Array<ModMetadata>):Bool
+  public static function validateDependencies(modList:Array<ModMetadata>):Bool
   {
     // Compile a map of mod dependencies.
     var deps:ModDependencies = compileDependencies(modList);
@@ -296,10 +296,13 @@ class DependencyUtil
   }
 
   /**
-   * Given a list of mods, return a merged list of mod dependency versions.
+   * Given a list of mods with required dependencies, return a merged list of mod dependency versions.
    *
    * For example, if one mod requires `>1.2.0` of `modA` and another requires `>1.3.0` of `modA`,
    * the merged list will be `[modA: '>1.2.0 && >1.3.0']`.
+   *
+   * @param modList The list of mods to compile dependencies for.
+   * @return A map of mod IDs to versions.
    */
   public static function compileDependencies(modList:Array<ModMetadata>):Map<String, VersionRule>
   {
