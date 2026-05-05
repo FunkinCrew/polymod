@@ -60,7 +60,7 @@ class SysZipFileSystem extends SysFileSystem
     if (params.autoScan) addAllZips();
   }
 
-  #if linux
+  #if (!windows)
   public override function getPathLike(path:String):Null<String>
   {
     var filePath = filesLocations.get(path);
