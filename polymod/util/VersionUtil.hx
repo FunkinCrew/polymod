@@ -10,6 +10,7 @@ using Lambda;
  * increment the minor version (1.x.0) if you make a new feature (but previous content is still compatible),
  * and increment the major version (x.0.0) if you make a breaking change (e.g. new API or reorganized file format).
  */
+@:nullSafety
 class VersionUtil
 {
   public static final DEFAULT_VERSION:Version = "1.0.0";

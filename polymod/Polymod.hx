@@ -1257,6 +1257,10 @@ class ModMetadata
 
     return m;
   }
+
+  public function toString():String {
+    return 'ModMetadata($id:$modVersion)';
+  }
 }
 
 /**

@@ -10,6 +10,7 @@ import thx.semver.VersionRule;
  * - Ensure a mod is not loaded if a dependency is missing or has a mismatched version.
  * - Ensure mods are loaded in the correct order (dependency mods before dependent mods).
  */
+@:nullSafety
 class DependencyUtil
 {
   /**
@@ -20,7 +21,7 @@ class DependencyUtil
    *                     If false, raise an error in these cases and return `[]`.
    * @return The reordered list of mods, or `[]` if an error occurred.
    */
-  public static function sortByDependencies(modList:Array<ModMetadata>, ?skipErrors:Bool = false):Array<ModMetadata>
+  public static function sortByDependencies(modList:Array<ModMetadata>, skipErrors:Bool = false):Array<ModMetadata>
   {
     if (skipErrors)
     {
@@ -48,55 +49,33 @@ class DependencyUtil
   {
     var result:Array<ModMetadata> = [];
 
-    // Compile a map of mod dependencies.
-    var deps:ModDependencies = compileDependencies(modList);
+    for (currentMod in modList) {
+      var currentModMissingDep:Bool = false;
+      for (depId => depVersionRule in currentMod.dependencies) {
+        // Check that the dependency is loaded.
+        // NOTE: We don't care about the dependency being loaded before this mod,
+        // we'll reorder the mods later.
 
-    // Check that all mods are in the mod list.
-    var relevantMods:Array<ModMetadata> = [];
-    for (mod in modList)
-    {
-      if (deps.exists(mod.id))
-      {
-        relevantMods.push(mod);
-      }
-    }
+        var depMod:Null<ModMetadata> = null;
+        for (mod in modList) {
+          if (mod.id == depId) depMod = mod;
+        }
 
-    // Check that all dependencies are satisfied.
-    for (dep in deps.keys())
-    {
-      var depRule:VersionRule = deps.get(dep);
-
-      // Check that the dependency is in the mod list.
-      var depMod:ModMetadata = null;
-      for (mod in relevantMods)
-      {
-        if (mod.id == dep)
-        {
-          depMod = mod;
+        if (depMod == null) {
+          Polymod.warning(MOD_DEPENDENCY_UNMET, 'Skipping mod "${currentMod.id}", required dependency "${depId}" not found.', INIT);
+          currentModMissingDep = true;
           break;
+        } else {
+          if (VersionUtil.match(depMod.modVersion, depVersionRule)) {
+            // The dependency is met!
+            continue;
+          } else {
+            Polymod.warning(MOD_DEPENDENCY_UNMET, 'Skipping mod "${currentMod.id}", required dependency "${depId}" has version "${depMod.modVersion}" but we need "${depVersionRule}".', INIT);
+          }
         }
       }
 
-      // If the dependency is not found, throw a warning/error.
-      if (depMod == null)
-      {
-        Polymod.warning(MOD_DEPENDENCY_UNMET, 'Required dependency "${dep}" not found.', INIT);
-        continue;
-      }
-
-      // If the dependency is found, validate the version rule.
-      if (VersionUtil.match(depMod.modVersion, depRule))
-      {
-        // The mod is valid.
-
-        // Dependency is met with a valid version.
-        result.push(depMod);
-      }
-      else
-      {
-        Polymod.warning(MOD_DEPENDENCY_VERSION_MISMATCH, 'Dependency "${dep}" has version "${depMod.modVersion}" but requires "${depRule}".', INIT);
-        continue;
-      }
+      if (!currentModMissingDep) result.push(currentMod);
     }
 
     return result;
@@ -113,26 +92,17 @@ class DependencyUtil
     // Compile a map of mod dependencies.
     var deps:ModDependencies = compileDependencies(modList);
 
-    // Check that all mods are in the mod list.
-    var relevantMods:Array<ModMetadata> = [];
-    for (mod in modList)
-    {
-      if (deps.exists(mod.id))
-      {
-        relevantMods.push(mod);
-      }
-    }
+    // List just the mods that are a dependency to another mod.
+    var relevantMods:Array<ModMetadata> = modList.filter((mod) -> deps.exists(mod.id));
 
     // Check that all dependencies are satisfied.
-    for (dep in deps.keys())
+    for (depModId => depRule in deps)
     {
-      var depRule:VersionRule = deps.get(dep);
-
-      // Check that the dependency is in the mod list.
-      var depMod:ModMetadata = null;
+      // Check that the dependency is in the current list.
+      var depMod:Null<ModMetadata> = null;
       for (mod in relevantMods)
       {
-        if (mod.id == dep)
+        if (mod.id == depModId)
         {
           depMod = mod;
           break;
@@ -142,22 +112,21 @@ class DependencyUtil
       // If the dependency is not found, throw a warning/error.
       if (depMod == null)
       {
-        Polymod.error(MOD_DEPENDENCY_UNMET, 'Dependency "${dep}" not found.', INIT);
+        Polymod.error(MOD_DEPENDENCY_UNMET, 'Dependency "${depModId}" not found.', INIT);
         return false;
-      }
-
-      // If the dependency is found, validate the version rule.
-      if (VersionUtil.match(depMod.modVersion, depRule))
+      } else if (VersionUtil.match(depMod.modVersion, depRule))
       {
-        // The mod is valid.
+        // If the dependency is found, validate the version rule.
         continue;
       }
       else
       {
-        Polymod.error(MOD_DEPENDENCY_VERSION_MISMATCH, 'Dependency "${dep}" has version "${depMod.modVersion}" but requires "${depRule}".', INIT);
+        Polymod.error(MOD_DEPENDENCY_VERSION_MISMATCH, 'Dependency "${depModId}" has version "${depMod.modVersion}" but requires "${depRule}".', INIT);
         return false;
       }
     }
+
+    // All dependencies validated.
     return true;
   }
 
@@ -167,8 +136,10 @@ class DependencyUtil
    *
    * @param modList The list of mods to reorder.
    */
-  static function buildTopologyForDependencies(modList:Array<ModMetadata>, ?skipErrors = false):Array<ModMetadata>
+  static function buildTopologyForDependencies(modList:Array<ModMetadata>, skipErrors = false):Array<ModMetadata>
   {
+    trace('Building topology for mods: ${modList}');
+
     // Build a map of dependencies.
     var dependencies:Map<String, Array<String>> = [];
 
@@ -184,9 +155,10 @@ class DependencyUtil
       {
         for (depKey in deps.keys())
         {
-          if (dependencies.exists(mod.id))
+          var depList:Null<Array<String>> = dependencies.get(mod.id);
+          if (depList != null)
           {
-            dependencies.get(mod.id).push(depKey);
+            depList.push(depKey);
           }
           else
           {
@@ -208,20 +180,26 @@ class DependencyUtil
         {
           if (dependencies.exists(depKey))
           {
-            dependencies.get(mod.id).push(depKey);
+            // Ensure the dependency is loaded before this mod.
+            var depList = dependencies.get(mod.id);
+            if (depList != null) {
+              depList.push(depKey);
+            } else {
+              dependencies.set(mod.id, [depKey]);
+            }
           }
           else
           {
-            Polymod.info(MOD_OPTIONAL_DEPENDENCY_UNMET, 'Optional dependency "${depKey}" for mod "${mod.id}" not found, skipping.', INIT);
+            Polymod.info(MOD_OPTIONAL_DEPENDENCY_UNMET, 'Optional dependency "${depKey}" for mod "${mod.id}" not enabled, skipping.', INIT);
           }
         }
       }
     }
 
-    return buildTopology_Recursive(modList, dependencies, skipErrors);
+    return buildTopology_Recursive(modList, dependencies, skipErrors) ?? [];
   }
 
-  static function buildTopology_Recursive(modList:Array<ModMetadata>, dependencies:Map<String, Array<String>>, ?skipErrors:Bool = false):Array<ModMetadata>
+  static function buildTopology_Recursive(modList:Array<ModMetadata>, dependencies:Map<String, Array<String>>, skipErrors:Bool = false):Null<Array<ModMetadata>>
   {
     if (modList.length == 0) return [];
 
@@ -231,7 +209,8 @@ class DependencyUtil
     var rootLevelMods:Array<String> = [];
     for (mod in modList)
     {
-      if (!dependencies.exists(mod.id) || dependencies.get(mod.id).length == 0)
+      var deps:Array<String> = dependencies.get(mod.id) ?? [];
+      if (deps.length == 0)
       {
         rootLevelMods.push(mod.id);
       }
@@ -268,9 +247,8 @@ class DependencyUtil
         dependencies.remove(modData.id);
 
         // Remove the mod from each dependency list.
-        for (depKey in dependencies.keys())
+        for (depKey => depList in dependencies)
         {
-          var depList = dependencies.get(depKey);
           var index = depList.indexOf(modData.id);
           // If the mod is in the dependency list, remove it.
           if (index != -1)
@@ -314,13 +292,13 @@ class DependencyUtil
 
       if (mod.dependencies != null)
       {
-        for (dependencyId in mod.dependencies.keys())
+        for (dependencyId => dependencyRule in mod.dependencies)
         {
-          var dependencyRule:VersionRule = mod.dependencies[dependencyId];
-
-          if (result[dependencyId] != null)
+          var currentDependency = result[dependencyId];
+          if (currentDependency != null)
           {
-            result[dependencyId] = VersionUtil.combineRulesAnd(result[dependencyId], dependencyRule);
+            var compositeDependency:VersionRule = VersionUtil.combineRulesAnd(currentDependency, dependencyRule);
+            result[dependencyId] = compositeDependency;
           }
           else
           {
