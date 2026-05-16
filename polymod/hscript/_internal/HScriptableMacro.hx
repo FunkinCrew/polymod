@@ -177,7 +177,7 @@ class HScriptableMacro
                     }
                     else
                     {
-                      polymod.Polymod.debug('The scripted function ' + $v{pathName} + ' could not be found, but that is fine because it is optional.', SCRIPT_RUNTIME);
+                      polymod.Polymod.debug('The scripted function ' + $v{pathName} + ' could not be found, but that is fine because it is optional.');
 
                       // Prevent the script from running but do not prevent the function body from executing.
                       // wasCancelled = true;
