@@ -1,6 +1,5 @@
 package polymod.backends;
 
-import lime.system.ThreadPool;
 import polymod.backends.PolymodAssetLibrary;
 import polymod.backends.PolymodAssets.PolymodAssetType;
 import polymod.fs.PolymodFileSystem;
@@ -18,6 +17,7 @@ import unifill.Unifill;
 import lime.app.Future;
 import lime.graphics.Image;
 import lime.net.HTTPRequest;
+import lime.system.ThreadPool;
 import lime.text.Font;
 import lime.utils.Assets;
 import lime.utils.Bytes;

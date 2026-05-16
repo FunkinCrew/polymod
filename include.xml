@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <project>
   <!-- These values are added to the project XML when you include this library. -->
+  <haxelib name="jsonpath" />
+  <haxelib name="jsonpatch" />
+  <haxelib name="thx.core" />
   <haxelib name="thx.semver" />
 
   <haxeflag name="--macro" value="polymod.hscript._internal.HScriptRedirectDefines.run()" if="POLYMOD_REDIRECT_HSCRIPT" />

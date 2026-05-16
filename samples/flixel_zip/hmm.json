@@ -26,6 +26,16 @@
       "version": null
     },
     {
+      "name": "jsonpatch",
+      "type": "haxelib",
+      "version": null
+    },
+    {
+      "name": "jsonpath",
+      "type": "haxelib",
+      "version": null
+    },
+    {
       "name": "lime",
       "type": "haxelib",
       "version": null
@@ -41,9 +51,16 @@
       "type": "dev"
     },
     {
+      "name": "thx.core",
+      "type": "git",
+      "ref": "master",
+      "url": "https://github.com/fponticelli/thx.core"
+    },
+    {
       "name": "thx.semver",
-      "type": "haxelib",
-      "version": null
+      "type": "git",
+      "ref": "master",
+      "url": "https://github.com/fponticelli/thx.semver"
     }
   ]
 }

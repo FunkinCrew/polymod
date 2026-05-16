@@ -183,6 +183,7 @@ class PolymodScriptClass
     }
   }
 
+  #if lime
   static function registerScriptClassByPathAsync(path:String):lime.app.Future<Bool>
   {
     var promise = new lime.app.Promise<Bool>();
@@ -231,6 +232,7 @@ class PolymodScriptClass
     // Await the promise
     return promise.future;
   }
+  #end
 
   /**
    * Returns a list of all registered classes.

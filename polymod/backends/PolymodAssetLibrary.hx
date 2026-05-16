@@ -652,7 +652,7 @@ class PolymodAssetLibrary
         typeLibraries.get('default').push(f);
       }
 
-      #if openfl
+      #if (openfl && !nme)
       if (assetType == FONT)
       {
         var fontBytes = fileSystem.getFileBytes(file(f, d));
@@ -713,7 +713,7 @@ class PolymodAssetLibrary
       type.set(f, assetType);
       if (!typeLibraries.exists(libraryId)) typeLibraries.set(libraryId, []);
       typeLibraries.get(libraryId).push(f);
-      #if openfl
+      #if (openfl && !nme)
       if (assetType == FONT)
       {
         var fontBytes = fileSystem.getFileBytes(file(f, redirectPath));

@@ -851,6 +851,7 @@ class Polymod
     }
   }
 
+  #if lime
   /**
    * Get a list of all the available scripted classes (`.hxc` files), interpret them asynchronously, and register any classes.
    * Called on platforms that don't support synchronous file access.
@@ -889,6 +890,12 @@ class Polymod
 
     return futures;
   }
+  #else
+  public static function registerAllScriptClassesAsync()
+  {
+    throw 'Function not supported on current target';
+  }
+  #end
 
   /**
    * Dispatch an error message with the severity `PolymodErrorType.ERROR`.
