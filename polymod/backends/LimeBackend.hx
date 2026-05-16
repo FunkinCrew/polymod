@@ -18,6 +18,7 @@ import unifill.Unifill;
 import lime.app.Future;
 import lime.graphics.Image;
 import lime.net.HTTPRequest;
+import lime.system.ThreadPool;
 import lime.text.Font;
 import lime.utils.Assets;
 import lime.utils.Bytes;

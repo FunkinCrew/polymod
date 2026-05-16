@@ -858,6 +858,7 @@ class Polymod
     }
   }
 
+  #if lime
   /**
    * Get a list of all the available scripted classes (`.hxc` files), interpret them asynchronously, and register any classes.
    * Called on platforms that don't support synchronous file access.

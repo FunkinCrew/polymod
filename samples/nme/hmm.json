@@ -11,14 +11,33 @@
       "version": null
     },
     {
+      "name": "nme-dev",
+      "type": "haxelib",
+      "version": null
+    },
+    {
+      "name": "nme-toolkit",
+      "type": "haxelib",
+      "version": null
+    },
+    {
       "name": "polymod",
       "path": "../..",
       "type": "dev"
     },
     {
+      "name": "thx.core",
+      "type": "git",
+      "dir": null,
+      "ref": "master",
+      "url": "https://github.com/fponticelli/thx.core"
+    },
+    {
       "name": "thx.semver",
-      "type": "haxelib",
-      "version": null
+      "type": "git",
+      "dir": null,
+      "ref": "master",
+      "url": "https://github.com/fponticelli/thx.semver"
     }
   ]
 }
