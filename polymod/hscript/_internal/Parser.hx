@@ -2516,12 +2516,13 @@ class Parser
     while (true)
     {
       var tk = token();
-      if (tk == TEof) error(EInvalidPreprocessor("Unclosed"), pos, pos);
       if (preprocStack[spos] != obj)
       {
         push(tk);
         break;
       }
+
+      if (tk == TEof) error(EInvalidPreprocessor("Unclosed"), pos, pos);
     }
   }
 
