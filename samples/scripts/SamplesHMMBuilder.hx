@@ -18,7 +18,12 @@ typedef HMMDependency =
   ?ref:String,
 }
 
-class SamplesBuild
+/**
+ * A simple tool to build a `hmm.json` file for the samples directory,
+ * by scanning for `hmm.json` files in each sample subdirectory and merging
+ * their dependencies into a single `hmm.json` file.
+ */
+class SamplesHMMBuilder
 {
   /**
    * A list of sample directories to ignore when scanning for `hmm.json` files.
@@ -28,8 +33,8 @@ class SamplesBuild
 
   public static function main()
   {
-    final scriptsPath:String = Path.directory(Sys.programPath());
-    final workPath:String = Path.normalize('$scriptsPath/..');
+    var scriptsPath:String = Path.directory(Sys.programPath());
+    var workPath:String = Path.normalize('$scriptsPath/..');
 
     var searchPaths:Array<String> = FileSystem.readDirectory(workPath);
     var dependencies:Map<String, HMMDependency> = [];
@@ -39,7 +44,7 @@ class SamplesBuild
       if (IGNORE_LIST.contains(path)) continue;
       if (!FileSystem.isDirectory(path)) continue;
 
-      final hmmPath:String = Path.join([path, 'hmm.json']);
+      var hmmPath:String = Path.join([path, 'hmm.json']);
       if (!FileSystem.exists(hmmPath)) continue;
 
       var hmmContent:String = File.getContent(hmmPath);

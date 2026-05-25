@@ -347,7 +347,7 @@ class PolymodAssetLibrary
     return (bytes == null) ? null : bytes.getString(0, bytes.length);
   }
 
-  #if openfl
+  #if (openfl && !nme)
   /**
    * Fetch text directly from the file system.
    * Queries for any modded asset replacements, but ignores merging and appending.
