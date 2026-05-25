@@ -10,7 +10,7 @@ import polymod.Polymod.FrameworkParams;
 #if firetongue
 import firetongue.FireTongue;
 #end
-#if openfl
+#if (openfl && !macro)
 import openfl.text.Font;
 #end
 

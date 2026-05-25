@@ -1,9 +1,11 @@
 package polymod.hscript;
 
 import haxe.Json;
+#if !macro
 import polymod.hscript._internal.Expr;
 import polymod.Polymod;
 import polymod.util.Util;
+#end
 
 /**
  * This interface triggers the execution of a macro on any elements which use the `@:hscript` annotation.
@@ -185,6 +187,7 @@ typedef ScriptOutput =
   var script_variables:Map<String, Dynamic>;
 }
 
+#if !macro
 class ScriptRunner
 {
   /**
@@ -301,3 +304,4 @@ class Script
     };
   }
 }
+#end
