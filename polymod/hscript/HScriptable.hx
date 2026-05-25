@@ -263,17 +263,17 @@ class Script
   private static var parser:polymod.hscript._internal.Parser;
 
   public var program:Expr;
-  public var interp:polymod.hscript._internal.PolymodInterpEx;
+  public var interp:polymod.hscript._internal.Interp;
 
   public static function buildParser():polymod.hscript._internal.Parser
   {
     return new polymod.hscript._internal.Parser();
   }
 
-  public static function buildInterp():polymod.hscript._internal.PolymodInterpEx
+  public static function buildInterp():polymod.hscript._internal.Interp
   {
     // Arguments are only needed in a scripted class context.
-    return new polymod.hscript._internal.PolymodInterpEx(null, null);
+    return new polymod.hscript._internal.Interp(null, null);
   }
 
   public function new(script:String, ?origin:String = null)

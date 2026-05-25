@@ -27,9 +27,9 @@ class PolymodStaticClassReference
   public static function tryBuild(clsName:String):Null<PolymodStaticClassReference>
   {
     @:privateAccess {
-      if (PolymodInterpEx._scriptClassDescriptors.exists(clsName))
+      if (Interp._scriptClassDescriptors.exists(clsName))
       {
-        return new PolymodStaticClassReference(PolymodInterpEx._scriptClassDescriptors.get(clsName));
+        return new PolymodStaticClassReference(Interp._scriptClassDescriptors.get(clsName));
       }
       else
       {

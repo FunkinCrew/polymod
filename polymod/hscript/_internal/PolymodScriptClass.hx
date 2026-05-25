@@ -23,7 +23,7 @@ class PolymodScriptClass
   /*
    * STATIC VARIABLES
    */
-  private static final scriptInterp = new PolymodInterpEx(null, null);
+  private static final scriptInterp:Interp = new Interp(null, null);
 
   /**
    * Provide a class name along with a corresponding class to override imports.
@@ -240,7 +240,7 @@ class PolymodScriptClass
   {
     var result = [];
     @:privateAccess
-    for (key => _value in PolymodInterpEx._scriptClassDescriptors)
+    for (key => _value in Interp._scriptClassDescriptors)
     {
       result.push(key);
     }
@@ -264,7 +264,7 @@ class PolymodScriptClass
   {
     var result = [];
     @:privateAccess
-    for (key => value in PolymodInterpEx._scriptClassDescriptors)
+    for (key => value in Interp._scriptClassDescriptors)
     {
       var superClasses = getSuperClasses(value);
       if (superClasses.indexOf(clsPath) != -1)
@@ -304,7 +304,7 @@ class PolymodScriptClass
     };
 
     // Check if the superclass is a scripted class.
-    var classDescriptor:ClassDecl = PolymodInterpEx.findScriptClassDescriptor(fullSuperClsName);
+    var classDescriptor:ClassDecl = Interp.findScriptClassDescriptor(fullSuperClsName);
 
     if (classDescriptor != null)
     {
@@ -402,7 +402,7 @@ class PolymodScriptClass
         var clsPath = pth.join('.');
         var clsName = pth[pth.length - 1];
 
-        if (PolymodInterpEx.findScriptClassDescriptor(clsPath) != null)
+        if (Interp.findScriptClassDescriptor(clsPath) != null)
         {
           targetClass = null;
         }
@@ -444,7 +444,7 @@ class PolymodScriptClass
           Polymod.error(SCRIPT_PARSE_FAILED, 'Could not determine target class for "${c.extend}" (unknown type?)', SCRIPT_RUNTIME);
         }
     }
-    _interp = new PolymodInterpEx(targetClass, this);
+    _interp = new Interp(targetClass, this);
     _c = c;
     buildCaches();
 
@@ -517,7 +517,7 @@ class PolymodScriptClass
     var fullExtendStringParts = fullExtendString.split('.');
     var extendString = fullExtendStringParts[fullExtendStringParts.length - 1];
 
-    var classDescriptor = PolymodInterpEx.findScriptClassDescriptor(fullExtendString);
+    var classDescriptor = Interp.findScriptClassDescriptor(fullExtendString);
     if (classDescriptor != null)
     {
       var abstractSuperClass:PolymodAbstractScriptClass = new PolymodScriptClass(classDescriptor, args);
@@ -709,7 +709,7 @@ class PolymodScriptClass
   }
 
   private var _c:ClassDecl;
-  private var _interp:PolymodInterpEx;
+  private var _interp:Interp;
 
   public var superClass:Dynamic = null;
   public var topASC(default, null):Null<PolymodAbstractScriptClass>;
