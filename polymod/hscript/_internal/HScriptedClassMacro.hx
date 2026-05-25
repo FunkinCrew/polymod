@@ -884,7 +884,7 @@ class HScriptedClassMacro
                     else
                     {
                       // If another scripted class is being extended, call if the function exists there
-                      var _super = _asc.superClass;
+                      var _super:Dynamic = _asc.superClass;
                       while (_super is polymod.hscript._internal.PolymodScriptClass)
                       {
                         var _scriptSuper = (_super : polymod.hscript._internal.PolymodScriptClass);
