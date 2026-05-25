@@ -222,7 +222,7 @@ class HScriptableMacro
             // to load this script:
             if (constructor_setup == null)
             {
-              constructor_setup = [macro _polymod_scripts = new polymod.hscript.HScriptable.ScriptRunner()];
+              constructor_setup = [macro _polymod_scripts = new polymod.hscript.ScriptRunner()];
             }
             if (!hscriptDynamicPath)
             {
@@ -244,7 +244,7 @@ class HScriptableMacro
     // Inject _polymod_scripts var
     for (new_field in (macro class Ignore
       {
-        public var _polymod_scripts:polymod.hscript.HScriptable.ScriptRunner;
+        public var _polymod_scripts:polymod.hscript.ScriptRunner;
       }).fields)
       fields.push(new_field);
     // Find constructor, and inject script setup...

@@ -2,10 +2,8 @@ package polymod.hscript._internal;
 
 #if macro
 import haxe.macro.Context;
-import haxe.macro.Expr;
-import haxe.macro.Type;
+import haxe.macro.Type.ClassType;
 #end
-import polymod.util.Util;
 
 @:nullSafety
 class PolymodFinalMacro
@@ -15,28 +13,42 @@ class PolymodFinalMacro
    */
   static inline final METADATA_RESOURCE_NAME:String = 'PolymodFinalMacro_METADATA';
 
-  public static inline function getFinals(fullPath:String):Array<String> {
+  public static inline function getFinals(fullPath:String):Array<String>
+  {
     return getAllFinals().get(fullPath) ?? [];
   }
 
-  public static inline function getFinalsOf(obj:Dynamic):Array<String> {
-    while (Std.isOfType(obj, PolymodScriptClass)) obj = obj.superClass;
+  public static inline function getFinalsOf(obj:Dynamic):Array<String>
+  {
+    #if macro
+    return [];
+    #else
+    while (Std.isOfType(obj, PolymodScriptClass))
+      obj = obj.superClass;
 
-    var typeName:String = Util.getTypeNameOf(obj);
+    var typeName:String = polymod.util.Util.getTypeNameOf(obj);
     var result = getFinals(typeName);
     return result;
+    #end
   }
 
-  public static inline function getPrivateProperties(fullPath:String):Array<String> {
+  public static inline function getPrivateProperties(fullPath:String):Array<String>
+  {
     return getAllPrivateProperties().get(fullPath) ?? [];
   }
 
-  public static inline function getPrivatePropertiesOf(obj:Dynamic):Array<String> {
-    while (Std.isOfType(obj, PolymodScriptClass)) obj = obj.superClass;
+  public static inline function getPrivatePropertiesOf(obj:Dynamic):Array<String>
+  {
+    #if macro
+    return [];
+    #else
+    while (Std.isOfType(obj, PolymodScriptClass))
+      obj = obj.superClass;
 
-    var typeName:String = Util.getTypeNameOf(obj);
+    var typeName:String = polymod.util.Util.getTypeNameOf(obj);
     var result = getPrivateProperties(typeName);
     return result;
+    #end
   }
 
   private static var _allFinals:Null<Map<String, Array<String>>> = null;
@@ -75,13 +87,15 @@ class PolymodFinalMacro
             if (classType.isInterface) continue;
 
             var finals:Array<String> = listFinalsOfClassType(classType);
-            if (finals.length > 0) {
+            if (finals.length > 0)
+            {
               var entryData:Array<Dynamic> = [classPath, finals];
               allFinals.push(entryData);
             }
 
             var privates:Array<String> = listPrivatesOfClassType(classType);
-            if (privates.length > 0) {
+            if (privates.length > 0)
+            {
               var entryData:Array<Dynamic> = [classPath, privates];
               allPrivates.push(entryData);
             }
@@ -91,10 +105,11 @@ class PolymodFinalMacro
         }
       }
 
-      var metadataHXSF = haxe.Serializer.run({
-        finals: allFinals,
-        privates: allPrivates
-      });
+      var metadataHXSF = haxe.Serializer.run(
+        {
+          finals: allFinals,
+          privates: allPrivates
+        });
       Context.addResource(METADATA_RESOURCE_NAME, haxe.io.Bytes.ofString(metadataHXSF));
 
       var endTime:Float = Sys.time();
@@ -112,7 +127,8 @@ class PolymodFinalMacro
   }
 
   #if macro
-  static function listFinalsOfClassType(classType:Null<ClassType>):Array<String> {
+  static function listFinalsOfClassType(classType:Null<ClassType>):Array<String>
+  {
     if (classType == null) return [];
 
     var result:Array<String> = [];
@@ -123,9 +139,11 @@ class PolymodFinalMacro
       if (field.isFinal) result.push(field.name);
 
       // Add properties with `never` accessors.
-      switch (field.kind) {
+      switch (field.kind)
+      {
         case FVar(read, write):
-          switch (write) {
+          switch (write)
+          {
             case AccNever:
               result.push(field.name);
             default: // Do nothing
@@ -140,9 +158,11 @@ class PolymodFinalMacro
       if (field.isFinal) result.push(field.name);
 
       // Add properties with `never` accessors.
-      switch (field.kind) {
+      switch (field.kind)
+      {
         case FVar(read, write):
-          switch (write) {
+          switch (write)
+          {
             case AccNever:
               result.push(field.name);
             default: // Do nothing
@@ -154,16 +174,20 @@ class PolymodFinalMacro
     return result.concat(listFinalsOfClassType(classType?.superClass?.t?.get()));
   }
 
-  static function listPrivatesOfClassType(classType:Null<ClassType>):Array<String> {
+  static function listPrivatesOfClassType(classType:Null<ClassType>):Array<String>
+  {
     if (classType == null) return [];
 
     var result:Array<String> = [];
 
-    for (field in classType.fields.get()) {
+    for (field in classType.fields.get())
+    {
       // Add properties with `null` accessors.
-      switch (field.kind) {
+      switch (field.kind)
+      {
         case FVar(read, write):
-          switch (write) {
+          switch (write)
+          {
             case AccNo:
               result.push(field.name);
             default: // Do nothing
@@ -175,9 +199,11 @@ class PolymodFinalMacro
     for (field in classType.statics.get())
     {
       // Add properties with `null` accessors.
-      switch (field.kind) {
+      switch (field.kind)
+      {
         case FVar(read, write):
-          switch (write) {
+          switch (write)
+          {
             case AccNo:
               result.push(field.name);
             default: // Do nothing
@@ -247,6 +273,7 @@ class PolymodFinalMacro
   }
 
   static var _metadata:Dynamic = null;
+
   static function fetchMetadata():Dynamic
   {
     if (_metadata != null) return _metadata;
