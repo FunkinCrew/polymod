@@ -2,11 +2,10 @@ package polymod.hscript._internal;
 
 import polymod.hscript._internal.Expr;
 
-@:access(hscript.Interp)
 @:allow(polymod.Polymod)
 class PolymodEnum
 {
-  private static final scriptInterp = new PolymodInterpEx(null, null);
+  private static final scriptInterp = new Interp(null, null);
 
   private var _e:EnumDecl;
 

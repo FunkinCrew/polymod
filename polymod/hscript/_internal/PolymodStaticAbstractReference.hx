@@ -150,7 +150,7 @@ class PolymodStaticAbstractReference
     return false;
   }
 
-  public function callInlineFunction(interp:PolymodInterpEx, absInstanceExpr:Expr, funcName:String, args:Array<Dynamic>):Dynamic
+  public function callInlineFunction(interp:Interp, absInstanceExpr:Expr, funcName:String, args:Array<Dynamic>):Dynamic
   {
     if (this.polymodImpl != null)
     {

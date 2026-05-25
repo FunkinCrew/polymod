@@ -20,10 +20,10 @@ class PolymodTyperEx extends Typer
 
   public static function typeAllModules():Array<TypedModuleDecl>
   {
-    return new PolymodTyperEx(new PolymodInterpEx(null, null)).typeModules(allModules);
+    return new PolymodTyperEx(new Interp(null, null)).typeModules(allModules);
   }
 
-  public function new(interp:PolymodInterpEx)
+  public function new(interp:Interp)
   {
     super(interp);
 

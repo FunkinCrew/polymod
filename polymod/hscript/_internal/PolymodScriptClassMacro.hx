@@ -408,7 +408,7 @@ class PolymodScriptClassMacro
                           kind: FFun(
                             {
                               args: [
-                                {name: '__interp', type: (macro :polymod.hscript._internal.PolymodInterpEx)},
+                                {name: '__interp', type: (macro :polymod.hscript._internal.Interp)},
                                 {name: '__expr', type: (macro :polymod.hscript._internal.Expr)},
                                 {name: '__this', type: (macro :Dynamic)}
                               ].concat(fieldArgs),

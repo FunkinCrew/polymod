@@ -847,7 +847,7 @@ class Polymod
       var _ = polymod.hscript._internal.PolymodTyperEx.typeAllModules();
       #end
 
-      polymod.hscript._internal.PolymodInterpEx.validateImports();
+      polymod.hscript._internal.Interp.validateImports();
     }
   }
 
@@ -885,7 +885,7 @@ class Polymod
       }
     }
 
-    polymod.hscript._internal.PolymodInterpEx.validateImports();
+    polymod.hscript._internal.Interp.validateImports();
 
     return futures;
   }
