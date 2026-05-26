@@ -2,8 +2,8 @@ package polymod.hscript;
 
 import haxe.Json;
 #if !macro
-import polymod.hscript._internal.Expr;
 import polymod.Polymod;
+import polymod.hscript._internal.Expr;
 import polymod.util.Util;
 #end
 
@@ -212,7 +212,7 @@ class ScriptRunner
 
     var scriptPath = scriptPath(name);
     Polymod.debug('Fetching script "$scriptPath"...');
-    if (!assetHandler.exists(scriptPath))
+    if (!assetHandler.exists(scriptPath, null))
     {
       // Error will only be thrown if hscriptParams.optional == false (the default).
       Polymod.debug('Note: Script at path "$scriptPath" not found! This may cause problems if it is not optional...');

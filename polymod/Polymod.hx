@@ -950,7 +950,7 @@ class Polymod
    */
   public static function debug(message:String, ?posInfo:haxe.PosInfos):Void
   {
-    if (PolymodConfig.debug)
+    if (PolymodConfig.debug && onError != null)
     {
       onError(new PolymodError(PolymodErrorType.DEBUG, null, message, UNKNOWN));
     }
