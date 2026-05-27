@@ -2053,6 +2053,7 @@ class Parser
               }
 
               var oldInput:String = input;
+              var oldPreprocStack:Array<{r:Bool}> = preprocStack.copy();
               var oldPos:Int = readPos;
               var oldOffset:Int = offset;
               var oldTokenMin:Int = tokenMin;
@@ -2068,6 +2069,7 @@ class Parser
               parts.push(e);
 
               input = oldInput;
+              preprocStack = oldPreprocStack;
               readPos = oldPos;
               offset = oldOffset;
               #if hscriptPos
