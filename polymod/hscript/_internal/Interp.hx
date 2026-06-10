@@ -759,6 +759,7 @@ class Interp
             switch (decl?.set)
             {
               case "set":
+                // Allow assigning to "null" only for local fields.
                 final setName = 'set_$id';
                 if (!_propTrack.exists(setName))
                 {
@@ -771,6 +772,11 @@ class Interp
               case "never":
                 error(EInvalidPropSet(id));
                 return null;
+
+              case "null":
+                // If the property setter is "null", it can only be assigned on local fields.
+                // Thankfully, this is a local field!
+                // So we can just fallthrough to the default case.
             }
 
             if ((decl?.isfinal ?? false) && decl?.expr != null)
@@ -2386,14 +2392,21 @@ class Interp
       }
       catch (e:Dynamic)
       {
-        error(EInvalidFinalSet(f));
+        error(EInvalidAccess(f));
       }
     }
     else if (Std.isOfType(o, PolymodStaticClassReference))
     {
       var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
 
-      return ref.setField(f, v);
+      try
+      {
+        return ref.setField(f, v);
+      }
+      catch (e:Dynamic)
+      {
+        error(EInvalidAccess(f));
+      }
     }
     else if (Std.isOfType(o, PolymodScriptClass))
     {
@@ -2891,45 +2904,44 @@ class Interp
     var fieldDecl = getScriptClassStaticFieldDecl(clsName, fieldName);
     if (fieldDecl != null)
     {
-      if (!this.variables.exists(prefixedName))
+      switch (fieldDecl.kind)
       {
-        switch (fieldDecl.kind)
-        {
-          case KFunction(_fn):
-            throw 'Cannot override function ${prefixedName}';
-          case KVar(v):
-            if (v.set != null)
+        case KFunction(_fn):
+          throw 'Cannot override function ${prefixedName}';
+        case KVar(v):
+          if (v.set != null)
+          {
+            switch (v.set)
             {
-              switch (v.set)
-              {
-                case 'set':
-                  var setterFunc = 'set_${fieldName}';
-                  if (hasScriptClassStaticFunction(clsName, setterFunc))
-                  {
-                    return callScriptClassStaticFunction(clsName, setterFunc, [value]);
-                  }
-                  else
-                  {
-                    throw 'Could not resolve setter for property ${prefixedName}';
-                  }
-                case 'default':
-                  this.variables.set(prefixedName, value);
-                  return value;
-                default:
+              case 'set':
+                var setterFunc = 'set_${fieldName}';
+                if (hasScriptClassStaticFunction(clsName, setterFunc))
+                {
+                  return callScriptClassStaticFunction(clsName, setterFunc, [value]);
+                }
+                else
+                {
                   throw 'Could not resolve setter for property ${prefixedName}';
-              }
+                }
+
+              case 'never':
+                throw 'Cannot assign to property ${prefixedName}';
+
+              case 'null':
+                throw 'Cannot assign to property ${prefixedName}';
+
+              case 'default':
+                this.variables.set(prefixedName, value);
+                return value;
+              default:
+                throw 'Could not resolve setter for property ${prefixedName}';
             }
-            else
-            {
-              this.variables.set(prefixedName, value);
-              return value;
-            }
-        }
-      }
-      else
-      {
-        this.variables.set(prefixedName, value);
-        return value;
+          }
+          else
+          {
+            this.variables.set(prefixedName, value);
+            return value;
+          }
       }
     }
     else
