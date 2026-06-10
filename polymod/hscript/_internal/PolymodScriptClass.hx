@@ -150,35 +150,33 @@ class PolymodScriptClass
    */
   static function registerScriptClassByPath(path:String):Void
   {
-    @:privateAccess {
-      var scriptBody = Polymod.assetLibrary.getText(path);
-      if (scriptBody == null)
+    var scriptBody = Polymod.assetLibrary.getText(path);
+    if (scriptBody == null)
+    {
+      Polymod.error(SCRIPT_PARSE_FAILED, 'Error while loading script "${path}", could not retrieve script contents!', SCRIPT_RUNTIME);
+      return;
+    }
+    try
+    {
+      registerScriptClassByString(scriptBody, path);
+    }
+    catch (err:Expr.Error)
+    {
+      var errLine:String = #if hscriptPos '${err.line}' #else "#???" #end;
+      #if hscriptPos
+      switch (err.e)
+      #else
+      switch (err)
+      #end
       {
-        Polymod.error(SCRIPT_PARSE_FAILED, 'Error while loading script "${path}", could not retrieve script contents!', SCRIPT_RUNTIME);
-        return;
-      }
-      try
-      {
-        registerScriptClassByString(scriptBody, path);
-      }
-      catch (err:Expr.Error)
-      {
-        var errLine:String = #if hscriptPos '${err.line}' #else "#???" #end;
-        #if hscriptPos
-        switch (err.e)
-        #else
-        switch (err)
-        #end
-        {
-          case EUnexpected(s):
-            Polymod.error(SCRIPT_PARSE_FAILED,
-              'Error while parsing function ${path}#${errLine}: EUnexpected' + '\n' + 'Unexpected token "${s}", is there invalid syntax on this line?', SCRIPT_RUNTIME);
-          case EClassUnresolvedSuperclass(cls, reason):
-            Polymod.error(SCRIPT_PARSE_FAILED,
-              'Error while parsing class ${path}#${errLine}: EClassUnresolvedSuperclass' + '\n' + 'Unresolved superclass "${cls}", ${reason}', SCRIPT_RUNTIME);
-          default:
-            Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script ${path}#${errLine}: ' + '\n' + 'An unknown error occurred: ${err}', SCRIPT_RUNTIME);
-        }
+        case EUnexpected(s):
+          Polymod.error(SCRIPT_PARSE_FAILED,
+            'Error while parsing function ${path}#${errLine}: EUnexpected' + '\n' + 'Unexpected token "${s}", is there invalid syntax on this line?', SCRIPT_RUNTIME);
+        case EClassUnresolvedSuperclass(cls, reason):
+          Polymod.error(SCRIPT_PARSE_FAILED,
+            'Error while parsing class ${path}#${errLine}: EClassUnresolvedSuperclass' + '\n' + 'Unresolved superclass "${cls}", ${reason}', SCRIPT_RUNTIME);
+        default:
+          Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script ${path}#${errLine}: ' + '\n' + 'An unknown error occurred: ${err}', SCRIPT_RUNTIME);
       }
     }
   }
@@ -454,7 +452,7 @@ class PolymodScriptClass
       callFunction("new", args);
       if (superClass == null && _c.extend != null)
       {
-        @:privateAccess _interp.error(EClassSuperNotCalled);
+        _interp.error(EClassSuperNotCalled);
       }
     }
     else if (_c.extend != null)
@@ -533,7 +531,7 @@ class PolymodScriptClass
 
         if (clsToCreate == null)
         {
-          @:privateAccess _interp.error(EClassUnresolvedSuperclass(fullExtendString, 'WHY?'));
+          _interp.error(EClassUnresolvedSuperclass(fullExtendString, 'WHY?'));
         }
       }
       else if (_c.imports.exists(extendString))
@@ -542,12 +540,12 @@ class PolymodScriptClass
 
         if (clsToCreate == null)
         {
-          @:privateAccess _interp.error(EClassUnresolvedSuperclass(extendString, 'target class blacklisted'));
+          _interp.error(EClassUnresolvedSuperclass(extendString, 'target class blacklisted'));
         }
       }
       else
       {
-        @:privateAccess _interp.error(EClassUnresolvedSuperclass(extendString, 'missing import'));
+        _interp.error(EClassUnresolvedSuperclass(extendString, 'missing import'));
       }
 
       superClass = Type.createInstance(clsToCreate, args);

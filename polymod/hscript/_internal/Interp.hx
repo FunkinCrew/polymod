@@ -674,10 +674,10 @@ class Interp
       {
         var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
         return superClass.fieldWrite(id, v);
+      } else {
+        set(_proxy.superClass, id, v);
+        return v;
       }
-
-      Reflect.setProperty(_proxy.superClass, id, v);
-      return v;
     }
 
     // Fallback to setting in local scope.
@@ -745,10 +745,10 @@ class Interp
           {
             var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
             return superClass.fieldWrite(id, v);
+          } else {
+            set(_proxy.superClass, id, v);
+            return v;
           }
-
-          Reflect.setProperty(_proxy.superClass, id, v);
-          return v;
         }
 
         @:privateAccess
@@ -808,7 +808,7 @@ class Interp
                   return superClass.fieldWrite(id, v);
                 }
 
-                Reflect.setProperty(_proxy.superClass, id, v);
+                set(_proxy.superClass, id, v);
                 return v;
               }
             }
@@ -822,11 +822,19 @@ class Interp
                   for (imp in _proxy._c.imports)
                   {
                     if (imp.name != id0) continue;
-                    var finals = PolymodFinalMacro.getAllFinals().get(imp.fullPath) ?? [];
+                    var finals = PolymodFinalMacro.getFinals(imp.fullPath);
 
                     if (finals.contains(id))
                     {
                       error(EInvalidFinalSet(id));
+                      return null;
+                    }
+
+                    var privates = PolymodFinalMacro.getPrivateProperties(imp.fullPath);
+
+                    if (privates.contains(id))
+                    {
+                      error(EInvalidPropSet(id));
                       return null;
                     }
                   }
@@ -1118,7 +1126,7 @@ class Interp
     }
   }
 
-  inline function error(e:#if hscriptPos ErrorDef #else Error #end, rethrow = false):Dynamic
+  public inline function error(e:#if hscriptPos ErrorDef #else Error #end, rethrow = false):Dynamic
   {
     #if hscriptPos var e = new Error(e, curExpr?.pmin ?? 0, curExpr?.pmax ?? 0, curExpr?.origin ?? 'unknown', curExpr?.line ?? 0); #end
     if (rethrow) this.rethrow(e)
@@ -2423,7 +2431,7 @@ class Interp
           return superClass.fieldWrite(f, v);
         }
 
-        Reflect.setProperty(proxy.superClass, f, v);
+        set(proxy.superClass, f, v);
       }
       else
       {
@@ -2439,6 +2447,20 @@ class Interp
       }
 
       error(EInvalidScriptedVarSet(f));
+    }
+
+    // Prevent setting final variables, or properties with (never) accessors
+    var finals = PolymodFinalMacro.getFinalsOf(o);
+    if (finals.contains(f))
+    {
+      error(EInvalidFinalSet(f));
+    }
+
+    // Prevent setting properties with (null) accessors
+    var privates = PolymodFinalMacro.getPrivatePropertiesOf(o);
+    if (privates.contains(f))
+    {
+      error(EInvalidPropSet(f));
     }
 
     try
@@ -2909,6 +2931,9 @@ class Interp
         case KFunction(_fn):
           throw 'Cannot override function ${prefixedName}';
         case KVar(v):
+          if (v.isfinal) {
+            throw 'Cannot override final static field ${prefixedName}';
+          }
           if (v.set != null)
           {
             switch (v.set)

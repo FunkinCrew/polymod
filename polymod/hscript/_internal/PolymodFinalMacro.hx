@@ -1,20 +1,44 @@
 package polymod.hscript._internal;
 
+import polymod.util.Util;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Type;
 import haxe.rtti.Meta;
 
+@:nullSafety
 class PolymodFinalMacro
 {
-  private static var _allFinals:Map<String, Array<String>> = null;
+  public static inline function getFinals(fullPath:String):Array<String> {
+    return getAllFinals().get(fullPath) ?? [];
+  }
+
+  public static inline function getFinalsOf(obj:Dynamic):Array<String> {
+    return getFinals(Util.getTypeNameOf(obj));
+  }
+
+  public static inline function getPrivateProperties(fullPath:String):Array<String> {
+    return getAllPrivateProperties().get(fullPath) ?? [];
+  }
+
+  public static inline function getPrivatePropertiesOf(obj:Dynamic):Array<String> {
+    return getFinals(Util.getTypeNameOf(obj));
+  }
+
+  private static var _allFinals:Null<Map<String, Array<String>>> = null;
 
   public static function getAllFinals():Map<String, Array<String>>
   {
-    if (_allFinals == null)
-      _allFinals = PolymodFinalMacro.fetchAllFinals();
+    if (_allFinals == null) _allFinals = PolymodFinalMacro.fetchAllFinals();
     return _allFinals;
-    return [];
+  }
+
+  private static var _allPrivates:Null<Map<String, Array<String>>> = null;
+
+  public static function getAllPrivateProperties():Map<String, Array<String>>
+  {
+    if (_allPrivates == null) _allPrivates = PolymodFinalMacro.fetchAllPrivateProperties();
+    return _allPrivates;
   }
 
   public static macro function locateAllFinals():Void
@@ -23,6 +47,7 @@ class PolymodFinalMacro
       if (calledBefore) return;
 
       var allFinals:Array<Expr> = [];
+      var allPrivates:Array<Expr> = [];
 
       for (type in types)
       {
@@ -34,17 +59,36 @@ class PolymodFinalMacro
             if (classType.isInterface) continue;
 
             var finals:Array<String> = [];
+            var privates:Array<String> = [];
             for (field in classType.statics.get())
             {
-              if (!field.isFinal) continue;
-              finals.push(field.name);
+              // Add final variables.
+              if (field.isFinal) finals.push(field.name);
+
+              // Add properties with `never`/`null` accessors.
+              switch (field.kind) {
+                case FVar(read, write):
+                  switch (write) {
+                    case AccNever:
+                      finals.push(field.name);
+                    case AccNo:
+                      privates.push(field.name);
+                    default: // Do nothing
+                  }
+                default: // Do nothing
+              }
             }
 
-            if (finals.length == 0) continue;
+            if (finals.length > 0) {
+              var entryData = [macro $v{classPath}, macro $v{finals}];
+              allFinals.push(macro $a{entryData});
+            }
 
-            var entryData = [macro $v{classPath}, macro $v{finals}];
+            if (privates.length > 0) {
+              var entryData = [macro $v{classPath}, macro $v{privates}];
+              allPrivates.push(macro $a{entryData});
+            }
 
-            allFinals.push(macro $a{entryData});
           default:
             continue;
         }
@@ -57,7 +101,9 @@ class PolymodFinalMacro
         case TInst(t, _):
           var finalMacroClassType:ClassType = t.get();
           finalMacroClassType.meta.remove('finals');
+          finalMacroClassType.meta.remove('privates');
           finalMacroClassType.meta.add('finals', allFinals, Context.currentPos());
+          finalMacroClassType.meta.add('privates', allPrivates, Context.currentPos());
         default:
           throw 'Could not find PolymodFinalMacro type';
       }
@@ -93,6 +139,32 @@ class PolymodFinalMacro
     else
     {
       throw 'No finals found in PolymodFinalMacro';
+    }
+  }
+
+  public static function fetchAllPrivateProperties():Map<String, Array<String>>
+  {
+    var metaData = Meta.getType(PolymodFinalMacro);
+
+    if (metaData.privates != null)
+    {
+      var result:Map<String, Array<String>> = [];
+
+      for (element in metaData.privates)
+      {
+        if (element.length != 2) throw 'Malformed element in privates: ' + element;
+
+        var classPath:String = element[0];
+        var privates:Array<String> = element[1];
+
+        result.set(classPath, privates);
+      }
+
+      return result;
+    }
+    else
+    {
+      throw 'No private properties found in PolymodFinalMacro';
     }
   }
 }
