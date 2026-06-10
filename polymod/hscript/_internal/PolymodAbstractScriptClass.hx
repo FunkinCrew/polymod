@@ -78,8 +78,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
         }
         else if (this.superClass == null)
         {
-          // @:privateAccess this._interp.error(EInvalidAccess(name));
-          throw 'field "$name" does not exist in script class ${this.fullyQualifiedName}"';
+          @:privateAccess this._interp.error(EInvalidAccess(name));
         }
         else if (Type.getClass(this.superClass) == null)
         {
@@ -90,8 +89,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
           }
           else
           {
-            // @:privateAccess this._interp.error(EInvalidAccess(name));
-            throw 'field "$name" does not exist in script class ${this.fullyQualifiedName}" or super class "${Type.getClassName(Type.getClass(this.superClass))}"';
+            @:privateAccess this._interp.error(EInvalidAccess(name));
           }
         }
         else if (Std.isOfType(this.superClass, PolymodScriptClass))
@@ -114,7 +112,6 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
           catch (e:String)
           {
             @:privateAccess this._interp.error(EInvalidAccess(name));
-            // throw "field '" + name + "' does not exist in script class '" + this.fullyQualifiedName + "' or super class '" + Type.getClassName(Type.getClass(this.superClass)) + "'";
           }
         }
     }
@@ -171,83 +168,75 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
 
   @:op(a.b) public function fieldWrite(name:String, value:Dynamic):Dynamic
   {
-    switch (name)
+    if (this.findVar(name) != null)
     {
-      case _:
-        if (this.findVar(name) != null)
-        {
-          var decl = this.findVar(name, true);
-          if (decl.isfinal && decl.expr != null) // The variable already exists and has a set value.
+      var decl = this.findVar(name, true);
+      if (decl.isfinal && decl.expr != null) // The variable already exists and has a set value.
+      {
+        @:privateAccess this._interp.error(EInvalidFinalSet(name));
+      }
+
+      @:privateAccess
+      switch (decl.set)
+      {
+        case "set":
+          final setName = 'set_$name';
+          if (!this._interp._propTrack.exists(setName))
           {
-            throw "Invalid access to field " + name;
-            return null;
+            this._interp._propTrack.set(setName, true);
+            var r:Dynamic = null;
+            // Children may override it
+            if (this.topASC != null && this.topASC.findFunction(setName) != null)
+            {
+              r = this.topASC.callFunction(setName, [value]);
+            }
+            else
+            {
+              r = this.callFunction(setName, [value]);
+            }
+            this._interp._propTrack.remove(setName);
+            return r;
           }
 
-          @:privateAccess
-          switch (decl.set)
-          {
-            case "set":
-              final setName = 'set_$name';
-              if (!this._interp._propTrack.exists(setName))
-              {
-                this._interp._propTrack.set(setName, true);
-                var r:Dynamic = null;
-                // Children may override it
-                if (this.topASC != null && this.topASC.findFunction(setName) != null)
-                {
-                  r = this.topASC.callFunction(setName, [value]);
-                }
-                else
-                {
-                  r = this.callFunction(setName, [value]);
-                }
-                this._interp._propTrack.remove(setName);
-                return r;
-              }
+        case "never" | "null":
+          return this._interp.error(EInvalidPropSet(name));
+      }
 
-            case "never" | "null":
-              return this._interp.error(EInvalidPropSet(name));
-          }
+      this._interp.variables.set(name, value);
+      return value;
+    }
+    else if (this.superClass != null && Std.isOfType(this.superClass, PolymodScriptClass))
+    {
+      var superScriptClass:PolymodAbstractScriptClass = cast(this.superClass, PolymodScriptClass);
+      try
+      {
+        return superScriptClass.fieldWrite(name, value);
+      }
+      catch (e:Dynamic) {}
+    }
+    else
+    {
+      // Class object
+      if (setClassObjectField(this.superClass, name, value))
+      {
+        return value;
+      }
 
-          this._interp.variables.set(name, value);
-          return value;
-        }
-        else if (this.superClass != null && Std.isOfType(this.superClass, PolymodScriptClass))
-        {
-          var superScriptClass:PolymodAbstractScriptClass = cast(this.superClass, PolymodScriptClass);
-          try
-          {
-            return superScriptClass.fieldWrite(name, value);
-          }
-          catch (e:Dynamic) {}
-        }
-        else
-        {
-          // Class object
-          if (setClassObjectField(this.superClass, name, value))
-          {
-            return value;
-          }
-
-          @:privateAccess this._interp.error(EInvalidAccess(name));
-          // throw "field '" + name + "' does not exist in script class '" + this.fullyQualifiedName + "' or super class '" + Type.getClassName(Type.getClass(this.superClass)) + "'";
-        }
+      @:privateAccess this._interp.error(EInvalidAccess(name));
     }
 
     if (this.superClass == null)
     {
       @:privateAccess this._interp.error(EInvalidAccess(name));
-      // throw "field '" + name + "' does not exist in script class '" + this.fullyQualifiedName + "'";
     }
     else
     {
       @:privateAccess this._interp.error(EInvalidAccess(name));
-      // throw "field '" + name + "' does not exist in script class '" + this.fullyQualifiedName + "' or super class '" + Type.getClassName(Type.getClass(this.superClass)) + "'";
     }
     return null;
   }
 
-  private static function retrieveClassObjectFields(o:Dynamic):Array<String>
+  static function retrieveClassObjectFields(o:Dynamic):Array<String>
   {
     final superClassCls = Type.getClass(o);
     if (superClassCls == null) throw "Provided object isn't a class";
