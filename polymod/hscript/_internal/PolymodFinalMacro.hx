@@ -11,9 +11,9 @@ class PolymodFinalMacro
 
   public static function getAllFinals():Map<String, Array<String>>
   {
-    // if (_allFinals == null)
-    //   _allFinals = PolymodFinalMacro.fetchAllFinals();
-    // return _allFinals;
+    if (_allFinals == null)
+      _allFinals = PolymodFinalMacro.fetchAllFinals();
+    return _allFinals;
     return [];
   }
 

@@ -4,7 +4,5 @@
   <haxelib name="thx.semver" />
 
   <haxeflag name="--macro" value="polymod.hscript._internal.HScriptRedirectDefines.run()" if="POLYMOD_REDIRECT_HSCRIPT" />
-  <!--
-    <haxeflag name="- -macro" value="polymod.hscript._internal.PolymodFinalMacro.locateAllFinals()" />
-  -->
+  <haxeflag name="--macro" value="polymod.hscript._internal.PolymodFinalMacro.locateAllFinals()" />
 </project>
