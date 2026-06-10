@@ -1,6 +1,9 @@
 package polymod.hscript._internal;
 
 import haxe.ds.ObjectMap;
+import polymod.util.Util;
+
+using StringTools;
 
 @:forward
 @:access(polymod.hscript._internal.PolymodScriptClass)
@@ -78,7 +81,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
         }
         else if (this.superClass == null)
         {
-          @:privateAccess this._interp.error(EInvalidAccess(name));
+          return this._interp.error(EInvalidAccess(name));
         }
         else if (Type.getClass(this.superClass) == null)
         {
@@ -89,7 +92,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
           }
           else
           {
-            @:privateAccess this._interp.error(EInvalidAccess(name));
+            return this._interp.error(EInvalidAccess(name));
           }
         }
         else if (Std.isOfType(this.superClass, PolymodScriptClass))
@@ -111,7 +114,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
           }
           catch (e:String)
           {
-            @:privateAccess this._interp.error(EInvalidAccess(name));
+            return this._interp.error(EInvalidAccess(name));
           }
         }
     }
@@ -173,7 +176,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
       var decl = this.findVar(name, true);
       if (decl.isfinal && decl.expr != null) // The variable already exists and has a set value.
       {
-        @:privateAccess this._interp.error(EInvalidFinalSet(name));
+        return this._interp.error(EInvalidFinalSet(name));
       }
 
       @:privateAccess
@@ -217,22 +220,32 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
     else
     {
       // Class object
-      if (setClassObjectField(this.superClass, name, value))
-      {
-        return value;
+      try {
+        if (setClassObjectField(this.superClass, name, value))
+        {
+          return value;
+        }
+      } catch (e:String) {
+        if (e.contains('final')) {
+          return this._interp.error(EInvalidFinalSet(name));
+        } else if (e.contains('private')) {
+          return this._interp.error(EInvalidPropSet(name));
+        } else {
+          return this._interp.error(EInvalidAccess(name));
+        }
       }
-
-      @:privateAccess this._interp.error(EInvalidAccess(name));
     }
 
     if (this.superClass == null)
     {
-      @:privateAccess this._interp.error(EInvalidAccess(name));
+      return this._interp.error(EInvalidAccess(name));
     }
     else
     {
-      @:privateAccess this._interp.error(EInvalidAccess(name));
+      return this._interp.error(EInvalidAccess(name));
     }
+
+    trace('fieldWrite() fallthrough???');
     return null;
   }
 
@@ -251,7 +264,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
     return fields;
   }
 
-  private static function getClassObjectField(o:Dynamic, field:String):Null<Dynamic>
+  static function getClassObjectField(o:Dynamic, field:String):Null<Dynamic>
   {
     var fields = retrieveClassObjectFields(o);
     if (fields.contains(field) || fields.contains('get_$field')) return Reflect.getProperty(o, field);
@@ -259,18 +272,32 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
     throw 'No such field $field';
   }
 
-  private static function setClassObjectField(o:Dynamic, field:String, value:Dynamic):Bool
+  static function setClassObjectField(o:Dynamic, field:String, value:Dynamic):Bool
   {
+    var finals = PolymodFinalMacro.getFinalsOf(o);
+    if (finals.contains(field))
+    {
+      throw 'Cannot set final field $field';
+    }
+
+    var privates = PolymodFinalMacro.getPrivatePropertiesOf(o);
+    if (privates.contains(field))
+    {
+      throw 'Cannot set private field $field';
+    }
+
     var fields = retrieveClassObjectFields(o);
     if (fields.contains(field) || fields.contains('set_$field'))
     {
+      trace('Setting ${Util.getTypeNameOf(o)}.${field} = ${value}');
       Reflect.setProperty(o, field, value);
       return true;
     }
-    return false;
+
+    throw 'No such field $field';
   }
 
-  private static function hasClassObjectField(o:Dynamic, field:String):Bool
+  static function hasClassObjectField(o:Dynamic, field:String):Bool
   {
     var fields = retrieveClassObjectFields(o);
     if (fields.contains(field) || fields.contains('get_$field') || fields.contains('set_$field')) return true;
