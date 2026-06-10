@@ -172,7 +172,9 @@
         "ignoreOverride": true,
         "tokens": ["ABSTRACT_DEF", "CLASS_DEF", "ENUM_DEF", "INTERFACE_DEF"],
         "modifier": "PUBLIC",
-        "excludeNames": ["new", "toString"]
+        "excludeNames": ["new", "toString"],
+
+        "severity": "IGNORE"
       },
       "type": "FieldDocComment"
     },
@@ -494,7 +496,9 @@
       "props": {
         "enforceReturnTypeForAnonymous": false,
         "allowEmptyReturn": true,
-        "enforceReturnType": true
+        "enforceReturnType": true,
+
+        "severity": "IGNORE"
       },
       "type": "Return"
     },
