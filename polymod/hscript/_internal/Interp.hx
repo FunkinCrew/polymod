@@ -508,7 +508,7 @@ class Interp
     }
   }
 
-  private static function registerScriptClass(c:ClassDecl)
+  static function registerScriptClass(c:ClassDecl)
   {
     var name = Util.getFullClassName(c);
 
@@ -775,7 +775,7 @@ class Interp
 
             if ((decl?.isfinal ?? false) && decl?.expr != null)
             {
-              error(EInvalidAccess(id));
+              error(EInvalidFinalSet(id));
               return null;
             }
           }
@@ -976,7 +976,7 @@ class Interp
 
         var l = locals.get(id);
         var v:Dynamic = (l == null) ? resolve(id) : l.r;
-        if (l != null && l.isfinal && l.r != null) return error(EInvalidAccess(id));
+        if (l != null && l.isfinal && l.r != null) return error(EInvalidFinalSet(id));
         if (prefix)
         {
           v += delta;
@@ -1480,7 +1480,7 @@ class Interp
         {
           case EField(e, f):
             var obj = expr(e);
-            if (obj == null) error(EInvalidAccess(f));
+            if (obj == null) error(ENullObjectReference(f));
             return fcall(obj, f, args);
           default:
             return call(null, expr(e), args);
@@ -2294,22 +2294,6 @@ class Interp
       }
 
       error(EInvalidScriptedVarGet(f));
-
-      // var result = Reflect.getProperty(o, f);
-      // To save a bit of performance, we only query for the existence of the property
-      // if the value is reported as null, AND only in debug builds.
-
-      // #if debug
-      // if (!Reflect.hasField(o, f))
-      // {
-      // 	  var propertyList = Type.getInstanceFields(Type.getClass(o));
-      // 	  if (propertyList.indexOf(f) == -1)
-      // 	  {
-      // 	  	error(EInvalidScriptedVarGet(f));
-      // 	  }
-      // }
-      // #end
-      // return result;
     }
     #if (hl && haxe4)
     else if (Std.isOfType(o, Enum))
@@ -2442,9 +2426,6 @@ class Interp
       }
 
       error(EInvalidScriptedVarSet(f));
-
-      // Reflect.setProperty(o, f, v);
-      // return v;
     }
 
     try
