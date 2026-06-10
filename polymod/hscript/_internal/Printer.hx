@@ -211,39 +211,18 @@ class Printer
           // account for null coalescing
           if (el.length == 2)
           {
-            switch (#if hscriptPos el[0].e #else el[0] #end)
+            switch (Tools.expr(el[0]))
             {
-              case EVar(n, _, e):
-                if (n.indexOf("__a_") == 0)
+              case EVar(n, _, e) if (n.indexOf("__a_") == 0):
+                switch (Tools.expr(el[1]))
                 {
-                  switch (#if hscriptPos el[1].e #else el[1] #end)
-                  {
-                    case ETernary(c, e11, e12):
-                      switch (#if hscriptPos c.e #else c #end)
-                      {
-                        case EBinop(op, _, _):
-                          if (op == "==")
-                          {
-                            expr(e);
-                            add("?");
-                            ignoreNextField = true;
-                            expr(e12);
-                            return;
-                          }
-
-                          if (op == "!=")
-                          {
-                            expr(e);
-                            add("?");
-                            ignoreNextField = true;
-                            expr(e11);
-                            return;
-                          }
-
-                        default:
-                      }
-                    default:
-                  }
+                  case ETernary(Tools.expr(_) => EBinop("==", _, _), _, e12):
+                    expr(e);
+                    add("?");
+                    ignoreNextField = true;
+                    expr(e12);
+                    return;
+                  default:
                 }
               default:
             }

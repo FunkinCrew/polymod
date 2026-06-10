@@ -1043,40 +1043,27 @@ class Parser
 
         return parseExprNext(mk(EField(e1, field), pmin(e1)));
       case TQuestionDot:
-        var field = getIdent();
-        var tmp = "__a_" + (uid++);
-        var t = token();
-        inline function pushBack()
+        var field:String = getIdent();
+        var tmp:String = "__a_" + (uid++);
+        var t:Token = token();
+        var ternaryRhs:ExprDef = switch (t)
         {
-          push(t);
-          return null;
-        }
-        var eOp = switch (t)
-        {
-          case TOp(s): if (!opRightAssoc.exists(s)) pushBack(); else s;
-          case TPOpen: '';
-          default: pushBack();
-        }
-
-        if (eOp != null && eOp.length > 0)
-        {
-          var e2 = parseExpr();
-          var e = mk(EBlock([
-            mk(EVar(tmp, null, e1)),
-            mk(ETernary(mk(EBinop("!=", mk(EIdent(tmp), pmin(e1), pmax(e1)), mk(EIdent("null"), pmin(e1), pmax(e1))), pmin(e1), pmax(e1)),
-              mk(EBinop(eOp, mk(EField(mk(EIdent(tmp), pmin(e1), pmax(e1)), field), pmin(e1), pmax(e1)), e2), pmin(e1), pmax(e2)),
-              mk(EIdent("null"), pmin(e2), pmax(e2))),
-              pmin(e1), pmax(e2))
-          ]), pmin(e1));
-          return parseExprNext(e);
+          case TOp(op) if (opRightAssoc.exists(op)):
+            EBinop(op, mk(EField(e1, field), pmin(e1), pmax(e1)), parseExpr());
+          case TPOpen:
+            ECall(mk(EField(mk(EIdent(tmp), pmin(e1), pmax(e1)), field), pmin(e1)), parseExprList(TPClose));
+          default:
+            // Token shouldn't be consumed in this case
+            push(t);
+            EField(mk(EIdent(tmp), pmin(e1), pmax(e1)), field);
         }
 
-        var e = mk(EBlock([
-          mk(EVar(tmp, null, e1), pmin(e1), pmax(e1)),
-          mk(ETernary(mk(EBinop("==", mk(EIdent(tmp), pmin(e1), pmax(e1)), mk(EIdent("null"), pmin(e1), pmax(e1)))), mk(EIdent("null"), pmin(e1), pmax(e1)),
-            (eOp != null && eOp.length == 0) ? mk(ECall(mk(EField(mk(EIdent(tmp), pmin(e1), pmax(e1)), field), pmin(e1)), parseExprList(TPClose)),
-              pmin(e1)) : mk(EField(mk(EIdent(tmp), pmin(e1), pmax(e1)), field), pmin(e1))))
-        ]), pmin(e1));
+        var e:Expr = mk(EBlock([
+          mk(EVar(tmp, null, e1)),
+          mk(ETernary(mk(EBinop("==", mk(EIdent(tmp), pmin(e1), pmax(e1)), mk(EIdent("null"))), pmin(e1), pmax(e1)), mk(EIdent("null"), pmin(e1), pmax(e1)),
+            mk(ternaryRhs, pmin(e1))),
+            pmin(e1), pmax(e1))
+        ]), pmin(e1), pmax(e1));
 
         return parseExprNext(e);
       case TPOpen:
