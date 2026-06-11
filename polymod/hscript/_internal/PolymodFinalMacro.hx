@@ -1,14 +1,18 @@
 package polymod.hscript._internal;
 
-import polymod.util.Util;
+#if macro
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Type;
+#else
+import polymod.util.Util;
+#end
 import haxe.rtti.Meta;
 
 @:nullSafety
 class PolymodFinalMacro
 {
+  #if !macro
   public static inline function getFinals(fullPath:String):Array<String> {
     return getAllFinals().get(fullPath) ?? [];
   }
@@ -40,6 +44,7 @@ class PolymodFinalMacro
     if (_allPrivates == null) _allPrivates = PolymodFinalMacro.fetchAllPrivateProperties();
     return _allPrivates;
   }
+  #end
 
   public static macro function locateAllFinals():Void
   {
