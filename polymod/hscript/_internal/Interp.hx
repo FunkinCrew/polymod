@@ -745,10 +745,12 @@ class Interp
           {
             var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
             return superClass.fieldWrite(id, v);
-          } else {
-            set(_proxy.superClass, id, v);
-            return v;
           }
+
+          // Directly assign the value.
+          // This is needed because `assignValue` may sometimes be called from the constructor.
+          PolymodAbstractScriptClass.setClassObjectField(_proxy.superClass, id, v);
+          return v;
         }
 
         @:privateAccess
