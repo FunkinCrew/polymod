@@ -251,6 +251,8 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
 
   static function retrieveClassObjectFields(o:Dynamic):Array<String>
   {
+    if (Util.getTypeNameOf(o) == "Object") return [];
+
     final superClassCls = Type.getClass(o);
     if (superClassCls == null) throw "Provided object isn't a class";
 
@@ -266,14 +268,30 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
 
   static function getClassObjectField(o:Dynamic, field:String):Null<Dynamic>
   {
+    if (Util.getTypeNameOf(o) == "Object") return Reflect.getProperty(o, field);
+
     var fields = retrieveClassObjectFields(o);
     if (fields.contains(field) || fields.contains('get_$field')) return Reflect.getProperty(o, field);
 
     throw 'No such field $field';
   }
 
-  static function setClassObjectField(o:Dynamic, field:String, value:Dynamic):Bool
+  /**
+   * Assign a field of a class object.
+   * Checks for `final` and `private` variables and fails to assign to immutable fields.
+   *
+   * @param o The object to modify.
+   * @param field The name of the field to modify.
+   * @param value The value to assign to the field.
+   * @return `true` for success.
+   */
+  public static function setClassObjectField(o:Dynamic, field:String, value:Dynamic):Bool
   {
+    if (Util.getTypeNameOf(o) == "Object") {
+      Reflect.setProperty(o, field, value);
+      return true;
+    }
+
     var finals = PolymodFinalMacro.getFinalsOf(o);
     if (finals.contains(field))
     {
@@ -289,7 +307,6 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
     var fields = retrieveClassObjectFields(o);
     if (fields.contains(field) || fields.contains('set_$field'))
     {
-      trace('Setting ${Util.getTypeNameOf(o)}.${field} = ${value}');
       Reflect.setProperty(o, field, value);
       return true;
     }
@@ -299,6 +316,8 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
 
   static function hasClassObjectField(o:Dynamic, field:String):Bool
   {
+    if (Util.getTypeNameOf(o) == "Object") return Reflect.hasField(o, field);
+
     var fields = retrieveClassObjectFields(o);
     if (fields.contains(field) || fields.contains('get_$field') || fields.contains('set_$field')) return true;
 
