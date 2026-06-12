@@ -808,7 +808,9 @@ class Interp
                   return superClass.fieldWrite(id, v);
                 }
 
-                set(_proxy.superClass, id, v);
+                // Directly assign the value.
+                // This is needed because `assignValue` may sometimes be called from the constructor.
+                PolymodAbstractScriptClass.setClassObjectField(_proxy.superClass, id, v);
                 return v;
               }
             }
@@ -2346,23 +2348,6 @@ class Interp
       }
     }
     #end
-    // if (o == null) error(EInvalidAccess(f));
-    // return
-    // {
-    //   #if php
-    //   // https://github.com/HaxeFoundation/haxe/issues/4915
-    //   try
-    //   {
-    //     Reflect.getProperty(o, f);
-    //   }
-    //   catch (e:Dynamic)
-    //   {
-    //     Reflect.field(o, f);
-    //   }
-    //   #else
-    //   Reflect.getProperty(o, f);
-    //   #end
-    // }
   }
 
   function set(o:Dynamic, f:String, v:Dynamic):Dynamic
@@ -2449,23 +2434,9 @@ class Interp
       error(EInvalidScriptedVarSet(f));
     }
 
-    // Prevent setting final variables, or properties with (never) accessors
-    var finals = PolymodFinalMacro.getFinalsOf(o);
-    if (finals.contains(f))
-    {
-      error(EInvalidFinalSet(f));
-    }
-
-    // Prevent setting properties with (null) accessors
-    var privates = PolymodFinalMacro.getPrivatePropertiesOf(o);
-    if (privates.contains(f))
-    {
-      error(EInvalidPropSet(f));
-    }
-
     try
     {
-      Reflect.setProperty(o, f, v);
+      PolymodAbstractScriptClass.setClassObjectField(o, f, v);
     }
     catch (e)
     {
