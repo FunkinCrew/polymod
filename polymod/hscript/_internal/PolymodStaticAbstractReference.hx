@@ -105,19 +105,9 @@ class PolymodStaticAbstractReference
   {
     if (this.absImpl != null)
     {
-      var finals = PolymodFinalMacro.getFinalsOf(this.absImpl);
-      if (finals.contains(fieldName)) {
-        throw 'Could not assign abstract static final field ${fieldName}';
-      }
-
-      var privates = PolymodFinalMacro.getPrivatePropertiesOf(this.absImpl);
-      if (privates.contains(fieldName)) {
-        throw 'Could not assign abstract static property ${fieldName}';
-      }
-
       if (Reflect.hasField(this.absImpl, fieldName))
       {
-        Reflect.setProperty(this.absImpl, fieldName, fieldValue);
+        PolymodAbstractScriptClass.setClassObjectField(this.absImpl, fieldName, fieldValue);
         return fieldValue;
       }
       var setterName:String = 'set_$fieldName';
