@@ -185,8 +185,11 @@ class HScriptedClassMacro
               }
               catch (error)
               {
+                var callStack:String = polymod.util.Util.fetchCallStack();
+
                 polymod.Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
-                  'Could not construct instance of scripted class (${clsName} extends ' + $v{clsTypeName} + '):\n${error}', SCRIPT_RUNTIME);
+                  'An uncaught exception was thrown while constructing an instance of scripted class (${clsName} extends ' + $v{clsTypeName} + '):\n$error\n$callStack',
+                  SCRIPT_RUNTIME);
                 return null;
               }
             },
@@ -524,7 +527,7 @@ class HScriptedClassMacro
           {
             if (_asc == null)
             {
-              return $v{'PolymodScriptedClass<${cls.name} extends ${cls.superClass.t.get().name}>(NO ASC)'};
+              return $v{'PolymodScriptClass<${cls.name} extends ${cls.superClass.t.get().name}>(NO ASC)'};
             }
             else
             {
