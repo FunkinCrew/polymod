@@ -145,6 +145,8 @@ class HScriptedClassMacro
   {
     // Context.info('  Building scripted class init() function', Context.currentPos());
     var clsTypeName:String = cls.pack.join('.') != '' ? '${cls.pack.join('.')}.${cls.name}' : cls.name;
+    // scriptInit returns null if the script throws an error while initializing.
+    var clsType:ComplexType = Context.toComplexType(Context.getType(clsTypeName));
     var function_init:Field =
       {
         name: 'scriptInit',
@@ -157,7 +159,7 @@ class HScriptedClassMacro
             args: [
               {name: 'clsName', type: macro :String}, {name: 'args', type: macro :...Dynamic}],
             params: null,
-            ret: Context.toComplexType(Context.getType(clsTypeName)),
+            ret: polymod.util.MacroUtil.nullable(clsType),
             expr: macro
             {
               var clsRef = polymod.hscript._internal.PolymodStaticClassReference.tryBuild(clsName);
