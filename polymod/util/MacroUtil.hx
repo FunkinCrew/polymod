@@ -39,6 +39,10 @@ class MacroUtil
     }
   }
 
+	public static function nullable(complexType : ComplexType):ComplexType {
+    return macro: Null<$complexType>;
+  }
+
   public static function areClassesEqual(class1:ClassType, class2:ClassType):Bool
   {
     return class1.pack.join('.') == class2.pack.join('.') && class1.name == class2.name;
