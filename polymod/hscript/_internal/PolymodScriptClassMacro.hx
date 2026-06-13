@@ -114,7 +114,6 @@ class PolymodScriptClassMacro
           }
 
         case TType(t, _params):
-          var typedefType:DefType = t.get();
           var typedefPath:String = t.toString();
           var typedefTarget:Type = Context.followWithAbstracts(type);
 
@@ -240,7 +239,6 @@ class PolymodScriptClassMacro
           }
           else
           {
-            var abstractImplPath = abstractType.impl.toString();
             var abstractImplType = abstractType.impl.get();
             var abstractImplStatics:Array<ClassField> = abstractImplType.statics.get();
 
