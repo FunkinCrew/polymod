@@ -424,7 +424,11 @@ class Interp
       }
       catch (error)
       {
-        Polymod.error(SCRIPT_RUNTIME_EXCEPTION, 'Could not construct instance of scripted class ($clsToInit extends ' + clsName + '):\n${error}');
+        var callStack:String = polymod.util.Util.fetchCallStack();
+
+        Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
+          'An uncaught exception was thrown while constructing an instance of scripted class ($clsToInit extends ' + clsName + '):\n$error\n$callStack',
+          SCRIPT_RUNTIME);
         return null;
       }
     }

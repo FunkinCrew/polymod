@@ -694,6 +694,32 @@ class Util
     return indexOfInsens(arr, x, ignoreConfig) != -1;
   }
 
+  public static function fetchCallStack(exception:Bool = true):String {
+    var errorMessage:String = "";
+    var callStack:Array<haxe.CallStack.StackItem> = haxe.CallStack.exceptionStack(true);
+
+    for (stackItem in callStack)
+    {
+      switch (stackItem)
+      {
+        case FilePos(innerStackItem, file, line, column):
+          errorMessage += ' in ${file}#${line}';
+          if (column != null) errorMessage += ':${column}';
+        case CFunction:
+          errorMessage += '[Function] ';
+        case Module(m):
+          errorMessage += '[Module(${m})] ';
+        case Method(classname, method):
+          errorMessage += '[Function(${classname}.${method})] ';
+        case LocalFunction(v):
+          errorMessage += '[LocalFunction(${v})] ';
+      }
+      errorMessage += '\n';
+    }
+
+    return errorMessage;
+  }
+
   public static function getTypeNameOf(obj:Dynamic):String
   {
     var type = Type.typeof(obj);
