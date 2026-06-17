@@ -59,7 +59,6 @@ class SysZipFileSystem extends SysFileSystem
     fileDirectories = [];
 
     if (params.autoScan == null) params.autoScan = true;
-
     if (params.autoScan) addAllZips();
   }
 
@@ -142,30 +141,97 @@ class SysZipFileSystem extends SysFileSystem
   public override function scanMods(?apiVersionRule:VersionRule):Array<ModMetadata> {
     var result:Array<ModMetadata> = super.scanMods(apiVersionRule);
 
+    var knownDirectories:Array<String> = [for (key => value in this.modMetadataLocations) value];
+
     // Also add all mods in subdirectories in ZIP files.
     // This is needed because `SysFileSystem.scanMods` only finds metadata files at the root of the ZIP.
-    for (dir in fileDirectories) {
-      if (!exists(dir)) continue;
-      var metaFile = Util.pathJoin(dir, PolymodConfig.modMetadataFile);
-      if (!exists(metaFile)) continue;
+    for (modDir in fileDirectories) {
+      // Get the directory relative to the mod root, rather than relative to the working dir.
+      var baseDir:String = modDir.replace('$modRoot/', '');
 
-      var baseDir:String = dir.replace(modRoot, '');
+      if (knownDirectories.contains(baseDir)) {
+        // We've already found mod metadata there.
+        continue;
+      }
+
+      if (!exists(modDir)) {
+        // No directory there.
+        continue;
+      }
+
+      var metaFile = Util.pathJoin(modDir, PolymodConfig.modMetadataFile);
+      if (!exists(metaFile)) {
+        // No mod metadata there.
+        continue;
+      }
 
       var meta:ModMetadata = this.getMetadataByDir(baseDir, PolymodErrorOrigin.SCAN);
-      if (meta == null) continue;
+      if (meta == null) {
+        // Unparsable mod metadata there.
+        continue;
+      }
 
       if (!VersionUtil.match(meta.apiVersion, apiVersionRule))
       {
+        // Incompatible mod metadata there.
         Polymod.warning(MOD_API_VERSION_MISMATCH,
           'Mod "${baseDir}" is not compatible with API version "${apiVersionRule.toString()}", got "${meta.apiVersion.toString()}"',
           SCAN);
         continue;
       }
 
+      // Found a new mod!
+      modMetadataLocations.set(meta.id, baseDir);
       result.push(meta);
     }
 
     return result;
+  }
+
+  override function scanModDirectoriesForId(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata> {
+    // Scan ALL ZIP directories for mod metadata with the matching location.
+    for (dir in fileDirectories)
+    {
+      var modPath = Util.pathJoin(modRoot, dir);
+      if (exists(modPath))
+      {
+        var meta:ModMetadata = null;
+
+        var metaFile = Util.pathJoin(modPath, PolymodConfig.modMetadataFile);
+        var iconFile = Util.pathJoin(modPath, PolymodConfig.modIconFile);
+
+        if (!exists(metaFile)) continue;
+        else
+        {
+          var metaText = getFileContent(metaFile);
+          meta = ModMetadata.fromJsonStr(metaText, origin);
+        }
+
+        if (meta == null) continue;
+
+        // If we found a mod metadata, cache its location for later!
+        modMetadataLocations.set(meta.id, dir);
+
+        if (meta.id != modId && dir != modId) continue;
+        meta.dirName = dir;
+        meta.modPath = modPath;
+
+        if (!exists(iconFile))
+        {
+          Polymod.warning(MOD_MISSING_ICON, 'Could not find mod icon file: $iconFile', origin);
+        }
+        else
+        {
+          var iconBytes = getFileBytes(iconFile);
+          meta.icon = iconBytes;
+          meta.iconPath = iconFile;
+        }
+
+        return meta;
+      }
+    }
+
+    return super.scanModDirectoriesForId(modId, origin);
   }
 
   public override function readDirectory(path:String):Array<String>

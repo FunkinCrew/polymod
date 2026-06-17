@@ -20,6 +20,11 @@ class SysFileSystem implements IFileSystem
 {
   public final modRoot:String;
 
+  /**
+   * A cache of the directories containing mod metadata, indexed by mod ID.
+   */
+  var modMetadataLocations:Map<String, String> = [];
+
   public function new(params:PolymodFileSystemParams)
   {
     this.modRoot = params.modRoot;
@@ -81,23 +86,68 @@ class SysFileSystem implements IFileSystem
   {
     if (apiVersionRule == null) apiVersionRule = VersionUtil.DEFAULT_VERSION_RULE;
 
-    var dirs = readDirectory(modRoot);
     var result:Array<ModMetadata> = [];
-    for (dir in dirs)
-    {
-      if (!hasMetadataFile(dir)) continue;
 
-      var meta:ModMetadata = this.getMetadataByDir(dir, PolymodErrorOrigin.SCAN);
-      if (meta == null) continue;
+    for (modId => modDir in modMetadataLocations) {
+      if (!hasMetadataFile(modDir)) {
+        // Remove locations that no longer have metadata.
+        modMetadataLocations.remove(modId);
+        continue;
+      }
+
+      var meta:ModMetadata = this.getMetadataByDir(modDir, PolymodErrorOrigin.SCAN);
+      if (meta == null) {
+        // Remove locations whose metadata can no longer be parsed.
+        modMetadataLocations.remove(modId);
+        continue;
+      }
 
       if (!VersionUtil.match(meta.apiVersion, apiVersionRule))
       {
+        // Remove locations whose metadata is no longer compatible with the current API version.
         Polymod.warning(MOD_API_VERSION_MISMATCH,
-          'Mod "${dir}" is not compatible with API version "${apiVersionRule.toString()}", got "${meta.apiVersion.toString()}"',
+          'Mod "${modDir}" is not compatible with API version "${apiVersionRule.toString()}", got "${meta.apiVersion.toString()}"',
+          SCAN);
+        modMetadataLocations.remove(modId);
+        continue;
+      }
+
+      // Leave the known metadata in place.
+      result.push(meta);
+    }
+
+    // Now check EVERY directory.
+    var knownDirectories:Array<String> = [for (key => value in modMetadataLocations) value];
+    var dirsInModRoot:Array<String> = readDirectory(modRoot);
+    for (modDir in dirsInModRoot)
+    {
+      if (knownDirectories.contains(modDir)) {
+        // We've already found mod metadata there.
+        continue;
+      }
+
+      if (!hasMetadataFile(modDir)) {
+        // No mod metadata there.
+        continue;
+      }
+
+      var meta:ModMetadata = this.getMetadataByDir(modDir, PolymodErrorOrigin.SCAN);
+      if (meta == null) {
+        // Unparsable mod metadata there.
+        continue;
+      }
+
+      if (!VersionUtil.match(meta.apiVersion, apiVersionRule))
+      {
+        // Incompatible mod metadata there.
+        Polymod.warning(MOD_API_VERSION_MISMATCH,
+          'Mod "${modDir}" is not compatible with API version "${apiVersionRule.toString()}", got "${meta.apiVersion.toString()}"',
           SCAN);
         continue;
       }
 
+      // Found a new mod!
+      modMetadataLocations.set(meta.id, modDir);
       result.push(meta);
     }
 
@@ -138,7 +188,9 @@ class SysFileSystem implements IFileSystem
         meta = ModMetadata.fromJsonStr(metaText, origin);
       }
 
-      if (meta == null) return null;
+      if (meta == null) {
+        return null;
+      }
 
       meta.id = meta.id == '' ? dirName : meta.id;
       meta.dirName = dirName;
@@ -165,7 +217,32 @@ class SysFileSystem implements IFileSystem
 
   public function getMetadataById(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
-    // TODO: Cache mod IDs so we don't iterate over the whole mods folder every time we call this!
+    trace(modMetadataLocations);
+    // Get the directory that the mod metadata is in from cache.
+    var knownDirectory:Null<String> = modMetadataLocations.get(modId);
+    if (knownDirectory != null) {
+      var result = getMetadataByDir(knownDirectory, origin);
+      if (result != null) {
+        return result;
+      } else {
+        trace('LOST metadata for mod $modId');
+        modMetadataLocations.remove(modId);
+      }
+    }
+
+    // Fallback to manually scanning every directory in the mod root.
+    return scanModDirectoriesForId(modId, origin);
+  }
+
+  /**
+   * If the location of the mod metadata is not already known (via the cache generated when calling `scanMods()`),
+   * scan all directories in the mod root to find the mod with the given ID.
+   *
+   * @param modId
+   * @param origin
+   * @return Null<ModMetadata>
+   */
+  function scanModDirectoriesForId(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata> {
     for (dir in readDirectory(modRoot))
     {
       var modPath = Util.pathJoin(modRoot, dir);
@@ -184,6 +261,8 @@ class SysFileSystem implements IFileSystem
         }
 
         if (meta == null) continue;
+
+        modMetadataLocations.set(meta.id, dir);
 
         if (meta.id != modId && dir != modId) continue;
         meta.dirName = dir;
