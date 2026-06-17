@@ -85,11 +85,9 @@ class SysFileSystem implements IFileSystem
     var result:Array<ModMetadata> = [];
     for (dir in dirs)
     {
-      var fullDir = Util.pathJoin(modRoot, dir);
-      if (!isDirectory(fullDir)) continue;
+      if (!hasMetadataFile(dir)) continue;
 
       var meta:ModMetadata = this.getMetadataByDir(dir, PolymodErrorOrigin.SCAN);
-
       if (meta == null) continue;
 
       if (!VersionUtil.match(meta.apiVersion, apiVersionRule))
@@ -110,6 +108,13 @@ class SysFileSystem implements IFileSystem
   public function getMetadata(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
     return getMetadataByDir(dirName, origin);
+  }
+
+  function hasMetadataFile(dirName:String):Bool {
+    var modPath = Util.pathJoin(modRoot, dirName);
+    if (!isDirectory(modPath)) return false;
+    var metaFile = Util.pathJoin(modPath, PolymodConfig.modMetadataFile);
+    return exists(metaFile);
   }
 
   public function getMetadataByDir(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>

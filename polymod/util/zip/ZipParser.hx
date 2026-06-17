@@ -286,6 +286,8 @@ class LocalFileHeader extends Header
    */
   public function readData():Bytes
   {
+    if (compressedSize == 0) throw 'Tried to read file "$fileName" with size 0.';
+
     fileInput.seek(dataOffset, SeekBegin);
     var bytesBuf = new haxe.io.BytesBuffer();
 

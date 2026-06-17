@@ -1,5 +1,8 @@
 package polymod.fs;
 
+import polymod.Polymod.PolymodErrorOrigin;
+import polymod.util.VersionUtil;
+import polymod.Polymod.ModMetadata;
 import polymod.fs.ZipFileSystem.ZipFileSystemParams;
 #if !sys
 class SysZipFileSystem extends polymod.fs.StubFileSystem
@@ -120,20 +123,49 @@ class SysZipFileSystem extends SysFileSystem
 
   public override function exists(path:String)
   {
-    if (filesLocations.exists(path)) return true;
-
+    // Check ZIP files first.
     if (fileDirectories.containsInsens(path)) return true;
+    if (filesLocations.exists(path)) return true;
 
     return super.exists(path);
   }
 
   public override function isDirectory(path:String)
   {
+    // Check ZIP files first.
     if (fileDirectories.containsInsens(path)) return true;
-
     if (filesLocations.exists(path)) return false;
 
     return super.isDirectory(path);
+  }
+
+  public override function scanMods(?apiVersionRule:VersionRule):Array<ModMetadata> {
+    var result:Array<ModMetadata> = super.scanMods(apiVersionRule);
+
+    // Also add all mods in subdirectories in ZIP files.
+    // This is needed because `SysFileSystem.scanMods` only finds metadata files at the root of the ZIP.
+    for (dir in fileDirectories) {
+      if (!exists(dir)) continue;
+      var metaFile = Util.pathJoin(dir, PolymodConfig.modMetadataFile);
+      if (!exists(metaFile)) continue;
+
+      var baseDir:String = dir.replace(modRoot, '');
+
+      var meta:ModMetadata = this.getMetadataByDir(baseDir, PolymodErrorOrigin.SCAN);
+      if (meta == null) continue;
+
+      if (!VersionUtil.match(meta.apiVersion, apiVersionRule))
+      {
+        Polymod.warning(MOD_API_VERSION_MISMATCH,
+          'Mod "${baseDir}" is not compatible with API version "${apiVersionRule.toString()}", got "${meta.apiVersion.toString()}"',
+          SCAN);
+        continue;
+      }
+
+      result.push(meta);
+    }
+
+    return result;
   }
 
   public override function readDirectory(path:String):Array<String>
@@ -178,7 +210,6 @@ class SysZipFileSystem extends SysFileSystem
     Polymod.debug('Searching for ZIP files in ' + modRoot);
     // Use SUPER because we don't want to add in files within the ZIPs.
     var modRootContents = super.readDirectory(modRoot);
-    Polymod.debug('Found ${modRootContents.length} files in modRoot.');
 
     for (modRootFile in modRootContents)
     {
@@ -190,10 +221,13 @@ class SysZipFileSystem extends SysFileSystem
       // Only process ZIP files.
       if (StringTools.endsWith(filePath, ".zip"))
       {
-        Polymod.debug('- Adding zip file: $filePath');
+        Polymod.debug('- $filePath');
         addZipFile(filePath);
       }
     }
+
+    var zipCount = [for (x in zipParsers.keys()) x].length;
+    Polymod.debug('Loaded ${zipCount} ZIP files containing ${fileDirectories.length} directories.');
   }
 
   public function addZipFile(zipPath:String)
