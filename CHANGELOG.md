@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [2.0.0] - 2026-??-??
+This update to Polymod is the culmination of many breaking changes and feature additions made to improve the scripted class sytem, and make it more closely resemble Haxe source.
+
+Polymod has switched to using its own built-in fork of HScript, with greatly modified capabilities and improved error reporting. Scripted classes can be imported by and instantiated from other scripts, and they can have static variables and methods you can call. `abstract`s, `enum abstract`s, and `typedef`s can be more reliably interacted with from scripts. Script functions can have any number of arguments now (there was previously a limit of 8). Scripted classes can use properties, enums, final variables, static extensions, and string interpolation, and you don't have to extend a base class if you plan to use it from another script. These improvements combine to make scripted classes extremely similar to source code, greatly reducing hassle and debugging caused by incompatibilities.
+
+The update also comes with improved sandboxing, with the ability to blacklist specific fields of any class, as well as case insensitive file access (togglable in PolymodConfig), a refactor of the existing error messages, 
 ## Added
 - You can now declare and access static variables and functions of scripted classes, even from other scripts.
 - You can directly instantiate a scripted class by name from another script (`new TestClass()` instead of `ScriptedBar.init('TestClass', [])`).
