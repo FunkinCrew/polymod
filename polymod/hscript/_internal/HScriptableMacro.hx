@@ -107,7 +107,7 @@ class HScriptableMacro
             var return_expr = switch func.ret
             {
               case TPath({name: 'Void', pack: [], params: []}):
-                // Function sigture says Void, don't return anything
+                // Function signature says Void, don't return anything
                 macro null;
               default:
                 macro return script_result;

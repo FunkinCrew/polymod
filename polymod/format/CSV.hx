@@ -14,21 +14,21 @@ class CSV
   function new() {}
 
   /**
-   * Parses CSV formatted string into a useable data structure
+   * Parses CSV formatted string into a usable data structure
    * @param	input csv-formatted string
    * @param	delimeter string that separates cells
-   * @param	quotedCells	whether all cells are quoted (true) or all cells are unqouted (false)
+   * @param	quotedCells	whether all cells are quoted (true) or all cells are unquoted (false)
    * @return	the parsed CSV data
    */
-  public static function parse(input:String, delimeter:String = ',', quotedCells:Bool = true):CSV
+  public static function parse(input:String, delimiter:String = ',', quotedCells:Bool = true):CSV
   {
     var csv = new CSV();
-    @:privateAccess csv._parse(input, delimeter, quotedCells);
+    @:privateAccess csv._parse(input, delimiter, quotedCells);
     return csv;
   }
 
   /**
-   * Parses CSV formatted string into a useable data structure
+   * Parses CSV formatted string into a usable data structure
    * @param	format details about the parse format
    * @return	the parsed CSV data
    */
@@ -40,14 +40,14 @@ class CSV
     }
     else
     {
-      return CSV.parse(input, format.delimeter, format.quotedCells);
+      return CSV.parse(input, format.delimiter, format.quotedCells);
     }
   }
 
   /**
-   * Parses CSV assuming 1) All cells are unquoted and 2) No commas or endlines exist within a cell
-   * Endline format will be auto-detected: a single '\r\n' will make it split lines based on windows
-   * style endlines, otherwise it will attempt splitting based on unix-style '\n' endlines.
+   * Parses CSV assuming 1) All cells are unquoted and 2) No commas or end-lines exist within a cell
+   * End-line format will be auto-detected: a single '\r\n' will make it split lines based on Windows
+   * style end-lines, otherwise it will attempt splitting based on unix-style '\n' end-lines.
    * @param	input csv-formatted string
    * @return	the parsed CSV data
    */
@@ -80,12 +80,12 @@ class CSV
 
   private var _rgx:EReg = null;
 
-  private var _delimeter:String = '';
+  private var _delimiter:String = '';
   private var _quoted:Bool = false;
 
-  private function _parse(input:String, delimeter:String = ',', quoted:Bool = true)
+  private function _parse(input:String, delimiter:String = ',', quoted:Bool = true)
   {
-    _delimeter = delimeter;
+    _delimiter = delimiter;
     _quoted = quoted;
     if (input != '')
     {
@@ -124,22 +124,22 @@ class CSV
     if (_rgx == null)
     {
       // If the last cell in the row ends with the delimeter, trim it off before splitting
-      if (row.charAt(row.length - 1) == _delimeter)
+      if (row.charAt(row.length - 1) == _delimiter)
       {
         row = row.substr(0, row.length - 1);
       }
 
-      if (_delimeter == ',')
+      if (_delimiter == ',')
       {
         _rgx = ~/,(?=(?:[^\x22]*\x22[^\x22]*\x22)*(?![^\x22]*\x22))/gm;
-        // Matches a well formed CSV cell, ie 'thing1' or 'thing ,, 5' etc
+        // Matches a well-formed CSV cell, ie 'thing1' or 'thing , 5' etc
         // '\x22' is the invocation for the double-quote mark.
         // UTF-8 ONLY!!!!
       }
       else
       {
         // You can provide your own customer delimeter, but we generally don't recommend it
-        _rgx = new EReg(_delimeter + '(?=(?:[^\x22]*\x22[^\x22]*\x22)*(?![^\x22]*\x22))', 'gm');
+        _rgx = new EReg(_delimiter + '(?=(?:[^\x22]*\x22[^\x22]*\x22)*(?![^\x22]*\x22))', 'gm');
       }
     }
     return _rgx.split(row);

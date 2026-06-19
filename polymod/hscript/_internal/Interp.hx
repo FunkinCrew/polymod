@@ -2218,7 +2218,7 @@ class Interp
 
     // Backwards compatibility for scripts using HScriptedClass.init
     // Std.isOfType(o, HScriptedClass) only works with class instances
-    // so we look for a specific field to double check the type
+    // so we look for a specific field to double-check the type
     if ((f == 'init' || f == 'scriptInit') && o._isHScriptedClass)
     {
       return Reflect.makeVarArgs((args:Array<Dynamic>) -> return o.scriptInit(args[0], args.slice(1)));
@@ -2467,7 +2467,7 @@ class Interp
     var importsToValidate:Map<String, ClassImport> = [];
     var usings:Map<String, ClassImport> = [];
 
-    // Don't add the default imports to import.hx since they're added to other script classes anyways.
+    // Don't add the default imports to import.hx since they're added to other script classes anyway.
     if (!isImportFile)
     {
       for (importPath in PolymodScriptClass.defaultImports.keys())

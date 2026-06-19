@@ -7,9 +7,9 @@ package polymod.format;
 class TSV extends CSV
 {
   /**
-   * Parses TSV formatted string into a useable data structure
-   * Endline format will be auto-detected: a single "\r\n" will make it split lines based on windows
-   * style endlines, otherwise it will attempt splitting based on unix-style "\n" endlines.
+   * Parses TSV formatted string into a usable data structure
+   * End-line format will be auto-detected: a single "\r\n" will make it split lines based on Windows
+   * style end-lines, otherwise it will attempt splitting based on unix-style "\n" end-lines.
    * @param	input tsv-formatted string
    */
   public static function parse(input:String):TSV

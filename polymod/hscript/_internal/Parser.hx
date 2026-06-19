@@ -71,10 +71,10 @@ class Parser
   /**
     allows to check for #if / #else in code
   **/
-  public static var preprocesorValues(get, default):Map<String, Dynamic>;
+  public static var preprocessorValues(get, default):Map<String, Dynamic>;
 
   /**
-    activate JSON compatiblity
+    activate JSON compatibility
   **/
   public var allowJSON:Bool;
 
@@ -186,7 +186,7 @@ class Parser
 
   function initParser(origin, pos)
   {
-    // line=1 - don't reset line : it might be set manualy
+    // line=1 - don't reset line : it might be set manually
     preprocStack = [];
     preprocessing = false;
     #if hscriptPos
@@ -2406,7 +2406,7 @@ class Parser
 
   function preprocValue(id:String):Dynamic
   {
-    return preprocesorValues.get(id);
+    return preprocessorValues.get(id);
   }
 
   var preprocStack:Array<{r:Bool}>;
@@ -2623,9 +2623,9 @@ class Parser
     }
   }
 
-  static function get_preprocesorValues()
+  static function get_preprocessorValues()
   {
-    if (preprocesorValues == null) preprocesorValues = DefineUtil.getDefines();
-    return preprocesorValues;
+    if (preprocessorValues == null) preprocessorValues = DefineUtil.getDefines();
+    return preprocessorValues;
   }
 }

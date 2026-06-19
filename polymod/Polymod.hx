@@ -23,7 +23,7 @@ import firetongue.FireTongue;
 #end
 
 /**
- * The set of parameters which can be provided when intializing Polymod
+ * The set of parameters which can be provided when initializing Polymod
  */
 typedef PolymodParams =
 {
@@ -157,7 +157,7 @@ typedef PolymodParams =
 
 /**
  * Any framework-specific settings
- * Right now this is only used to specify asset library paths for the Lime/OpenFL framework but we'll add more framework-specific settings here as neeeded
+ * Right now this is only used to specify asset library paths for the Lime/OpenFL framework, but we'll add more framework-specific settings here as needed
  */
 typedef FrameworkParams =
 {
@@ -366,12 +366,12 @@ class Polymod
       // Add the loaded mods to the Parser's preprocessor values.
       for (mod in prevModsLoaded)
       {
-        Parser.preprocesorValues.remove(mod.id);
+        Parser.preprocessorValues.remove(mod.id);
       }
 
       for (mod in sortedModsToLoad)
       {
-        Parser.preprocesorValues.set(mod.id, mod.modVersion.toString());
+        Parser.preprocessorValues.set(mod.id, mod.modVersion.toString());
       }
 
       if (params.loadScriptsAsync)
@@ -1393,7 +1393,7 @@ enum abstract PolymodErrorCode(String) from String to String
   /**
    * You requested a mod to be loaded but that mod was not installed.
    * - Make sure a mod with that directory is installed.
-   * - Make sure to run Polymod.scan to get the list of valid mod directories.
+   * - Make sure to run Polymod.scan() to get the list of valid mod directories.
    */
   public var MOD_MISSING_DIRECTORY:String = 'mod_missing_directory';
 
@@ -1653,7 +1653,7 @@ enum abstract PolymodErrorCode(String) from String to String
    * While running a script, an exception was thrown.
    * - Read the error message for more information.
    * - Annotated functions will have the local variable `script_error` assigned, allowing you to handle the error gracefully.
-   * - Scripted classes will purge the offending function, preventing the error from occuring again until the script is reloaded.
+   * - Scripted classes will purge the offending function, preventing the error from occurring again until the script is reloaded.
    */
   public var SCRIPT_RUNTIME_EXCEPTION:String = 'script_runtime_exception';
 

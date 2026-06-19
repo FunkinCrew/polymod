@@ -66,7 +66,7 @@ typedef PolymodFileSystemParams =
 {
   /**
    * The root directory which Polymod should read mods from.
-   * May not be applicable for file systems which dicatate the directory, or use no directory.
+   * May not be applicable for file systems which dictate the directory, or use no directory.
    */
   ?modRoot:String,
 };
@@ -133,7 +133,7 @@ interface IFileSystem
   /**
    * Provides the metadata for a given mod. Returns null if the mod does not exist.
    * @param modId The directory of the mod.
-   * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc).
+   * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc.).
    *   Used for error reporting.
    * @return The mod metadata.
    */
@@ -142,7 +142,7 @@ interface IFileSystem
   /**
    * Provides the metadata for a given mod. Returns null if the mod does not exist.
    * @param modId The ID of the mod.
-   * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc).
+   * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc.).
    *   Used for error reporting.
    * @return The mod metadata.
    */
