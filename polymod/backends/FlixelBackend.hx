@@ -1,6 +1,5 @@
 package polymod.backends;
 
-import polymod.backends.PolymodAssets.PolymodAssetType;
 #if flixel
 #if !macro
 import lime.utils.Assets as LimeAssets;

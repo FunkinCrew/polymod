@@ -1,7 +1,6 @@
 package polymod.util;
 
-import polymod.Polymod.ModDependencies;
-import polymod.Polymod.ModMetadata;
+import polymod.Polymod;
 import thx.semver.VersionRule;
 
 /**

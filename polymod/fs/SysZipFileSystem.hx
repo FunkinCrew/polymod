@@ -1,8 +1,7 @@
 package polymod.fs;
 
-import polymod.Polymod.PolymodErrorOrigin;
 import polymod.util.VersionUtil;
-import polymod.Polymod.ModMetadata;
+import polymod.Polymod;
 import polymod.fs.ZipFileSystem.ZipFileSystemParams;
 #if !sys
 class SysZipFileSystem extends polymod.fs.StubFileSystem
@@ -21,7 +20,6 @@ import haxe.io.Path;
 import polymod.util.Util;
 import polymod.util.InsensitiveMap;
 import polymod.util.zip.ZipParser;
-import sys.io.File;
 import thx.semver.VersionRule;
 
 using StringTools;

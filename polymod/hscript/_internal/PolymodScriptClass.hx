@@ -584,7 +584,7 @@ class PolymodScriptClass
     Polymod.error(SCRIPT_RUNTIME_EXCEPTION, 'Error while executing function ${className}.${fnName}()#${errLine}: ' + '\n' + message, SCRIPT_RUNTIME);
   }
 
-  public function callFunction(fnName:String, ?args:Array<Dynamic>):Dynamic
+  public function callFunction(fnName:String, ?args:Array<Dynamic>):Null<Dynamic>
   {
     var field = findField(fnName);
     var fn = (field != null) ? findFunction(fnName, true) : null;

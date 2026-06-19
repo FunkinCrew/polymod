@@ -169,7 +169,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
     return false;
   }
 
-  @:op(a.b) public function fieldWrite(name:String, value:Dynamic):Dynamic
+  @:op(a.b) public function fieldWrite(name:String, value:Dynamic):Null<Dynamic>
   {
     if (this.findVar(name) != null)
     {

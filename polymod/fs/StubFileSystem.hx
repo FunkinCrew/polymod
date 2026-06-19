@@ -1,7 +1,6 @@
 package polymod.fs;
 
-import polymod.Polymod.ModMetadata;
-import polymod.Polymod.PolymodErrorOrigin;
+import polymod.Polymod;
 import polymod.fs.PolymodFileSystem;
 import thx.semver.VersionRule;
 

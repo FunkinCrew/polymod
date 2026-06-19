@@ -1,6 +1,6 @@
 package polymod.format;
 
-import polymod.format.ParseRules.TextFileFormat;
+import polymod.format.ParseRules;
 
 interface BaseParseFormat
 {

@@ -1,12 +1,11 @@
 package polymod.fs;
 
-import polymod.Polymod.PolymodErrorOrigin;
 import haxe.io.Bytes;
 import haxe.io.UInt8Array;
 import js.Browser;
 import js.html.ScriptElement;
 import js.Lib;
-import polymod.Polymod.ModMetadata;
+import polymod.Polymod;
 import polymod.PolymodConfig;
 import polymod.fs.PolymodFileSystem.IFileSystem;
 import polymod.util.Util;

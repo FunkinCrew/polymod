@@ -1,8 +1,7 @@
 package polymod.fs;
 
 #if sys
-import polymod.Polymod.PolymodErrorOrigin;
-import polymod.Polymod.ModMetadata;
+import polymod.Polymod;
 import polymod.fs.PolymodFileSystem;
 import polymod.util.Util;
 import polymod.util.VersionUtil;

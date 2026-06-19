@@ -225,7 +225,7 @@ class Parser
     return if (a.length == 1) a[0] else mk(EBlock(a), 0);
   }
 
-  function unexpected(tk):Dynamic
+  function unexpected(tk):Null<Dynamic>
   {
     error(EUnexpected(tokenString(tk)), tokenMin, tokenMax);
     return null;
@@ -302,7 +302,7 @@ class Parser
     #end
   }
 
-  inline function mk(e, ?pmin, ?pmax):Expr
+  inline function mk(e, ?pmin, ?pmax):Null<Expr>
   {
     #if hscriptPos
     if (e == null) return null;
@@ -1442,7 +1442,7 @@ class Parser
     return {};
   }
 
-  function parseModuleDecl():ModuleDecl
+  function parseModuleDecl():Null<ModuleDecl>
   {
     var meta = parseMetadata();
     var ident = getIdent();
@@ -1651,7 +1651,7 @@ class Parser
     return null;
   }
 
-  function parseField():FieldDecl
+  function parseField():Null<FieldDecl>
   {
     var meta = parseMetadata();
     var access = [];
@@ -1734,7 +1734,7 @@ class Parser
     return null;
   }
 
-  function parseInterfaceField():FieldDecl
+  function parseInterfaceField():Null<FieldDecl>
   {
     var meta = parseMetadata();
     var access = [];
@@ -1853,7 +1853,6 @@ class Parser
 
   function readString(until:Int):Const
   {
-    var c:Int = 0;
     var b:StringBuf = new StringBuf();
     var esc:Bool = false;
     var interps:Bool = false;
@@ -2541,7 +2540,6 @@ class Parser
   function tokenComment(op:String, char:Int)
   {
     var c = op.charCodeAt(1);
-    var s = input;
     if (c == '/'.code)
     { // comment
       while (char != '\r'.code && char != '\n'.code)

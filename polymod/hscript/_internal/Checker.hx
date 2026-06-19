@@ -108,7 +108,7 @@ class Completion
   }
 }
 
-@:allow(hscript.Checker)
+@:allow(polymod.hscript._internal.Checker)
 class CheckerTypes
 {
   var types:Map<String, CTypedecl> = new Map();
@@ -356,7 +356,7 @@ class CheckerTypes
     return t;
   }
 
-  public function resolve(name:String, ?args:Array<TType>):TType
+  public function resolve(name:String, ?args:Array<TType>):Null<TType>
   {
     if (name == "Null")
     {
@@ -528,7 +528,7 @@ class Checker
     return [for (k in locals.keys()) k => locals.get(k)];
   }
 
-  function makeType(t:CType, e:Expr):TType
+  function makeType(t:CType, e:Expr):Null<TType>
   {
     return switch (t)
     {
@@ -1005,7 +1005,7 @@ class Checker
     }
   }
 
-  public function unasync(t:TType):TType
+  public function unasync(t:TType):Null<TType>
   {
     switch (follow(t))
     {
@@ -1483,7 +1483,6 @@ class Checker
           default:
             if (op.charCodeAt(op.length - 1) == "=".code)
             {
-              var t = typeExpr(mk(EBinop(op.substr(0, op.length - 1), e1, e2), expr), withType);
               return typeExpr(mk(EBinop("=", e1, e2), expr), withType);
             }
             error("Unsupported operation " + op, expr);

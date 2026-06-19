@@ -1,10 +1,7 @@
 package polymod.backends;
 
 import haxe.io.Bytes;
-import haxe.xml.Fast;
-import haxe.xml.Printer;
 import polymod.Polymod;
-import polymod.Polymod.PolymodError;
 import polymod.util.Util;
 import polymod.backends.PolymodAssetLibrary;
 import polymod.backends.PolymodAssets.PolymodAssetType;

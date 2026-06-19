@@ -65,7 +65,7 @@ class HScriptParams
    */
   public var pathName(default, set):String = null;
 
-  function set_pathName(newValue:String):String
+  function set_pathName(newValue:String):Null<String>
   {
     if (pathNameDynId != null) return null;
 
@@ -199,7 +199,7 @@ class ScriptRunner
     scripts.clear();
   }
 
-  public function load(name:String, assetHandler:Dynamic):Script
+  public function load(name:String, assetHandler:Dynamic):Null<Script>
   {
     if (assetHandler == null)
     {
@@ -227,7 +227,7 @@ class ScriptRunner
     return Util.pathJoin('${PolymodConfig.scriptLibrary}:${PolymodConfig.rootPath}', '$pathName${PolymodConfig.scriptExt}');
   }
 
-  public function get(name:String, ?assetHandler:Dynamic = null):Script
+  public function get(name:String, ?assetHandler:Dynamic = null):Null<Script>
   {
     // If the script isn't loaded yet, do that now.
     if (!scripts.exists(name))

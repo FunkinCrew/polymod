@@ -8,7 +8,6 @@ import haxe.io.Bytes;
 import haxe.io.BytesInput;
 import haxe.io.Path;
 import haxe.zip.Entry;
-import haxe.zip.InflateImpl;
 
 #if !html5
 class MemoryZipFileSystem extends StubFileSystem

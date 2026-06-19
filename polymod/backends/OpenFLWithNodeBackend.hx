@@ -15,7 +15,7 @@ import polymod.backends.LimeBackend.LimeModLibrary;
 import openfl.events.Event;
 import openfl.events.EventDispatcher;
 #end
-import polymod.Polymod.FrameworkParams;
+import polymod.Polymod;
 
 /**
  * Permission is hereby granted, free of charge, to any person obtaining a copy

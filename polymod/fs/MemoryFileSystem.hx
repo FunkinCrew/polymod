@@ -119,7 +119,7 @@ class MemoryFileSystem implements IFileSystem
    * @param path The path name of the file to read.
    * @return The text contents of the file.
    */
-  public function getFileContent(path:String):String
+  public function getFileContent(path:String):Null<String>
   {
     var fileBytes = getFileBytes(path);
     if (fileBytes == null) return null;

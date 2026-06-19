@@ -159,8 +159,6 @@ class CSV
 
   private function processCells(cells:Array<String>, row:Int = 0):Void
   {
-    var col:Int = 0;
-    var newline:Bool = false;
     var row_array:Array<String> = null;
 
     if (grid == null)

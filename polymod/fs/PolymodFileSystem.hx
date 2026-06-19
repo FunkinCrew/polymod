@@ -1,9 +1,8 @@
 package polymod.fs;
 
-import polymod.Polymod.PolymodErrorOrigin;
+import polymod.Polymod;
 import thx.semver.VersionRule;
 import haxe.io.Bytes;
-import polymod.Polymod.ModMetadata;
 
 /**
  * Provides factory and utility functions for instantiating an IFileSystem.
