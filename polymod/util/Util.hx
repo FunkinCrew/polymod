@@ -1,18 +1,12 @@
 package polymod.util;
 
-import haxe.Utf8;
 import haxe.io.Bytes;
 import haxe.io.Path;
-import polymod.Polymod.PolymodError;
-import polymod.Polymod.PolymodErrorType;
 import polymod.Polymod;
 import polymod.format.BaseParseFormat;
-import polymod.format.CSV;
-import polymod.format.ParseRules.CSVParseFormat;
-import polymod.format.ParseRules.TextFileFormat;
 import polymod.format.ParseRules;
 import polymod.fs.PolymodFileSystem.IFileSystem;
-import polymod.hscript._internal.Expr.ClassDecl;
+import polymod.hscript._internal.Expr;
 #if unifill
 import unifill.Unifill;
 #end
@@ -65,7 +59,7 @@ class Util
   }
 
   /**
-   * Filters a unicode string to only contain characters that are valid in a filename.
+   * Filters a Unicode string to only contain characters that are valid in a filename.
    */
   public static function filterASCII(str:String):String
   {
@@ -140,7 +134,6 @@ class Util
   public static function appendCSVOrTSV(baseText:String, appendText:String, id:String)
   {
     var lastChar = uCharAt(baseText, uLength(baseText) - 1);
-    var lastLastChar = uCharAt(baseText, uLength(baseText) - 1);
     var joiner = '';
     var endLine = "\n";
     var crIndex = uIndexOf(baseText, "\r");
@@ -370,7 +363,6 @@ class Util
     return '/';
   }
 
-  @:access(haxe.xml.Xml)
   public static inline function copyXml(data:Xml, parent:Xml = null):Xml
   {
     var c:Xml = null;
@@ -563,8 +555,6 @@ class Util
   public static function uTrimFinalEndlines(str:String):String
   {
     var done = false;
-    var fix = '';
-    var last = '';
     while (!done)
     {
       var fix = Util.uTrimFinalCharIf(str, "\n");
@@ -596,8 +586,6 @@ class Util
   public static function uTrimFirstEndlines(str:String):String
   {
     var done = false;
-    var fix = '';
-    var last = '';
     while (!done)
     {
       var fix = Util.uTrimFirstCharIf(str, "\n");

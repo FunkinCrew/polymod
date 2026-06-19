@@ -11,7 +11,7 @@ using haxe.macro.TypeTools;
 
 class HScriptableMacro
 {
-  public static macro function build():Array<Field>
+  public static macro function build():Null<Array<Field>>
   {
     var cls:haxe.macro.Type.ClassType = Context.getLocalClass().get();
     var fields:Array<Field> = Context.getBuildFields();

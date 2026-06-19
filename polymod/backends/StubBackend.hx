@@ -25,12 +25,12 @@ class StubBackend implements IBackend
     return false;
   }
 
-  public function getBytes(id:String):Bytes
+  public function getBytes(id:String):Null<Bytes>
   {
     return null;
   }
 
-  public function getText(id:String):String
+  public function getText(id:String):Null<String>
   {
     return null;
   }
@@ -47,7 +47,7 @@ class StubBackend implements IBackend
   }
   #end
 
-  public function getPath(id:String):String
+  public function getPath(id:String):Null<String>
   {
     return null;
   }

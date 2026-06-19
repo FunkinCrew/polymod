@@ -86,7 +86,7 @@ class ZipParser
    * @param localFileName A filename relative to the root of the ZIP file.
    * @return A LocalFileHeader for the specified file, or null if the file was not found.
    */
-  public function getLocalFileHeaderOf(localFileName:String):LocalFileHeader
+  public function getLocalFileHeaderOf(localFileName:String):Null<LocalFileHeader>
   {
     fileHandle = File.read(this.fileName);
     var cdfh = centralDirectoryRecords.get(localFileName);

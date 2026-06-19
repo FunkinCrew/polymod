@@ -1,15 +1,11 @@
 package polymod.backends;
 
 import haxe.io.Bytes;
-import polymod.Polymod.Framework;
-import polymod.Polymod.FrameworkParams;
-import polymod.Polymod.PolymodErrorCode;
+import polymod.Polymod;
 import polymod.backends.IBackend;
 import polymod.backends.PolymodAssetLibrary;
 import polymod.format.ParseRules;
-import polymod.fs.PolymodFileSystem.IFileSystem;
-import polymod.fs.StubFileSystem;
-import polymod.fs.SysFileSystem;
+import polymod.fs.PolymodFileSystem;
 #if firetongue
 import firetongue.FireTongue;
 #end
@@ -19,7 +15,7 @@ typedef PolymodAssetsParams =
   /**
    * the Haxe framework you're using (OpenFL, HEAPS, Kha, NME, etc..)
    */
-  framework:polymod.Framework,
+  ?framework:Framework,
 
   /**
    * the file system to use to access mods.
@@ -79,9 +75,9 @@ typedef PolymodAssetsParams =
 
 class PolymodAssets
 {
-  public static function init(params:PolymodAssetsParams):PolymodAssetLibrary
+  public static function init(params:PolymodAssetsParams):Null<PolymodAssetLibrary>
   {
-    var framework:polymod.Framework = params.framework;
+    var framework:Framework = params.framework;
     if (framework == null)
     {
       framework = autoDetectFramework();
@@ -202,7 +198,7 @@ class PolymodAssets
    * Powered by compile-time macros.
    * @return polymod.Framework
    */
-  private static function autoDetectFramework():polymod.Framework
+  private static function autoDetectFramework():Framework
   {
     #if castle
     return CASTLE;

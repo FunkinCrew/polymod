@@ -4,10 +4,8 @@ package polymod.hscript._internal;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Type;
-#else
 #end
 import polymod.util.Util;
-import haxe.rtti.Meta;
 
 @:nullSafety
 class PolymodFinalMacro

@@ -177,7 +177,7 @@ class PolymodScriptClassMacro
 
           try
           {
-            var _ = Context.getType(polymodImplPath);
+            Context.getType(polymodImplPath);
             hasPolymodImpl = true;
           }
           catch (e) {}

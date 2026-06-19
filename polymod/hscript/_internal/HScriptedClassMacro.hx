@@ -19,7 +19,7 @@ class HScriptedClassMacro
    * The second build step (called in an onAfterTyping callback) creates the rest of the functions,
    *   which require initial typing to be completed before they can be created.
    */
-  public static macro function build():Array<Field>
+  public static macro function build():Null<Array<Field>>
   {
     var cls:ClassType = Context.getLocalClass().get();
 
@@ -48,39 +48,6 @@ class HScriptedClassMacro
 
     // Returning null is equal to "don't do anything".
     return null;
-  }
-
-  /**
-   * Parse `@:hscriptClass`.
-   */
-  static function parseHScriptClassParams(metaEntry:MetadataEntry):HScriptClassParams
-  {
-    var result:HScriptClassParams = {};
-
-    switch (metaEntry.params[0].expr)
-    {
-      case EObjectDecl(paramFields):
-        // paramFields
-        for (paramField in paramFields)
-        {
-          switch (paramField.field)
-          {
-            case 'baseClass':
-              switch (paramField.expr.expr)
-              {
-                case EConst(CIdent(baseClassName)):
-                  result.baseClass = baseClassName;
-                default:
-                  Context.error("Error: @:hscriptClass baseClass must be a string", Context.currentPos());
-              }
-              break;
-          }
-        }
-      default:
-        Context.error("Error: @:hscriptClass({}) must contain an object", Context.currentPos());
-    }
-
-    return result;
   }
 
   /**
@@ -141,7 +108,7 @@ class HScriptedClassMacro
     return fields;
   }
 
-  static function buildScriptedClassInit(cls:ClassType, superCls:ClassType):Field
+  static function buildScriptedClassInit(cls:ClassType, superCls:ClassType):Null<Field>
   {
     // Context.info('  Building scripted class init() function', Context.currentPos());
     var clsTypeName:String = cls.pack.join('.') != '' ? '${cls.pack.join('.')}.${cls.name}' : cls.name;
@@ -996,33 +963,6 @@ class HScriptedClassMacro
           },
         }),
     };
-  }
-
-  /**
-   * Create the type corresponding to an array of the given type.
-   * For example, toComplexTypeArray(String) will return Array<String>.
-   */
-  static function toComplexTypeArray(inputType:ComplexType):ComplexType
-  {
-    var typeParams = (inputType != null) ? [TPType(inputType)] : [
-      TPType(TPath(
-        {
-          pack: [],
-          name: 'Dynamic',
-          sub: null,
-          params: []
-        }))
-    ];
-
-    var result:ComplexType = TPath(
-      {
-        pack: [],
-        name: 'Array',
-        sub: null,
-        params: typeParams,
-      });
-
-    return result;
   }
 
   static function buildEmptyScriptedClassConstructor():Field

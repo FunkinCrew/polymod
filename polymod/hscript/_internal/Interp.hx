@@ -71,7 +71,7 @@ class Interp
   var curExpr:Expr;
   #end
 
-  function getClassDecl():ClassDecl
+  function getClassDecl():Null<ClassDecl>
   {
     if (_classDeclOverride != null)
     {
@@ -194,7 +194,7 @@ class Interp
    * @param args The arguments to apply to that function.
    * @return The result of the function call.
    */
-  function call(target:Dynamic, fun:Dynamic, args:Array<Dynamic>):Dynamic
+  function call(target:Dynamic, fun:Dynamic, args:Array<Dynamic>):Null<Dynamic>
   {
     // Calling fn() in hscript won't resolve an object first. Thus, we need to change it to use this.fn() instead.
     if (target == null && _nextCallObject != null)
@@ -383,7 +383,7 @@ class Interp
    * @param args The arguments to pass to the function.
    * @return The return value of the function.
    */
-  public function callScriptClassStaticFunction(clsName:String, fnName:String, args:Array<Dynamic> = null):Dynamic
+  public function callScriptClassStaticFunction(clsName:String, fnName:String, args:Array<Dynamic> = null):Null<Dynamic>
   {
     // For functions listScriptClasses and scriptInit, we want to return the needed values without much checking.
     if (fnName == "listScriptClasses")
@@ -736,7 +736,7 @@ class Interp
     return assignValue(e1, expr(e2));
   }
 
-  function assignValue(e1:Expr, v:Dynamic, _abstractInlineAssign:Bool = false):Dynamic
+  function assignValue(e1:Expr, v:Dynamic, _abstractInlineAssign:Bool = false):Null<Dynamic>
   {
     switch (Tools.expr(e1))
     {
@@ -1055,7 +1055,7 @@ class Interp
     }
   }
 
-  public function execute(expr:Expr):Dynamic
+  public function execute(expr:Expr):Null<Dynamic>
   {
     // If this function is being called (and not executeEx),
     // PolymodScriptClass is not being used to call the expression.
@@ -1086,7 +1086,7 @@ class Interp
     return exprReturn(expr);
   }
 
-  function exprReturn(e):Dynamic
+  function exprReturn(e):Null<Dynamic>
   {
     try
     {
@@ -1134,7 +1134,7 @@ class Interp
     }
   }
 
-  public inline function error(e:#if hscriptPos ErrorDef #else Error #end, rethrow = false):Dynamic
+  public inline function error(e:#if hscriptPos ErrorDef #else Error #end, rethrow = false):Null<Dynamic>
   {
     #if hscriptPos var e = new Error(e, curExpr?.pmin ?? 0, curExpr?.pmax ?? 0, curExpr?.origin ?? 'unknown', curExpr?.line ?? 0); #end
     if (rethrow) this.rethrow(e)
@@ -1152,7 +1152,7 @@ class Interp
     #end
   }
 
-  function resolve(id:String):Dynamic
+  function resolve(id:String):Null<Dynamic>
   {
     _nextCallObject = null;
     if (id == "super")
@@ -1352,7 +1352,7 @@ class Interp
     return true;
   }
 
-  public function expr(e:Expr):Dynamic
+  public function expr(e:Expr):Null<Dynamic>
   {
     #if hscriptPos
     curExpr = e;
@@ -2189,7 +2189,7 @@ class Interp
     cast(map, haxe.Constraints.IMap<Dynamic, Dynamic>).set(key, value);
   }
 
-  function makeMap(keys:Array<Dynamic>, values:Array<Dynamic>):Dynamic
+  function makeMap(keys:Array<Dynamic>, values:Array<Dynamic>):Null<Dynamic>
   {
     var isAllString:Bool = true;
     var isAllInt:Bool = true;
@@ -2234,7 +2234,7 @@ class Interp
     return null;
   }
 
-  function get(o:Dynamic, f:String):Dynamic
+  function get(o:Dynamic, f:String):Null<Dynamic>
   {
     if (o == null) error(ENullObjectReference(f));
 
@@ -2356,7 +2356,7 @@ class Interp
     #end
   }
 
-  function set(o:Dynamic, f:String, v:Dynamic):Dynamic
+  function set(o:Dynamic, f:String, v:Dynamic):Null<Dynamic>
   {
     if (o == null) error(ENullObjectReference(f));
 
@@ -2833,7 +2833,7 @@ class Interp
     return false;
   }
 
-  public function getScriptClassStaticField(clsName:String, fieldName:String):Dynamic
+  public function getScriptClassStaticField(clsName:String, fieldName:String):Null<Dynamic>
   {
     var prefixedName = clsName + '#' + fieldName;
     var fieldDecl = getScriptClassStaticFieldDecl(clsName, fieldName);
@@ -2897,7 +2897,7 @@ class Interp
     }
   }
 
-  public function setScriptClassStaticField(clsName:String, fieldName:String, value:Dynamic):Dynamic
+  public function setScriptClassStaticField(clsName:String, fieldName:String, value:Dynamic):Null<Dynamic>
   {
     var prefixedName = clsName + '#' + fieldName;
     var fieldDecl = getScriptClassStaticFieldDecl(clsName, fieldName);

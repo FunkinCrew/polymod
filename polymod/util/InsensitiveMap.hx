@@ -1,6 +1,5 @@
 package polymod.util;
 
-import haxe.ds.StringMap;
 import haxe.Constraints.IMap;
 
 /**

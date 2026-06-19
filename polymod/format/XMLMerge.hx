@@ -112,7 +112,6 @@ class XMLMerge
               var aValue = a.get(key);
               if (aValue == value)
               {
-                var bValue = b.get(key);
                 mergeXMLWork(a, b);
               }
             }

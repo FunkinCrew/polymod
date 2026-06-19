@@ -4,9 +4,7 @@ import lime.system.ThreadPool;
 import polymod.backends.PolymodAssetLibrary;
 import polymod.backends.PolymodAssets.PolymodAssetType;
 import polymod.fs.PolymodFileSystem;
-import polymod.fs.PolymodFileSystem.IFileSystem;
 import polymod.Polymod;
-import polymod.Polymod.FrameworkParams;
 import polymod.util.Util;
 
 using StringTools;

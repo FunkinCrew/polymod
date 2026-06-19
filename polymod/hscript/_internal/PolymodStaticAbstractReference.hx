@@ -1,8 +1,5 @@
 package polymod.hscript._internal;
 
-import polymod.hscript._internal.Expr.ClassDecl;
-import polymod.hscript._internal.Expr.FieldDecl;
-import polymod.hscript._internal.PolymodScriptClass;
 
 using StringTools;
 

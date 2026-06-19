@@ -1,7 +1,6 @@
 package polymod.hscript._internal;
 
-import polymod.hscript._internal.Expr.ClassDecl;
-import polymod.hscript._internal.Expr.FieldDecl;
+import polymod.hscript._internal.Expr;
 
 using StringTools;
 
@@ -43,7 +42,7 @@ class PolymodStaticClassReference
    * @param args The arguments to pass to the constructor
    * @return The resulting instance
    */
-  public function instantiate(?args:Array<Dynamic>):Dynamic
+  public function instantiate(?args:Array<Dynamic>):Null<Dynamic>
   {
     var asc:PolymodAbstractScriptClass = buildASC(args);
 

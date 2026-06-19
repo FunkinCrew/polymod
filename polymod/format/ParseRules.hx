@@ -1,16 +1,9 @@
 package polymod.format;
 
-import haxe.Json;
 import json.JSONData;
 import json.patch.JSONPatch;
 import polymod.Polymod;
-import polymod.Polymod.PolymodError;
-import polymod.Polymod.PolymodErrorType;
 import polymod.util.Util;
-#if unifill
-import unifill.Unifill;
-#end
-import UnicodeString;
 
 class ParseRules
 {
@@ -253,7 +246,6 @@ class CSVParseFormat implements BaseParseFormat
   {
     var buf = new StringBuf();
 
-    var lf = 0x0A;
     var dq = 0x22;
 
     for (i in 0...csv.fields.length)
@@ -358,7 +350,6 @@ class TSVParseFormat implements BaseParseFormat
     var buf = new StringBuf();
 
     var tab = 0x09;
-    var lf = 0x0A;
 
     for (i in 0...tsv.fields.length)
     {
@@ -661,7 +652,6 @@ class PlainTextParseFormat implements BaseParseFormat // <String>
   public function append(baseText:String, appendText:String, id:String):String
   {
     var lastChar = Util.uCharAt(baseText, Util.uLength(baseText) - 1);
-    var lastLastChar = Util.uCharAt(baseText, Util.uLength(baseText) - 1);
     var joiner = '';
 
     var endLine = '\n';

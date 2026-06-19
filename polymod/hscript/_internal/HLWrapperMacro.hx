@@ -33,8 +33,6 @@ class HLStd extends Std
   }
 }
 #else
-import haxe.macro.MacroStringTools;
-import haxe.macro.TypedExprTools;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Type;

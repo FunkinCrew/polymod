@@ -35,7 +35,7 @@ class HScriptRedirectDefines
    * @param typeName
    * @return TypeDefinition
    */
-  static function generateHScriptRedirect(typeName:String):TypeDefinition
+  static function generateHScriptRedirect(typeName:String):Null<TypeDefinition>
   {
     if (!typeName.startsWith('hscript')) return null;
 

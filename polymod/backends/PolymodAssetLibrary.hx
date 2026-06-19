@@ -229,7 +229,7 @@ class PolymodAssetLibrary
    * @param	theDir
    * @return
    */
-  public function getTextDirectly(id:String, directory:String = ''):String
+  public function getTextDirectly(id:String, directory:String = ''):Null<String>
   {
     var bytes = null;
     if (checkDirectly(id, directory))
@@ -370,7 +370,7 @@ class PolymodAssetLibrary
     return exists;
   }
 
-  public function getType(id:String):PolymodAssetType
+  public function getType(id:String):Null<PolymodAssetType>
   {
     var exists = _checkExists(id);
     if (exists)
@@ -444,7 +444,7 @@ class PolymodAssetLibrary
    * with the given locale prefix prepended.
    * (will ignore all installed mods)
    */
-  public function fileLocale(id:String):String
+  public function fileLocale(id:String):Null<String>
   {
     #if firetongue
     if (localeAssetPrefix != null)

@@ -258,8 +258,6 @@ class Polymod
     params.modIds ??= [];
     params.dirs ??= [];
 
-    var shouldLoadMods:Bool = params.modIds.length == 0 && params.dirs.length == 0;
-
     if (params.fileSystemParams == null) params.fileSystemParams = {modRoot: modRoot};
     if (params.fileSystemParams.modRoot == null) params.fileSystemParams.modRoot = modRoot;
     if (params.apiVersionRule == null) params.apiVersionRule = VersionUtil.DEFAULT_VERSION_RULE;
@@ -402,7 +400,7 @@ class Polymod
    * Retrieve the IFileSystem instance currently in use by Polymod.
    * This may be useful if you're using a MemoryFileSystem or a custom file system that you want to call functions on.
    */
-  public static function getFileSystem():IFileSystem
+  public static function getFileSystem():Null<IFileSystem>
   {
     if (assetLibrary == null)
     {
