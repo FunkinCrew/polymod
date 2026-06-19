@@ -4,7 +4,7 @@ import haxe.ds.StringMap;
 import haxe.Constraints.IMap;
 
 /**
- * A string map which treats any letter cases the same (case insensitive).
+ * A string map which treats any letter cases the same (case-insensitive).
  * Unlike other maps, if a value already exists it won't be overwritten.
  */
 class InsensitiveMap<T> implements IMap<String, T>

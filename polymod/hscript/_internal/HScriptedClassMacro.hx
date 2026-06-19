@@ -726,7 +726,7 @@ class HScriptedClassMacro
         }
         else
         {
-          // Else, there are no parameters related this type and we don't need to mutate it.
+          // Else, there are no parameters related this type, and we don't need to mutate it.
         }
 
       default:

@@ -114,7 +114,7 @@ class NodeFileSystem implements IFileSystem
   }
 
   // -----------------------------------------------------------------------------------------------
-  public function santizePaths(path:String, directories:Array<String>):Void
+  public function sanitizePaths(path:String, directories:Array<String>):Void
   {
     for (i in 0...directories.length)
     {
@@ -142,7 +142,7 @@ class NodeFileSystem implements IFileSystem
   public inline function readDirectory(path:String):Array<String>
   {
     var arr:Array<String> = callFunc('readDirectory', path);
-    santizePaths(path, arr);
+    sanitizePaths(path, arr);
     return arr;
   }
 
@@ -163,7 +163,7 @@ class NodeFileSystem implements IFileSystem
   public inline function readDirectoryRecursive(path:String):Array<String>
   {
     var arr:Array<String> = callFunc('readDirectoryRecursive', path);
-    santizePaths(path, arr);
+    sanitizePaths(path, arr);
     return arr;
   }
 

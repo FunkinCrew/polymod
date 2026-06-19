@@ -55,7 +55,7 @@ class ZipParser
     fileHandle.seek(-22, SeekEnd); // 22 is the smallest the eocd can be, so we start here
     var tmpbuf = Bytes.alloc(4);
     fileHandle.readBytes(tmpbuf, 0, 4);
-    // keep sliding backwards until we find a signature match (dunno if this is the best way to do this but it works)
+    // keep sliding backwards until we find a signature match (dunno if this is the best way to do this, but it works)
     while (tmpbuf.getInt32(0) != EndOfCentralDirectoryRecord.SIGNATURE)
     {
       fileHandle.seek(-5, SeekCur);

@@ -46,7 +46,7 @@ using haxe.macro.ExprTools;
 using StringTools;
 
 /**
- * Macro that generates wrapper fields for substitutes of `std` classes to make them avaliable to Reflection.
+ * Macro that generates wrapper fields for substitutes of `std` classes to make them available to Reflection.
  * Currently only works for static fields.
  */
 class HLWrapperMacro

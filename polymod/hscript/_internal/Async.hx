@@ -513,7 +513,7 @@ class AsyncInterp extends Interp
       if (!Reflect.isFunction(fv)) continue;
       if (f.charCodeAt(0) == "_".code) f = f.substr(1);
       variables.set(f, fv);
-      // create the async wrapper if doesn't exists
+      // create the async wrapper if it doesn't exist
       if (f.substr(0, 2) != "a_") funs.push({v: f, obj: api});
     }
 

@@ -75,25 +75,25 @@ class CSVParseFormat implements BaseParseFormat
 {
   public var format(default, null):TextFileFormat;
   public var isSimpleMode(get, null):Bool;
-  public var delimeter:String;
+  public var delimiter:String;
   public var quotedCells:Bool;
   public var lookForHeaders:Bool;
 
-  public function new(delimeter:String, quotedCells:Bool)
+  public function new(delimiter:String, quotedCells:Bool)
   {
     format = TextFileFormat.CSV;
-    this.delimeter = delimeter;
+    this.delimiter = delimiter;
     this.quotedCells = quotedCells;
   }
 
   private function get_isSimpleMode():Bool
   {
-    return (delimeter == ',' && quotedCells == false);
+    return (delimiter == ',' && quotedCells == false);
   }
 
   public function parse(str:String):CSV
   {
-    return polymod.format.CSV.parse(str, delimeter, quotedCells);
+    return polymod.format.CSV.parse(str, delimiter, quotedCells);
   }
 
   public function append(baseText:String, appendText:String, id:String):String
@@ -187,7 +187,7 @@ class CSVParseFormat implements BaseParseFormat
           }
           if (bi != baseCSV.fields.length - 1)
           {
-            line += delimeter;
+            line += delimiter;
           }
         }
         finalText += endLine + line;
@@ -261,7 +261,7 @@ class CSVParseFormat implements BaseParseFormat
       buf.add(csv.fields[i]);
       if (i != csv.fields.length - 1)
       {
-        buf.add(delimeter);
+        buf.add(delimiter);
       }
     }
 
@@ -291,7 +291,7 @@ class CSVParseFormat implements BaseParseFormat
         }
         if (ix != row.length - 1)
         {
-          buf.add(delimeter);
+          buf.add(delimiter);
         }
       }
       if (iy != grid.length - 1)
