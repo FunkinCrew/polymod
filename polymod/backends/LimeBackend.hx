@@ -1269,12 +1269,15 @@ class LimeCoreLibrary extends LimeAssetLibrary
       // TODO: What was this line for? This is already the redirect ID.
       // var filePath = polymodLibrary.file(redirectId);
 
+      #if (js && html5)
       // We load the bytes, then load the file, rather than using Image.loadFromFile,
       // because URLs don't work with MemoryFileSystem.
       var dabytes = polymodLibrary.fileSystem.getFileBytes(redirectId);
       var imageFuture = Image.loadFromBytes(dabytes);
-
       return imageFuture;
+      #else
+      return Image.loadFromFile(redirectId);
+      #end
     }
 
     return fallback.loadImage(id);
