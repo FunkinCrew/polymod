@@ -655,10 +655,15 @@ class PolymodAssetLibrary
       #if openfl
       if (assetType == FONT)
       {
-        var fontBytes = fileSystem.getFileBytes(file(f, d));
-        if (fontBytes != null)
+        var font = Font.fromFile(file(f, d));
+
+        if (font == null)
         {
-          final font = Font.fromBytes(fontBytes);
+          font = Font.fromBytes(fileSystem.getFileBytes(file(f, d)));
+        }
+
+        if (font != null)
+        {
           // Check if font is already registered before registering
           @:privateAccess
           if (!Font.__fontByName.exists(font.fontName))
@@ -716,10 +721,16 @@ class PolymodAssetLibrary
       #if openfl
       if (assetType == FONT)
       {
-        var fontBytes = fileSystem.getFileBytes(file(f, redirectPath));
-        if (fontBytes != null)
+        var font = Font.fromFile(file(f, redirectPath));
+
+        if (font == null)
         {
-          var font = Font.fromBytes(fontBytes);
+          font = Font.fromBytes(fileSystem.getFileBytes(file(f, redirectPath)));
+        }
+
+        if (font != null)
+        {
+          // Check if font is already registered before registering
           @:privateAccess
           if (!Font.__fontByName.exists(font.fontName))
           {

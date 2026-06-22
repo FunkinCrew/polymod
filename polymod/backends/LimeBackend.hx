@@ -547,7 +547,14 @@ class LimeModLibrary extends LimeAssetLibrary
     var symbol = new IdAndLibrary(id, this);
     if (p.check(symbol.modId))
     {
-      return AudioBuffer.fromBytes(p.fileSystem.getFileBytes(p.file(symbol.modId)));
+      var buffer:AudioBuffer = AudioBuffer.fromFile(p.file(symbol.modId));
+
+      if (buffer == null)
+      {
+        buffer = AudioBuffer.fromBytes(p.fileSystem.getFileBytes(p.file(symbol.modId)));
+      }
+
+      return buffer;
     }
     else if (hasFallback)
     {
@@ -582,7 +589,13 @@ class LimeModLibrary extends LimeAssetLibrary
     var symbol = new IdAndLibrary(id, this);
     if (p.check(symbol.modId))
     {
-      var font = #if openfl OpenFLFont #else Font #end.fromBytes(p.fileSystem.getFileBytes(p.file(symbol.modId)));
+      var font = #if openfl OpenFLFont #else Font #end.fromFile(p.file(symbol.modId));
+
+      if (font == null)
+      {
+        font = #if openfl OpenFLFont #else Font #end.fromBytes(p.fileSystem.getFileBytes(p.file(symbol.modId)));
+      }
+
       #if openfl
       @:privateAccess if (!OpenFLFont.__fontByName.exists(font.name)) OpenFLFont.registerFont(font);
       #end
@@ -623,7 +636,14 @@ class LimeModLibrary extends LimeAssetLibrary
       #else
       // Other platforms don't have these issues with images,
       // and other file types can be loaded synchronously.
-      return Image.fromBytes(p.fileSystem.getFileBytes(p.file(symbol.modId)));
+      var image:Image = Image.fromFile(p.file(symbol.modId));
+
+      if (image == null)
+      {
+        image = Image.fromBytes(p.fileSystem.getFileBytes(p.file(symbol.modId)));
+      }
+
+      return image;
       #end
     }
     else if (hasFallback)
@@ -1130,7 +1150,14 @@ class LimeCoreLibrary extends LimeAssetLibrary
     var redirectId:String = buildRedirectId(id);
     if (polymodLibrary.fileSystem.exists(redirectId))
     {
-      return AudioBuffer.fromBytes(polymodLibrary.fileSystem.getFileBytes(redirectId));
+      var buffer:AudioBuffer = AudioBuffer.fromFile(redirectId);
+
+      if (buffer == null)
+      {
+        buffer = AudioBuffer.fromBytes(polymodLibrary.fileSystem.getFileBytes(redirectId));
+      }
+
+      return buffer;
     }
     return fallback.getAudioBuffer(id);
   }
@@ -1150,7 +1177,13 @@ class LimeCoreLibrary extends LimeAssetLibrary
     var redirectId:String = buildRedirectId(id);
     if (polymodLibrary.fileSystem.exists(redirectId))
     {
-      var font = #if openfl OpenFLFont #else Font #end.fromBytes(polymodLibrary.fileSystem.getFileBytes(redirectId));
+      var font = #if openfl OpenFLFont #else Font #end.fromFile(redirectId);
+
+      if (font == null)
+      {
+        font = #if openfl OpenFLFont #else Font #end.fromBytes(polymodLibrary.fileSystem.getFileBytes(redirectId));
+      }
+
       #if openfl
       @:privateAccess if (!OpenFLFont.__fontByName.exists(font.name)) OpenFLFont.registerFont(font);
       #end
@@ -1164,7 +1197,14 @@ class LimeCoreLibrary extends LimeAssetLibrary
     var redirectId:String = buildRedirectId(id);
     if (polymodLibrary.fileSystem.exists(redirectId))
     {
-      return Image.fromBytes(polymodLibrary.fileSystem.getFileBytes(redirectId));
+      var image:Image = Image.fromFile(redirectId);
+
+      if (image == null)
+      {
+        image = Image.fromBytes(polymodLibrary.fileSystem.getFileBytes(redirectId));
+      }
+
+      return image;
     }
     return fallback.getImage(id);
   }
