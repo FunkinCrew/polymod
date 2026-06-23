@@ -75,7 +75,6 @@ class PolymodScriptClassMacro
 
   #if macro
   static var onGenerateCallbackRegistered:Bool = false;
-  @:persistent
   static var onAfterTypingCallbackRegistered:Bool = false;
 
   static function onGenerate(allTypes:Array<haxe.macro.Type>)
@@ -450,7 +449,7 @@ class PolymodScriptClassMacro
                 name: '${abstractType.name}_PolymodImpl_', // we need to give them a different name, because else types with an empty package will not work
                 kind: TDClass(null, [], false, false, false),
                 fields: fields
-              });
+              }, 'polymod.hscript._internal.PolymodScriptClassMacro');
 
             count++;
           }
