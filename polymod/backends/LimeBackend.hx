@@ -670,6 +670,7 @@ class LimeModLibrary extends LimeAssetLibrary
       else
         return fallback.getPath(id);
     }
+
     return null;
   }
 
@@ -787,7 +788,7 @@ class LimeModLibrary extends LimeAssetLibrary
       }
       else
       {
-        return AudioBuffer.loadFromFile(getPath(p.file(symbol.modId)));
+        return AudioBuffer.loadFromFile(getPath(p.file(symbol.modId)) ?? p.file(symbol.modId));
       }
     }
     else if (hasFallback)
