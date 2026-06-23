@@ -253,13 +253,15 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
   {
     if (Util.getTypeNameOf(o) == "Object") return [];
 
-    final superClassCls = Type.getClass(o);
-    if (superClassCls == null) throw "Provided object isn't a class";
+    final isClass = switch(Type.typeof(o)) {case TClass(_) | TObject: true; default: false;}
+    if (Type.getClass(o) == null && !isClass) throw "Provided object isn't a class";
+
+    final superClassCls = Type.getClass(o) ?? o;
 
     var fields = fieldsCache.get(superClassCls);
     if (fields == null)
     {
-      fields = Type.getInstanceFields(superClassCls);
+      fields = Type.getInstanceFields(superClassCls).concat(Type.getClassFields(superClassCls));
       fieldsCache.set(superClassCls, fields);
     }
 
