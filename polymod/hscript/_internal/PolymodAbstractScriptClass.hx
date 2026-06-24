@@ -253,14 +253,31 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
   {
     if (Util.getTypeNameOf(o) == "Object") return [];
 
-    final superClassCls = Type.getClass(o);
-    if (superClassCls == null) throw "Provided object isn't a class";
+    if (Std.isOfType(o, Class)) return [];
 
-    var fields = fieldsCache.get(superClassCls);
+    final objectCls = Type.getClass(o);
+    if (objectCls == null) throw "Provided object isn't a class";
+
+    var fields = fieldsCache.get(objectCls);
     if (fields == null)
     {
-      fields = Type.getInstanceFields(superClassCls);
-      fieldsCache.set(superClassCls, fields);
+      fields = Type.getInstanceFields(objectCls);
+      fieldsCache.set(objectCls, fields);
+    }
+
+    return fields;
+  }
+
+  static function retrieveClassFields(o:Class<Dynamic>):Array<String>
+  {
+    final className = Type.getClassName(o);
+    if (className == null) throw "Provided object isn't a class";
+
+    var fields = fieldsCache.get('Class<$className>');
+    if (fields == null)
+    {
+      fields = Type.getClassFields(o);
+      fieldsCache.set(className, fields);
     }
 
     return fields;
@@ -304,11 +321,22 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
       throw 'Cannot set private field $field';
     }
 
-    var fields = retrieveClassObjectFields(o);
-    if (fields.contains(field) || fields.contains('set_$field'))
-    {
-      Reflect.setProperty(o, field, value);
-      return true;
+    if (Std.isOfType(o, Class)) {
+      // Set class fields.
+      var fields = retrieveClassFields(o);
+      if (fields.contains(field) || fields.contains('set_$field'))
+      {
+        Reflect.setProperty(o, field, value);
+        return true;
+      }
+    } else {
+      // Set instance fields.
+      var fields = retrieveClassObjectFields(o);
+      if (fields.contains(field) || fields.contains('set_$field'))
+      {
+        Reflect.setProperty(o, field, value);
+        return true;
+      }
     }
 
     throw 'No such field $field';
