@@ -4,8 +4,8 @@
   "license": "MIT",
   "tags": ["mod", "game", "data", "asset"],
   "description": "An atomic modding framework for Haxe games",
-  "version": "1.8.0",
-  "releasenote": "Dependencies, ZIP mods, blacklisting, and other improvements.",
+  "version": "2.0.0",
+  "releasenote": "Many improvements to HScripted classes, blacklisting, and error reporting",
   "contributors": ["MasterEric", "larsiusprime"],
   "dependencies": {
     "thx.semver": "",
