@@ -273,24 +273,20 @@ class PolymodAssetLibrary
     return result;
   }
 
-  #if lime
-  public function loadText(id:String):lime.app.Future<String>
+  public function loadText(id:String):tink.core.Future<String>
   {
     return backend.loadText(id);
   }
-  #end
 
   public function getBytes(id:String):Bytes
   {
     return backend.getBytes(id);
   }
 
-  #if lime
-  public function loadBytes(id:String):lime.app.Future<Bytes>
+  public function loadBytes(id:String):tink.core.Future<Bytes>
   {
     return backend.loadBytes(id);
   }
-  #end
 
   public function getPath(id:String):String
   {
