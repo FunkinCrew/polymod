@@ -3,12 +3,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [2.0.0] - 2026-??-??
+# [2.0.0] - 2026-06-25
 This update to Polymod is the culmination of many breaking changes and feature additions made to improve the scripted class sytem, and make it more closely resemble Haxe source.
 
 Polymod has switched to using its own built-in fork of HScript, with greatly modified capabilities and improved error reporting. Scripted classes can be imported by and instantiated from other scripts, and they can have static variables and methods you can call. `abstract`s, `enum abstract`s, and `typedef`s can be more reliably interacted with from scripts. Script functions can have any number of arguments now (there was previously a limit of 8). Scripted classes can use properties, enums, final variables, static extensions, and string interpolation, and you don't have to extend a base class if you plan to use it from another script. These improvements combine to make scripted classes extremely similar to source code, greatly reducing hassle and debugging caused by incompatibilities.
 
-The update also comes with improved sandboxing, with the ability to blacklist specific fields of any class, as well as case insensitive file access (togglable in PolymodConfig), a refactor of the existing error messages, 
+The update also comes with improved sandboxing, with the ability to blacklist specific fields of any class, as well as case insensitive file access (togglable in PolymodConfig), a refactor of the existing error messages,
 ## Added
 - You can now declare and access static variables and functions of scripted classes, even from other scripts.
 - You can directly instantiate a scripted class by name from another script (`new TestClass()` instead of `ScriptedBar.init('TestClass', [])`).
@@ -24,38 +24,39 @@ The update also comes with improved sandboxing, with the ability to blacklist sp
 - Added the ability to import and access values of `enum abstract`s.
 - Added the ability to import and access `typedef`s (they will be aliased to the appropriate type).
 - Added the new `scriptHas` function to scripted class implementations to check for field existance.
-- Added support for import renaming using the `as` keyword. () - by @KoloInDaCrib in [#190]
-- Added support for properties, with getters and setters. () - by @KoloInDaCrib in [#191]
+- Added checks to prevent scripts from modifying `final` variables defined outside of scripts.
+- Added support for import renaming using the `as` keyword. ([0374891](https://github.com/FunkinCrew/polymod/commit/0374891f363c540235d31546d99b8c30e0301bbd)) - by @KoloInDaCrib in [#190](https://github.com/FunkinCrew/polymod/pull/190)
+- Added support for properties, with getters and setters. ([7b5ec58](https://github.com/FunkinCrew/polymod/commit/7b5ec5868064d127b083a13d7d9317bf99407d23)) - by @KoloInDaCrib in [#191](https://github.com/FunkinCrew/polymod/pull/191)
   - When using `var myValue(get, set):Int;`, accessing and assigning `myValue` will instead call `get_myValue` and `set_myValue` respectively.
-- Added support for scripted `enum` values, accessible from other scripts. () - by @lemz1 in [#192]
-- Added support for the `final` keyword. () - by @KoloInDaCrib in [#193]
-- Added support for scripted classes to import other scripted classes that are in a different package. Scripted classes with the same package will be automatically imported. () - by @lemz1 in [#194]
-- Added the ability to blacklist static or instance fields or methods. () - by @KoloInDaCrib in [#216]
+- Added support for scripted `enum` values, accessible from other scripts. ([6b656e1](https://github.com/FunkinCrew/polymod/commit/6b656e19473e3121ba4d3ec41b7c77f769f9abb4)) - by @lemz1 in [#192](https://github.com/FunkinCrew/polymod/pull/192)
+- Added support for the `final` keyword in scripts, preventing reassignment from other classes. ([afb1642](https://github.com/FunkinCrew/polymod/commit/afb16421c19307c99f2bf79624f2b8377e479357)) - by @KoloInDaCrib in [#193](https://github.com/FunkinCrew/polymod/pull/193)
+- Added support for scripted classes to import other scripted classes that are in a different package. Scripted classes with the same package will be automatically imported. ([cef484b](https://github.com/FunkinCrew/polymod/commit/cef484b673203b38d1eb00c9d4a98ff46cb3230e)) - by @lemz1 in [#194](https://github.com/FunkinCrew/polymod/pull/194)
+- Added the ability to blacklist static or instance fields or methods. ([100508c](https://github.com/FunkinCrew/polymod/commit/100508cc58130c9ad85b509e1fdaa2680990c720)) - by @KoloInDaCrib in [#216](https://github.com/FunkinCrew/polymod/pull/216)
   - Use `Polymod.blacklistStaticFields(Class, Array<String>)` to blacklist static variables or functions from being accessed by scripts.
   - Use `Polymod.blacklistInstanceFields(Class, Array<String>)` to blacklist instance variables or functions from being accessed by scripts.
   - When using `final myValue = 12;`, attempting to reassign the value throws an error.
-- Added support for static extensions via the `using` keyword. () - by @KoloInDaCrib in [#218]
-- Added support for scripted classes to extend other scripted classes. () - by @KoloInDaCrib in [#285]
-- Added support for typedef extensions, and optional fields in typedefs. () - by @Starexify in [#290]
-- Added support for string interpolation (i.e. you can now use `'${value}'` instead of string concatenation). () - by @NotHyper-474 in [#292]
+- Added support for static extensions via the `using` keyword. ([a38e47b](https://github.com/FunkinCrew/polymod/commit/a38e47bd5ffa7eb99ae3f0776afa18532cab10b2)) - by @KoloInDaCrib in [#218](https://github.com/FunkinCrew/polymod/pull/218)
+- Added support for scripted classes to extend other scripted classes. ([43a46a2](https://github.com/FunkinCrew/polymod/commit/43a46a298069d7420acffb47ab966b5e436ea45b)) - by @KoloInDaCrib in [#285](https://github.com/FunkinCrew/polymod/pull/285)
+- Added support for typedef extensions, and optional fields in typedefs. ([8e3ae45](https://github.com/FunkinCrew/polymod/commit/8e3ae4567eb7457e6bc0b22deb0dd16f4bb15fb3)) - by @Starexify in [#290](https://github.com/FunkinCrew/polymod/pull/290)
+- Added support for string interpolation (i.e. you can now use `'${value}'` instead of string concatenation). ([c7922d6](https://github.com/FunkinCrew/polymod/commit/c7922d6c4df26019f62aa10defaea2591257ec71)) - by @NotHyper-474 in [#292](https://github.com/FunkinCrew/polymod/pull/292)
 ## Changed
 - Polymod's scripting systems now utilize an internal, built-in fork of HScript, rather than a separate repository. This allows for new features and support to be added (such as new keywords and syntax) without having to require a specific non-standard version of the Haxelib.
   - Refactored the internal fork of HScript to fold in the extending classes, greatly simplifying the codebase for the HScript implementation.
-  - Combined `PolymodExprEx` with `Expr`, unifying the `Error` and `ErrorEx` classes and simplifying the codebase. () - by @NotHyper-474 in [#344]
+  - Combined `PolymodExprEx` with `Expr`, unifying the `Error` and `ErrorEx` classes and simplifying the codebase. ([96a9125](https://github.com/FunkinCrew/polymod/commit/96a91252eebe4e49b5dcaecdcc1790c06e52a003)) - by @NotHyper-474 in [#344](https://github.com/FunkinCrew/polymod/pull/344)
 - Added improved error messages for the following cases:
   - Attempting to access `this` from a scripted static function.
   - Attempting to access a blacklisted static or instance field.
-  - Attempting to declare a field with a duplicate name (previously, this silently replaced the field, leading to weird bugs!). () - by @KoloInDaCrib in [#261]
+  - Attempting to declare a field with a duplicate name (previously, this silently replaced the field, leading to weird bugs!). ([93978f4](https://github.com/FunkinCrew/polymod/commit/93978f4103d6c6d6c7cded39bb0f330e975321d8)) - by @KoloInDaCrib in [#261](https://github.com/FunkinCrew/polymod/pull/261)
 - Cleaned up a lot of existing error messages to be more clear what they're doing.
 - Added a new CheckStyle config, and performed a lot of code cleanup across the project to standardize code style.
 - If a mod is skipped because its API version is invalid, it will now output a `MOD_API_VERSION_MISMATCH` warning.
-- File accesses are now case insensitive by default, to create similar behavior between Linux and Windows. () - by @mikolka9144 in [#212]
-  - Functionality also implemented for the ZIPFileSystem. Use `PolymodConfig.caseInsensitiveZipLoading` to configure. () - by @NotHyper-474 in [#204]
-- Polymod will automatically clear any cached scripts before loading them again. () - by @KoloInDaCrib in [#247]
-- Function calls now support an arbitrary number of arguments, up from eight. () - by @NotHyper-474 in [#278]
-- Scripted classes no longer have to extend anything (a scripted class that has no superclass can only be instantiated from other scripts). () - by @NotHyper-474 in [#280]
-- `interface`s and uses of `implements` now get properly parsed instead of throwing an error (they aren't enforced right now, though) () - by @Starexify in [#284]
-- The `init` function of scripted class implementations has been renamed to `scriptInit`; this is a breaking change but should be an easy rename. () - by @NotHyper-474 in [#286]
+- File accesses are now case insensitive by default, to create similar behavior between Linux and Windows. ([9a66616](https://github.com/FunkinCrew/polymod/commit/9a6661642fbcc05485577064e7ff6d2db148623a)) - by @mikolka9144 in [#212](https://github.com/FunkinCrew/polymod/pull/212)
+  - Functionality also implemented for the ZIPFileSystem. Use `PolymodConfig.caseInsensitiveZipLoading` to configure. ([2a7b6f9](https://github.com/FunkinCrew/polymod/commit/2a7b6f9cbf3fceac64815d45f89bbda920de078a)) - by @NotHyper-474 in [#204](https://github.com/FunkinCrew/polymod/pull/204)
+- Polymod will automatically clear any cached scripts before loading them again. ([8e8e6e4](https://github.com/FunkinCrew/polymod/commit/8e8e6e467cdc4c97728f004210c2f0adca162289)) - by @KoloInDaCrib in [#247](https://github.com/FunkinCrew/polymod/pull/247)
+- Function calls now support an arbitrary number of arguments, up from eight. ([1f407f6](https://github.com/FunkinCrew/polymod/commit/1f407f643503013fa76e36a432395b27e586d962)) - by @NotHyper-474 in [#278](https://github.com/FunkinCrew/polymod/pull/278)
+- Scripted classes no longer have to extend anything (a scripted class that has no superclass can only be instantiated from other scripts). ([471ff8b](https://github.com/FunkinCrew/polymod/commit/471ff8b112c50b770701c573ef87d2366d1bb23b)) - by @NotHyper-474 in [#280](https://github.com/FunkinCrew/polymod/pull/280)
+- `interface`s and uses of `implements` now get properly parsed instead of throwing an error (they aren't enforced right now, though) ([41087ca](https://github.com/FunkinCrew/polymod/commit/41087ca5498df25e819e2b8144afbac2326947a8)) - by @Starexify in [#284](https://github.com/FunkinCrew/polymod/pull/284)
+- The `init` function of scripted class implementations has been renamed to `scriptInit`; this is a breaking change but should be an easy rename. ([1ce3b95](https://github.com/FunkinCrew/polymod/commit/1ce3b95c6d8b13be5bee98a5f6213b6d91485908)) - by @NotHyper-474 in [#286](https://github.com/FunkinCrew/polymod/pull/286)
   - This PR also fixes an issue where constructor arguments wouldn't be parsed correctly.
 ## Fixed
 - Fixed a Null Object Reference error that could occur if a scripted class attempts to extend a superclass which hasn't been imported.
@@ -66,20 +67,20 @@ The update also comes with improved sandboxing, with the ability to blacklist sp
 - Fixed issues with asset retrieval through Lime on HTML5.
 - Fixed the `list()` function implementation to make it more consistent with Lime's behavior.
 - Fixed an issue where attempting to list assets from a specific library would display all assets from all libraries instead.
-- Resolve a build error `Type not found: T` caused by not properly deparameterizing scripted class types. () - by @Geokureli in [#178]
-- Fixed an issue where try/catch blocks would prevent the rest of the function from being called properly. () - by @NotHyper-474 in [#199]
-- `PolymodScriptClass.className` now returns a properly formatted value. () - by @cyn0x8 in [#202]
-- Fix an issue where `DefineUtil.getDefineBool` would always return false, even if a different default value was provided. () - by @NotHyper-474 in [#208]
-- Fixed an issue where some expressions would be evaluated twice, causing a deranged context loss error. () - by @NotHyper-474 in [#234]
-- Fixed an issue where static variables with no expression would throw a Null Object Reference. () - by @NotHyper-474 in [#239]
-- Fixed an issue where `Array.remove()` could not be called on HTML5. () - by @KoloInDaCrib in [#251]
-- Fixed an issue where local variables would still be in scope in static functions. () - by @NotHyper-474 in [#281]
-- Fixed an issue where static extensions couldn't be used in static functions. () - by @NotHyper-474 in [#282]
-- Fixed an issue where the `is` keyword had the wrong operator priority. () - by @Starexify in [#290]
-- Fixed an issue where enum constructors couldn't be called with multiple arguments. () - by @Starexify in [#296]
-- Fixed an issue causing variables to be lost when local functions were called. () - by @NotHyper-474 in [#311]
-- Fixed an issue where the game would crash when attempting to process minimum argument counts for getters and setters. () - by @Starexify in [#312]
-- Fixed an issue causing projects to be unable to compile when `hscriptPos` was disabled. () - by @lemz1 in [#314]
+- Resolve a build error `Type not found: T` caused by not properly deparameterizing scripted class types. ([a9cd7dd](https://github.com/FunkinCrew/polymod/commit/a9cd7dd639a955d0e3d9395e0b58c268d5c863de)) - by @Geokureli in [#178](https://github.com/FunkinCrew/polymod/pull/178)
+- Fixed an issue where try/catch blocks would prevent the rest of the function from being called properly. ([3b0f3b5](https://github.com/FunkinCrew/polymod/commit/3b0f3b50e52245312655d9d8e9b5579a4de107a1)) - by @NotHyper-474 in [#199](https://github.com/FunkinCrew/polymod/pull/199)
+- `PolymodScriptClass.className` now returns a properly formatted value. ([68bf297](https://github.com/FunkinCrew/polymod/commit/68bf297e7c0e8def140ba84aa27c5b75d61b1a78)) - by @cyn0x8 in [#202](https://github.com/FunkinCrew/polymod/pull/202)
+- Fix an issue where `DefineUtil.getDefineBool` would always return false, even if a different default value was provided. ([6fa3e0c](https://github.com/FunkinCrew/polymod/commit/6fa3e0c3de100e9efff016d0a6ad3f9aee57e5c1)) - by @NotHyper-474 in [#208](https://github.com/FunkinCrew/polymod/pull/208)
+- Fixed an issue where some expressions would be evaluated twice, causing a deranged context loss error. ([0a0eb88](https://github.com/FunkinCrew/polymod/commit/0a0eb88650faebc9e3304d3db852a1300ad502f1)) - by @NotHyper-474 in [#234](https://github.com/FunkinCrew/polymod/pull/234)
+- Fixed an issue where static variables with no expression would throw a Null Object Reference. ([9fcbd40](https://github.com/FunkinCrew/polymod/commit/9fcbd40d365c611b742d12ea49d9e6625a0e61d5)) - by @NotHyper-474 in [#239](https://github.com/FunkinCrew/polymod/pull/239)
+- Fixed an issue where `Array.remove()` could not be called on HTML5. ([fe75e70](https://github.com/FunkinCrew/polymod/commit/fe75e70ceed0063baedd1733218687454442a980)) - by @KoloInDaCrib in [#251](https://github.com/FunkinCrew/polymod/pull/251)
+- Fixed an issue where local variables would still be in scope in static functions. ([cdf2625](https://github.com/FunkinCrew/polymod/commit/cdf2625329a599c7bfa08cb4d09cf79bdf32720a)) - by @NotHyper-474 in [#281](https://github.com/FunkinCrew/polymod/pull/281)
+- Fixed an issue where static extensions couldn't be used in static functions. ([296d895](https://github.com/FunkinCrew/polymod/commit/296d895bb7b8f4b28618ecd463ddfa4fe5bdd205)) - by @NotHyper-474 in [#282](https://github.com/FunkinCrew/polymod/pull/282)
+- Fixed an issue where the `is` keyword had the wrong operator priority. ([8e3ae45](https://github.com/FunkinCrew/polymod/commit/8e3ae4567eb7457e6bc0b22deb0dd16f4bb15fb3)) - by @Starexify in [#290](https://github.com/FunkinCrew/polymod/pull/290)
+- Fixed an issue where enum constructors couldn't be called with multiple arguments. ([2d260aa](https://github.com/FunkinCrew/polymod/commit/2d260aa6dc7bef31596179c2977bc06b7c6b0959)) - by @Starexify in [#296](https://github.com/FunkinCrew/polymod/pull/296)
+- Fixed an issue causing variables to be lost when local functions were called. ([d07f262](https://github.com/FunkinCrew/polymod/commit/d07f262b5ef2105d3a2d140229670536ba42817c)) - by @NotHyper-474 in [#311](https://github.com/FunkinCrew/polymod/pull/311)
+- Fixed an issue where the game would crash when attempting to process minimum argument counts for getters and setters. ([00d0909](https://github.com/FunkinCrew/polymod/commit/00d0909cafe611c1cf2064e933a8403ed11e22ab)) - by @Starexify in [#312](https://github.com/FunkinCrew/polymod/pull/312)
+- Fixed an issue causing projects to be unable to compile when `hscriptPos` was disabled. ([d3923c0](https://github.com/FunkinCrew/polymod/commit/d3923c049cba1c9b6385d38dcc0897c6072d4a4b)) - by @lemz1 in [#314](https://github.com/FunkinCrew/polymod/pull/314)
 
 # [1.8.0] - 2024-07-26
 The version is the result of resolving practical needs that arose from using Polymod with [Friday Night Funkin'](https://github.com/FunkinCrew/Funkin) over the past year and a half!
