@@ -8,6 +8,8 @@ import polymod.hscript._internal.Expr.FunctionDecl;
 import polymod.hscript._internal.Expr.VarDecl;
 import polymod.hscript._internal.Printer;
 import polymod.util.Util;
+import tink.core.Outcome;
+import tink.core.Error;
 
 using StringTools;
 
@@ -171,7 +173,8 @@ class PolymodScriptClass
       {
         case EUnexpected(s):
           Polymod.error(SCRIPT_PARSE_FAILED,
-            'Error while parsing function ${path}#${errLine}: EUnexpected' + '\n' + 'Unexpected token "${s}", is there invalid syntax on this line?', SCRIPT_RUNTIME);
+            'Error while parsing function ${path}#${errLine}: EUnexpected' + '\n' + 'Unexpected token "${s}", is there invalid syntax on this line?',
+            SCRIPT_RUNTIME);
         case EClassUnresolvedSuperclass(cls, reason):
           Polymod.error(SCRIPT_PARSE_FAILED,
             'Error while parsing class ${path}#${errLine}: EClassUnresolvedSuperclass' + '\n' + 'Unresolved superclass "${cls}", ${reason}', SCRIPT_RUNTIME);
@@ -181,53 +184,59 @@ class PolymodScriptClass
     }
   }
 
-  static function registerScriptClassByPathAsync(path:String):lime.app.Future<Bool>
+  static function registerScriptClassByPathAsync(path:String):tink.core.Future<Bool>
   {
-    var promise = new lime.app.Promise<Bool>();
+    var trigger = tink.core.Future.trigger();
 
     if (!Polymod.assetLibrary.exists(path))
     {
       Polymod.error(SCRIPT_PARSE_FAILED, 'Error while loading script "${path}", could not retrieve contents of non-existent script!', SCRIPT_RUNTIME);
-      return null;
+
+      trigger.trigger(Failure(new Error(404, "Non-existent script")));
+
+      return trigger.asFuture();
     }
 
-    Polymod.assetLibrary.loadText(path).onComplete((text) -> {
-      try
+    Polymod.assetLibrary.loadText(path).handle(function(result) {
+      switch (result)
       {
-        registerScriptClassByString(text);
-        promise.complete(true);
-      }
-      catch (err:Expr.Error)
-      {
-        var errLine:String = #if hscriptPos '${err.line}' #else "#???" #end;
-        #if hscriptPos
-        switch (err.e)
-        #else
-        switch (err)
-        #end
-        {
-          case EUnexpected(s):
-            Polymod.error(SCRIPT_PARSE_FAILED,
-              'Error while parsing script ${path}#${errLine}: EUnexpected' + '\n' +
-              'Unexpected error: Unexpected token "${s}", is there invalid syntax on this line?', SCRIPT_RUNTIME);
-          default:
-            Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script ${path}#${errLine}: ' + '\n' + 'An unknown error occurred: ${err}', SCRIPT_RUNTIME);
-        }
-        promise.error(err);
-      }
-    }).onError((err) -> {
-      if (err == "404")
-      {
-        Polymod.error(SCRIPT_PARSE_FAILED, 'Error while loading script "${path}", could not retrieve script contents (404 error)!', SCRIPT_RUNTIME);
-      }
-      else
-      {
-        Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script ${path}: ' + '\n' + 'An unknown error occurred: ${err}', SCRIPT_RUNTIME);
-        promise.error(err);
+        case Success(text):
+          try
+          {
+            registerScriptClassByString(text);
+            trigger.trigger(Success(true));
+          }
+          catch (err:Expr.Error)
+          {
+            var errLine:String = #if hscriptPos '${err.line}' #else '#???' #end;
+
+            #if hscriptPos
+            switch (err.e)
+            #else
+            switch (err)
+            #end
+            {
+              case EUnexpected(s):
+                Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script ${path}#${errLine}:\n' + 'An unknown error occurred: ${err}', SCRIPT_RUNTIME);
+              default:
+                Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script ${path}#${errLine}:\n' + 'An unknown error occurred: ${err}', SCRIPT_RUNTIME);
+            }
+            trigger.trigger(Failure(new Error(500, Std.string(err))));
+          }
+
+        case Failure(err):
+          if (err.message == "404")
+          {
+            Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script "${path}", could not retrieve script contents (404 error)!', SCRIPT_RUNTIME);
+          }
+          else
+          {
+            Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script "${path}": ' + '\n' + 'An unknown error occured: ${err}', SCRIPT_RUNTIME);
+            trigger.trigger(Failure(err));
+          }
       }
     });
-    // Await the promise
-    return promise.future;
+    return trigger.asFuture();
   }
 
   /**
@@ -362,7 +371,8 @@ class PolymodScriptClass
       {
         // The superclass is not a scripted class or native class. Probably doesn't exist, throw an error.
         var clsName = classDecl.pkg != null ? '${classDecl.pkg.join('.')}.${classDecl.name}' : classDecl.name;
-        Polymod.error(SCRIPT_PARSE_FAILED, 'Could not parse superclass "$fullSuperClsName" of scripted class "${clsName}". Did you forget to import it?', SCRIPT_RUNTIME);
+        Polymod.error(SCRIPT_PARSE_FAILED, 'Could not parse superclass "$fullSuperClsName" of scripted class "${clsName}". Did you forget to import it?',
+          SCRIPT_RUNTIME);
         return [];
       }
     }
@@ -415,7 +425,8 @@ class PolymodScriptClass
           {
             if (untyped !importedClass.cls._isHScriptedClass)
             {
-              Polymod.error(SCRIPT_PARSE_FAILED, 'Cannot extend non-scriptable class ("${Util.getFullClassName(c)}" tried extending "${pth.join('.')}").', SCRIPT_RUNTIME);
+              Polymod.error(SCRIPT_PARSE_FAILED, 'Cannot extend non-scriptable class ("${Util.getFullClassName(c)}" tried extending "${pth.join('.')}").',
+                SCRIPT_RUNTIME);
               return;
             }
             else
@@ -654,7 +665,8 @@ class PolymodScriptClass
       {
         Polymod.error(SCRIPT_RUNTIME_EXCEPTION,
           'Error while calling function ${fnName}(): EInvalidAccess' + '\n' +
-          'Script does not have function "${fnName}"! Define it or call the correct script function or superclass function.', SCRIPT_RUNTIME);
+          'Script does not have function "${fnName}"! Define it or call the correct script function or superclass function.',
+          SCRIPT_RUNTIME);
         return null;
       }
 

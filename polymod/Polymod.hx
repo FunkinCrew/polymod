@@ -266,7 +266,8 @@ class Polymod
     // Fetch mod metadata and exclude broken mods.
     var modsToLoad:Array<ModMetadata> = [];
 
-    if (params.modIds.length > 0) {
+    if (params.modIds.length > 0)
+    {
       for (i in 0...params.modIds.length)
       {
         var modId:Null<String> = params.modIds[i];
@@ -285,7 +286,9 @@ class Polymod
           modsToLoad.push(meta);
         }
       }
-    } else if (params.dirs.length > 0) {
+    }
+    else if (params.dirs.length > 0)
+    {
       for (i in 0...params.dirs.length)
       {
         var modDir:Null<String> = params.dirs[i];
@@ -763,7 +766,8 @@ class Polymod
    * @param strict If `true`, return `[]` if a required dependency is unmet.
    * @return The sorted list.
    */
-  public static function sortModsByDependencies(modMetadatas:Array<ModMetadata>, strict:Bool = false):Array<ModMetadata> {
+  public static function sortModsByDependencies(modMetadatas:Array<ModMetadata>, strict:Bool = false):Array<ModMetadata>
+  {
     return DependencyUtil.sortByDependencies(modMetadatas, !strict);
   }
 
@@ -773,7 +777,8 @@ class Polymod
    * @param modMetadatas The list of mods to validate.
    * @return Whether all required, non-optional dependencies are met.
    */
-  public static function validateModDependencies(modMetadatas:Array<ModMetadata>):Bool {
+  public static function validateModDependencies(modMetadatas:Array<ModMetadata>):Bool
+  {
     return DependencyUtil.validateDependencies(modMetadatas);
   }
 
@@ -853,13 +858,13 @@ class Polymod
    * Get a list of all the available scripted classes (`.hxc` files), interpret them asynchronously, and register any classes.
    * Called on platforms that don't support synchronous file access.
    */
-  public static function registerAllScriptClassesAsync():Array<lime.app.Future<Bool>>
+  public static function registerAllScriptClassesAsync():Array<tink.core.Future<Bool>>
   {
     // Go through each script and parse any classes in them.
     var potentialScripts:Array<String> = Polymod.assetLibrary.list(TEXT);
     var libraryIds:Array<String> = Polymod.assetLibrary.listLibraries();
 
-    var futures:Array<lime.app.Future<Bool>> = [];
+    var futures:Array<tink.core.Future<Bool>> = [];
     for (textPath in potentialScripts)
     {
       if (PolymodConfig.scriptClassExt.exists(ext -> textPath.endsWith(ext)))
@@ -1256,7 +1261,8 @@ class ModMetadata
     return m;
   }
 
-  public function toString():String {
+  public function toString():String
+  {
     return 'ModMetadata($id:$modVersion)';
   }
 }
