@@ -67,7 +67,7 @@ class SysFileSystem implements IFileSystem
     #if (!windows)
     path = getPathLike(path);
     #end
-    return getFileBytes(path).toString();
+    return getFileBytes(path)?.toString();
   }
 
   public function getFileBytes(path:String)

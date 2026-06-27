@@ -15,6 +15,7 @@ import sys.io.FileInput;
  *
  * Only compatible with `sys` targets with native file system access.
  */
+@:nullSafety
 class ZipParser
 {
   /**
@@ -25,23 +26,28 @@ class ZipParser
   /**
    * A handle to the ZIP file for direct reading.
    */
-  private var fileHandle:FileInput;
+  private var fileHandle:Null<FileInput> = null;
+
+  /**
+   * Enable this to hold onto the file handle for as long as the ZIP parser is in use.
+   * Disable this to re-open the file handle every time you want to access the ZIP contents.
+   */
+  public var persistFileHandle:Bool = false;
 
   /**
    * The end-of-central-directory record, as parsed from the end of the ZIP file.
    */
-  public var endOfCentralDirectoryRecord:EndOfCentralDirectoryRecord;
+  public var endOfCentralDirectoryRecord:Null<EndOfCentralDirectoryRecord> = null;
 
   /**
    * The central directory records, as parsed from the central directory.
    * These contain metadata about each file in the archive.
    */
-  public var centralDirectoryRecords:IMap<String, CentralDirectoryFileHeader>;
+  public var centralDirectoryRecords:IMap<String, CentralDirectoryFileHeader> = new Map<String, CentralDirectoryFileHeader>();
 
   public function new(fileName:String)
   {
     this.fileName = fileName;
-    this.fileHandle = File.read(this.fileName);
 
     findEndOfCentralDirectoryRecord();
     getAllCentralDirectoryHeaders();
@@ -52,6 +58,8 @@ class ZipParser
    */
   function findEndOfCentralDirectoryRecord():Void
   {
+    if (fileHandle == null) fileHandle = File.read(this.fileName);
+
     fileHandle.seek(-22, SeekEnd); // 22 is the smallest the eocd can be, so we start here
     var tmpbuf = Bytes.alloc(4);
     fileHandle.readBytes(tmpbuf, 0, 4);
@@ -62,6 +70,8 @@ class ZipParser
       fileHandle.readBytes(tmpbuf, 0, 4);
     }
     this.endOfCentralDirectoryRecord = new EndOfCentralDirectoryRecord(fileHandle, -4);
+
+    cleanupFileHandle();
   }
 
   /**
@@ -70,13 +80,23 @@ class ZipParser
    */
   function getAllCentralDirectoryHeaders():Void
   {
-    this.centralDirectoryRecords = PolymodConfig.caseInsensitiveZipLoading ? new InsensitiveMap() : new StringMap();
+    if (fileHandle == null) fileHandle = File.read(this.fileName);
+
+    this.centralDirectoryRecords = (PolymodConfig.caseInsensitiveZipLoading ?? true) ? new InsensitiveMap() : new StringMap();
+
+    if (endOfCentralDirectoryRecord == null) {
+      Polymod.debug('Cannot read file headers in ZIP, no directory header found.');
+      return;
+    }
+
     fileHandle.seek(this.endOfCentralDirectoryRecord.cdrOffset, SeekBegin);
     for (_ in 0...this.endOfCentralDirectoryRecord.cdrsTotal)
     {
       var cdh = new CentralDirectoryFileHeader(fileHandle);
       this.centralDirectoryRecords.set(cdh.fileName, cdh);
     }
+
+    cleanupFileHandle();
   }
 
   /**
@@ -84,21 +104,55 @@ class ZipParser
    * and generate a LocalFileHeader.
    *
    * @param localFileName A filename relative to the root of the ZIP file.
-   * @return A LocalFileHeader for the specified file, or null if the file was not found.
+   * @return A LocalFileHeader for the specified file, or `null` if the file was not found.
    */
   public function getLocalFileHeaderOf(localFileName:String):Null<LocalFileHeader>
   {
-    fileHandle = File.read(this.fileName);
+    if (fileHandle == null) fileHandle = File.read(this.fileName);
+
     var cdfh = centralDirectoryRecords.get(localFileName);
     if (cdfh == null)
     {
       Polymod.warning(ASSET_MISSING_FILE, 'The file $localFileName was not found in the zip: $fileName');
       return null;
     }
+
     fileHandle.seek(cdfh.localFileHeaderOffset, SeekBegin);
     var lfh = new LocalFileHeader(fileHandle);
     lfh.dataOffset = fileHandle.tell();
+
+    cleanupFileHandle();
+
     return lfh;
+  }
+
+  /**
+   * Check if this Zip Parser is still valid.
+   * It may become invalid if the target file no longer exists.
+   *
+   * @return Whether this Zip Parser is still valid.
+   */
+  public function isValid():Bool {
+    if (!sys.FileSystem.exists(fileName)) return false;
+
+    return true;
+  }
+
+  function buildFileHandle() {
+    if (fileHandle != null) return;
+    if (!isValid()) throw 'Invalid ZIP file: $fileName';
+
+    fileHandle = File.read(this.fileName);
+  }
+
+  function cleanupFileHandle() {
+    if (!persistFileHandle && fileHandle != null) {
+      // If any other references to the file handle exist, it won't close.
+      // Otherwise, it'll close on its own.
+      // fileHandle.close()
+
+      fileHandle = null;
+    }
   }
 }
 
@@ -111,22 +165,23 @@ enum CompressionMethod
 /**
  * Common functionality for all ZIP headers.
  */
+@:nullSafety
 private class Header
 {
   /**
    * A handle to the ZIP file for direct reading.
    */
-  private var fileInput:FileInput;
+  private var fileInput:Null<FileInput> = null;
 
   /**
    * The header's 4-byte signature.
    */
-  public var signature:Bytes;
+  public var signature:Bytes = Bytes.alloc(0);
 
   /**
    * A temporary buffer to read chunks of bytes into.
    */
-  private var tmpBuffer:Bytes;
+  private var tmpBuffer:Bytes = Bytes.alloc(0);
 
   /**
    * Reads a chunk of bytes of the specified length from the file,
@@ -138,7 +193,14 @@ private class Header
   private function getBytesFromFile(count:Int)
   {
     if (count == 0) return Bytes.alloc(0);
+
+    if (fileInput == null) {
+      Polymod.debug('Read no bytes due to invalid file handle (0 < $count)');
+      return Bytes.alloc(0);
+    }
+
     tmpBuffer = Bytes.alloc(count);
+
     var bytesRead = fileInput.readBytes(tmpBuffer, 0, count);
     if (bytesRead != count)
     {
@@ -182,6 +244,7 @@ private class Header
 /**
  * The local file header for a file in a ZIP file.
  */
+@:nullSafety
 class LocalFileHeader extends Header
 {
   /**
@@ -192,53 +255,53 @@ class LocalFileHeader extends Header
   /**
    * Version needed to extract (minimum)
    */
-  public var minVersionForExtraction:Int;
+  public var minVersionForExtraction:Int = 0;
 
   /**
    * General purpose bit flag
    */
-  public var generalPurposeBitFlag:Bytes;
+  public var generalPurposeBitFlag:Bytes = Bytes.alloc(0);
 
   /**
    * Compression method; e.g. none = 0, DEFLATE = 8 (or "\0x08\0x00")
    * Converted to a Haxe enum.
    */
-  public var compressionMethod:CompressionMethod;
+  public var compressionMethod:CompressionMethod = NONE;
 
   /**
    * Date and time of last modification, parsed from MSDOS format.
    */
-  public var lastModifiedDateTime:Date;
+  public var lastModifiedDateTime:Date = Date.fromTime(0);
 
   /**
    * CRC-32 of uncompressed data
    */
-  public var crc32code:Bytes;
+  public var crc32code:Bytes = Bytes.alloc(0);
 
   /**
    * Compressed size (or 0xffffffff for ZIP64)
    */
-  public var compressedSize:Int;
+  public var compressedSize:Int = 0;
 
   /**
    * Uncompressed size (or 0xffffffff for ZIP64)
    */
-  public var uncompressedSize:Int;
+  public var uncompressedSize:Int = 0;
 
   /**
    * ZIP filename
    */
-  public var fileName:String;
+  public var fileName:String = '';
 
   /**
    * ZIP extra field
    */
-  public var extraField:Bytes;
+  public var extraField:Bytes = Bytes.alloc(0);
 
   /**
    * Number of bytes consumed when reading the header.
    */
-  public var bytesConsumed:Int;
+  public var bytesConsumed:Int = 0;
 
   /**
    * Byte offset in the file from where to read the data.
@@ -246,7 +309,7 @@ class LocalFileHeader extends Header
    */
   public var dataOffset:Int = -1; // offset in the file from where to read the data
 
-  public function new(fileInput:FileInput, ?startOffset:Int = 0)
+  public function new(fileInput:FileInput, startOffset:Int = 0)
   {
     this.fileInput = fileInput;
     this.fileInput.seek(startOffset, SeekCur);
@@ -286,6 +349,7 @@ class LocalFileHeader extends Header
    */
   public function readData():Bytes
   {
+    if (fileInput == null) throw 'Tried to read file without a valid handle!';
     if (compressedSize == 0) throw 'Tried to read file "$fileName" with size 0.';
 
     fileInput.seek(dataOffset, SeekBegin);
@@ -337,6 +401,7 @@ class LocalFileHeader extends Header
 /**
  * The central directory file header for a file in a ZIP file.
  */
+@:nullSafety
 class CentralDirectoryFileHeader extends Header
 {
   /**
@@ -347,72 +412,72 @@ class CentralDirectoryFileHeader extends Header
   /**
    * Version made by
    */
-  public var versionMadeBy:Int;
+  public var versionMadeBy:Int = 0;
 
   /**
    * Version needed to extract (minimum)
    */
-  public var versionToExtract:Int;
+  public var versionToExtract:Int = 0;
 
   /**
    * General purpose bit flag
    */
-  private var generalPurposeBitFlag:Bytes;
+  private var generalPurposeBitFlag:Bytes = Bytes.alloc(0);
 
   /**
    * Compression method (none or deflate)
    */
-  public var compressionMethod:CompressionMethod;
+  public var compressionMethod:CompressionMethod = NONE;
 
   /**
    * Last modified date and time, parsed from MSDOS format
    */
-  public var lastModifiedDateTime:Date;
+  public var lastModifiedDateTime:Date = Date.fromTime(0);
 
   /**
    * CRC-32 of uncompressed data
    */
-  private var crc32code:Bytes;
+  private var crc32code:Bytes = Bytes.alloc(0);
 
   /**
    * Compressed size (or 0xffffffff for ZIP64)
    */
-  public var compressedSize:Int;
+  public var compressedSize:Int = 0;
 
   /**
    * Uncompressed size (or 0xffffffff for ZIP64)
    */
-  public var uncompressedSize:Int;
+  public var uncompressedSize:Int = 0;
 
   /**
    * File name length
    */
-  private var fileNameLength:Int;
+  private var fileNameLength:Int = 0;
 
   /**
    * Extra field length
    */
-  private var extraFieldLength:Int;
+  private var extraFieldLength:Int = 0;
 
   /**
    * File comment length
    */
-  private var fileCommentLength:Int;
+  private var fileCommentLength:Int = 0;
 
   /**
    * Disk number where file starts (or 0xffff for ZIP64)
    */
-  public var diskNumber:Int;
+  public var diskNumber:Int = 0;
 
   /**
    * Internal file attributes
    */
-  private var internalFileAttrib:Bytes;
+  private var internalFileAttrib:Bytes = Bytes.alloc(0);
 
   /**
    * External file attributes
    */
-  private var externalFileAttrib:Bytes;
+  private var externalFileAttrib:Bytes = Bytes.alloc(0);
 
   /**
    * Relative offset of local file header (or 0xffffffff for ZIP64).
@@ -420,29 +485,29 @@ class CentralDirectoryFileHeader extends Header
    * and the start of the local file header.
    * This allows software reading the central directory to locate the position of the file inside the ZIP file.
    */
-  public var localFileHeaderOffset:Int;
+  public var localFileHeaderOffset:Int = 0;
 
   /**
    * File name
    */
-  public var fileName:String;
+  public var fileName:String = '';
 
   /**
    * Extra field
    */
-  public var extraField:Bytes;
+  public var extraField:Bytes = Bytes.alloc(0);
 
   /**
    * File comment
    */
-  public var fileComment:String;
+  public var fileComment:String = '';
 
   /**
    * Number of bytes consumed by this header.
    */
-  public var bytesConsumed:Int;
+  public var bytesConsumed:Int = 0;
 
-  public function new(fileInput:FileInput, ?startOffset:Int = 0)
+  public function new(fileInput:FileInput, startOffset:Int = 0)
   {
     this.fileInput = fileInput;
     this.fileInput.seek(startOffset, SeekCur);
@@ -477,6 +542,9 @@ class CentralDirectoryFileHeader extends Header
     fileComment = getBytesFromFile(fileCommentLength).toString();
 
     bytesConsumed = 46 + fileNameLength + extraFieldLength + fileCommentLength - 1;
+
+    // We shouldn't need this anymore...
+    this.fileInput = null;
   }
 
   /**
@@ -516,6 +584,7 @@ class CentralDirectoryFileHeader extends Header
  * Provides information like how many central directory records are present in the file,
  * and where the central directory is located.
  */
+@:nullSafety
 class EndOfCentralDirectoryRecord extends Header
 {
   /**
@@ -526,44 +595,44 @@ class EndOfCentralDirectoryRecord extends Header
   /**
    * Number of this disk (or 0xffff for ZIP64)
    */
-  public var diskNumber:Int;
+  public var diskNumber:Int = 0;
 
   /**
    * Disk where central directory starts (or 0xffff for ZIP64)
    */
-  public var startDisk:Int;
+  public var startDisk:Int = 0;
 
   /**
    * Number of central directory records on this disk (or 0xffff for ZIP64)
    */
-  public var cdrsOnDisk:Int;
+  public var cdrsOnDisk:Int = 0;
 
   /**
    * Total number of central directory records (i.e. the number of files) (or 0xffff for ZIP64)
    */
-  public var cdrsTotal:Int;
+  public var cdrsTotal:Int = 0;
 
   /**
    * Size of central directory (bytes) (or 0xffffffff for ZIP64)
    */
-  public var cdrSize:Int;
+  public var cdrSize:Int = 0;
 
   /**
    * Offset of start of central directory, relative to start of archive (or 0xffffffff for ZIP64)
    */
-  public var cdrOffset:Int;
+  public var cdrOffset:Int = 0;
 
   /**
    * Length of the comment string, in bytes.
    */
-  private var commentLength:Int;
+  private var commentLength:Int = 0;
 
   /**
    * Comment string.
    */
-  public var comment:String;
+  public var comment:String = '';
 
-  public function new(fileInput:FileInput, ?startOffset:Int = 0)
+  public function new(fileInput:FileInput, startOffset:Int = 0)
   {
     this.fileInput = fileInput;
     this.fileInput.seek(startOffset, SeekCur);
@@ -583,6 +652,9 @@ class EndOfCentralDirectoryRecord extends Header
     commentLength = getBytesFromFile(2).getUInt16(0);
 
     comment = getBytesFromFile(commentLength).toString();
+
+    // We shouldn't need this anymore...
+    this.fileInput = null;
   }
 
   public function toString()
