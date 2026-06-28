@@ -35,15 +35,17 @@ class StubBackend implements IBackend
     return null;
   }
 
-  public function loadBytes(id:String):tink.core.Future<Bytes>
+  #if lime
+  public function loadBytes(id:String):lime.app.Future<Bytes>
   {
     return null;
   }
 
-  public function loadText(id:String):tink.core.Future<String>
+  public function loadText(id:String):lime.app.Future<String>
   {
     return null;
   }
+  #end
 
   public function getPath(id:String):Null<String>
   {

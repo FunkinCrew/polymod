@@ -377,7 +377,11 @@ class Polymod
 
       if (params.loadScriptsAsync)
       {
+        #if lime
         Polymod.registerAllScriptClassesAsync();
+        #else
+        Polymod.error(BACKEND_INIT_FAILED, 'The current backend does not support asynchronous script loading!', INIT);
+        #end
       }
       else
       {
@@ -858,13 +862,14 @@ class Polymod
    * Get a list of all the available scripted classes (`.hxc` files), interpret them asynchronously, and register any classes.
    * Called on platforms that don't support synchronous file access.
    */
-  public static function registerAllScriptClassesAsync():Array<tink.core.Future<Bool>>
+  #if lime
+  public static function registerAllScriptClassesAsync():Array<lime.app.Future<Bool>>
   {
     // Go through each script and parse any classes in them.
     var potentialScripts:Array<String> = Polymod.assetLibrary.list(TEXT);
     var libraryIds:Array<String> = Polymod.assetLibrary.listLibraries();
 
-    var futures:Array<tink.core.Future<Bool>> = [];
+    var futures:Array<lime.app.Future<Bool>> = [];
     for (textPath in potentialScripts)
     {
       if (PolymodConfig.scriptClassExt.exists(ext -> textPath.endsWith(ext)))
@@ -892,6 +897,7 @@ class Polymod
 
     return futures;
   }
+  #end
 
   /**
    * Dispatch an error message with the severity `PolymodErrorType.ERROR`.

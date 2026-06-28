@@ -8,8 +8,6 @@ import polymod.hscript._internal.Expr.FunctionDecl;
 import polymod.hscript._internal.Expr.VarDecl;
 import polymod.hscript._internal.Printer;
 import polymod.util.Util;
-import tink.core.Outcome;
-import tink.core.Error;
 
 using StringTools;
 
@@ -184,60 +182,57 @@ class PolymodScriptClass
     }
   }
 
-  static function registerScriptClassByPathAsync(path:String):tink.core.Future<Bool>
+  #if lime
+  static function registerScriptClassByPathAsync(path:String):lime.app.Future<Bool>
   {
-    var trigger = tink.core.Future.trigger();
+    var promise = new lime.app.Promise<Bool>();
 
     if (!Polymod.assetLibrary.exists(path))
     {
       Polymod.error(SCRIPT_PARSE_FAILED, 'Error while loading script "${path}", could not retrieve contents of non-existent script!', SCRIPT_RUNTIME);
-
-      trigger.trigger(Failure(new Error(404, "Non-existent script")));
-
-      return trigger.asFuture();
+      return null;
     }
 
-    Polymod.assetLibrary.loadText(path).handle(function(result) {
-      switch (result)
+    Polymod.assetLibrary.loadText(path).onComplete((text) -> {
+      try
       {
-        case Success(text):
-          try
-          {
-            registerScriptClassByString(text);
-            trigger.trigger(Success(true));
-          }
-          catch (err:Expr.Error)
-          {
-            var errLine:String = #if hscriptPos '${err.line}' #else '#???' #end;
-
-            #if hscriptPos
-            switch (err.e)
-            #else
-            switch (err)
-            #end
-            {
-              case EUnexpected(s):
-                Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script ${path}#${errLine}:\n' + 'An unknown error occurred: ${err}', SCRIPT_RUNTIME);
-              default:
-                Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script ${path}#${errLine}:\n' + 'An unknown error occurred: ${err}', SCRIPT_RUNTIME);
-            }
-            trigger.trigger(Failure(new Error(500, Std.string(err))));
-          }
-
-        case Failure(err):
-          if (err.message == "404")
-          {
-            Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script "${path}", could not retrieve script contents (404 error)!', SCRIPT_RUNTIME);
-          }
-          else
-          {
-            Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script "${path}": ' + '\n' + 'An unknown error occured: ${err}', SCRIPT_RUNTIME);
-            trigger.trigger(Failure(err));
-          }
+        registerScriptClassByString(text);
+        promise.complete(true);
+      }
+      catch (err:Expr.Error)
+      {
+        var errLine:String = #if hscriptPos '${err.line}' #else "#???" #end;
+        #if hscriptPos
+        switch (err.e)
+        #else
+        switch (err)
+        #end
+        {
+          case EUnexpected(s):
+            Polymod.error(SCRIPT_PARSE_FAILED,
+              'Error while parsing script ${path}#${errLine}: EUnexpected' + '\n' +
+              'Unexpected error: Unexpected token "${s}", is there invalid syntax on this line?',
+              SCRIPT_RUNTIME);
+          default:
+            Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script ${path}#${errLine}: ' + '\n' + 'An unknown error occurred: ${err}', SCRIPT_RUNTIME);
+        }
+        promise.error(err);
+      }
+    }).onError((err) -> {
+      if (err == "404")
+      {
+        Polymod.error(SCRIPT_PARSE_FAILED, 'Error while loading script "${path}", could not retrieve script contents (404 error)!', SCRIPT_RUNTIME);
+      }
+      else
+      {
+        Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script ${path}: ' + '\n' + 'An unknown error occurred: ${err}', SCRIPT_RUNTIME);
+        promise.error(err);
       }
     });
-    return trigger.asFuture();
+    // Await the promise
+    return promise.future;
   }
+  #end
 
   /**
    * Returns a list of all registered classes.
