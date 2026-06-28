@@ -165,6 +165,11 @@ class NMEBackend implements IBackend
     throw 'Function not implemented';
   }
 
+  public function listLibraries():Array<String>
+  {
+    throw 'Function not implemented';
+  }
+
   public function getPath(id:String):String
   {
     throw 'Function not implemented';

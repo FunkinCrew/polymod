@@ -1,0 +1,6 @@
+{
+  "object_0": { "value": "moon" },
+  "object_1": { "value": "star" },
+  "object_2": { "value": "sun" },
+  "nested": { "object": { "array": ["a", "b", "c"] } }
+}

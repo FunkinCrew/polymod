@@ -8,6 +8,7 @@ import polymod.format.ParseRules;
 import polymod.fs.PolymodFileSystem;
 #if firetongue
 import firetongue.FireTongue;
+import polymod.Polymod.Framework;
 #end
 
 typedef PolymodAssetsParams =
@@ -122,14 +123,12 @@ class PolymodAssets
     #if firetongue
     if (params.firetongue != null)
     {
-      if (framework == polymod.Framework.NME
-        || framework == polymod.Framework.HEAPS
-        || framework == polymod.Framework.KHA
-        || framework == polymod.Framework.CERAMIC
-        || framework == polymod.Framework.CASTLE)
+      switch (framework)
       {
-        Polymod.error(POLYMOD_FUNCTIONALITY_NOT_IMPLEMENTED,
-          'Polymod currently does not support FireTongue localization for ${framework}! Nag us on GitHub about it.', INIT);
+        case NME, HEAPS, KHA, CERAMIC, CASTLE:
+          Polymod.error(POLYMOD_FUNCTIONALITY_NOT_IMPLEMENTED,
+            'Polymod currently does not support FireTongue localization for ${framework}! Nag us on GitHub about it.', INIT);
+        default:
       }
     }
     #end

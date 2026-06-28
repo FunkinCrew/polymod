@@ -98,7 +98,7 @@ class Interp
     return _proxy.fullyQualifiedName;
   }
 
-  public function new(targetCls:Class<Dynamic>, proxy:PolymodAbstractScriptClass)
+  public function new(?targetCls:Class<Dynamic>, ?proxy:PolymodAbstractScriptClass)
   {
     locals = new Map();
     declared = [];
@@ -113,38 +113,30 @@ class Interp
   function cnew(cl:String, args:Array<Dynamic>):Dynamic
   {
     // Try to retrieve a scripted class with this name in the same package.
-    if (getClassDecl().pkg != null && getClassDecl().pkg.length > 0)
+    if (getClassDecl()?.pkg != null && getClassDecl().pkg.length > 0)
     {
       var localClassId = getClassDecl().pkg.join('.') + "." + cl;
       var clsRef = PolymodStaticClassReference.tryBuild(localClassId);
       if (clsRef != null) return clsRef.instantiate(args);
+
+      if (_scriptClassDescriptors.exists(localClassId))
+      {
+        // OVERRIDE CHANGE: Create a PolymodScriptClass instead of a ScriptClass
+        var proxy:PolymodAbstractScriptClass = new PolymodScriptClass(_scriptClassDescriptors.get(localClassId), args);
+        return proxy;
+      }
     }
 
     // Try to retrieve a scripted class with this name in the base package.
     var clsRef = PolymodStaticClassReference.tryBuild(cl);
     if (clsRef != null) return clsRef.instantiate(args);
-    @:privateAccess
-    if (getClassDecl().imports != null && getClassDecl().imports.exists(cl))
-    {
-      var clsRef = PolymodStaticClassReference.tryBuild(getClassDecl().imports.get(cl).fullPath);
-      if (clsRef != null) return clsRef.instantiate(args);
-    }
-    @:privateAccess
-    if (getClassDecl()?.pkg != null)
-    {
-      @:privateAccess
-      var packagedClass = getClassDecl().pkg.join(".") + "." + cl;
-      if (_scriptClassDescriptors.exists(packagedClass))
-      {
-        // OVERRIDE CHANGE: Create a PolymodScriptClass instead of a ScriptClass
-        var proxy:PolymodAbstractScriptClass = new PolymodScriptClass(_scriptClassDescriptors.get(packagedClass), args);
-        return proxy;
-      }
-    }
-    @:privateAccess
-    if (getClassDecl()?.imports != null && getClassDecl().imports.exists(cl))
+    if (getClassDecl()?.imports != null && getClassDecl()?.imports.exists(cl))
     {
       var importedClass:ClassImport = getClassDecl().imports.get(cl);
+
+      var clsRef = PolymodStaticClassReference.tryBuild(importedClass.fullPath);
+      if (clsRef != null) return clsRef.instantiate(args);
+
       if (_scriptClassDescriptors.exists(importedClass.fullPath))
       {
         // OVERRIDE CHANGE: Create a PolymodScriptClass instead of a ScriptClass
@@ -178,8 +170,8 @@ class Interp
     }
 
     // Attempt to resolve the class without overrides.
-    var cls = Type.resolveClass(cl);
-    if (cls == null) cls = resolve(cl);
+    var cls:Class<Dynamic> = Type.resolveClass(cl);
+    if (cls == null) cls = cast resolve(cl);
     if (cls == null) error(EInvalidModule(cl));
     return Type.createInstance(cls, args);
   }
@@ -1437,7 +1429,7 @@ class Interp
         return v;
       case EField(e, f):
         var name = getIdent(e);
-        name = getClassDecl().imports.get(name)?.fullPath ?? name;
+        name = getClassDecl()?.imports.get(name)?.fullPath ?? name;
         if (name != null && _scriptEnumDescriptors.exists(name))
         {
           return new PolymodEnum(_scriptEnumDescriptors.get(name), f, []);
@@ -1470,7 +1462,7 @@ class Interp
             var name = getIdent(e);
             if (name != null)
             {
-              var imp = getClassDecl().imports.get(name);
+              var imp = getClassDecl()?.imports.get(name);
               if (imp != null)
               {
                 if (_scriptEnumDescriptors.exists(imp.fullPath))

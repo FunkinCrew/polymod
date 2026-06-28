@@ -6,7 +6,6 @@ import polymod.hscript._internal.Expr.ClassImport;
 import polymod.hscript._internal.Expr.FieldDecl;
 import polymod.hscript._internal.Expr.FunctionDecl;
 import polymod.hscript._internal.Expr.VarDecl;
-import polymod.hscript._internal.Printer;
 import polymod.util.Util;
 
 using StringTools;
