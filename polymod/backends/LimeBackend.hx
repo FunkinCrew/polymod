@@ -1,6 +1,8 @@
 package polymod.backends;
 
+#if lime
 import lime.system.ThreadPool;
+#end
 import polymod.backends.PolymodAssetLibrary;
 import polymod.backends.PolymodAssets.PolymodAssetType;
 import polymod.fs.PolymodFileSystem;
@@ -47,7 +49,7 @@ class LimeBackend extends StubBackend
   }
 }
 #else
-#if (!nme && !macro)
+#if (!nme && !macro && lime)
 class LimeBackend implements IBackend
 {
   // STATIC:

@@ -8,7 +8,6 @@
   "releasenote": "Many improvements to HScripted classes, blacklisting, and error reporting",
   "contributors": ["MasterEric", "larsiusprime"],
   "dependencies": {
-    "tink_core": "",
     "thx.semver": "",
     "jsonpath": "",
     "jsonpatch": ""
