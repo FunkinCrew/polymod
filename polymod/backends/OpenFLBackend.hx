@@ -6,7 +6,7 @@ class OpenFLBackend extends StubBackend
   public function new()
   {
     super();
-    Polymod.error(BACKEND_INIT_FAILED, "OpenFLBackend requires the openfl library, did you forget to install it?", INIT);
+    Polymod.error(BACKEND_INIT_FAILED, 'OpenFLBackend requires the openfl library, did you forget to install it?', INIT);
   }
 }
 #else
@@ -28,10 +28,6 @@ class OpenFLBackend extends LimeBackend
    */
   static function clearBitmapCache():Void
   {
-    // for (key in openfl.Assets.cache.getBitmapKeys())
-    // {
-    //   openfl.Assets.cache.removeBitmapData(key);
-    // }
     var cache:openfl.utils.AssetCache = Std.isOfType(openfl.utils.Assets.cache, openfl.utils.AssetCache) ? cast openfl.utils.Assets.cache : null;
     if (cache == null) return; // Don't mess with custom asset cache implementations.
     for (key in cache.bitmapData.keys())
@@ -42,10 +38,6 @@ class OpenFLBackend extends LimeBackend
 
   static function clearFontCache():Void
   {
-    // for (key in openfl.Assets.cache.getFontKeys())
-    // {
-    //   openfl.Assets.cache.removeFont(key);
-    // }
     var cache:openfl.utils.AssetCache = Std.isOfType(openfl.utils.Assets.cache, openfl.utils.AssetCache) ? cast openfl.utils.Assets.cache : null;
     if (cache == null) return; // Don't mess with custom asset cache implementations.
     for (key in cache.font.keys())
@@ -56,10 +48,6 @@ class OpenFLBackend extends LimeBackend
 
   static function clearSoundCache():Void
   {
-    // for (key in openfl.Assets.cache.getSoundKeys())
-    // {
-    //   openfl.Assets.cache.removeSound(key);
-    // }
     var cache:openfl.utils.AssetCache = Std.isOfType(openfl.utils.Assets.cache, openfl.utils.AssetCache) ? cast openfl.utils.Assets.cache : null;
     if (cache == null) return; // Don't mess with custom asset cache implementations.
     for (key in cache.sound.keys())

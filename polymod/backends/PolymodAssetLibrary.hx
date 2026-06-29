@@ -2,7 +2,9 @@ package polymod.backends;
 
 import haxe.io.Bytes;
 import polymod.backends.IBackend;
-import polymod.backends.PolymodAssets.PolymodAssetType;
+import polymod.Polymod.Framework;
+import polymod.PolymodAssets;
+import polymod.PolymodAssets.PolymodAssetType;
 import polymod.format.ParseRules;
 import polymod.fs.PolymodFileSystem.IFileSystem;
 import polymod.util.Util;
@@ -16,90 +18,40 @@ import openfl.text.Font;
 
 using StringTools;
 
-typedef PolymodAssetLibraryParams =
-{
-  /**
-   * the backend used to fetch your default assets
-   */
-  backend:IBackend,
-
-  /**
-   * IDs of the mods to load.
-   * order matters -- mod files will load from first to last, with last taking precedence
-   */
-  modIds:Array<String>,
-
-  /**
-   * paths to each mod's root directories.
-   * order matters -- mods will load from first to last, with last taking precedence
-   */
-  modDirs:Array<String>,
-
-  /**
-   * the file system used to fetch your mod assets from storage
-   */
-  fileSystem:IFileSystem,
-
-  /**
-   * (optional) formatting rules for parsing various data formats
-   */
-  ?parseRules:ParseRules,
-  /**
-   * (optional) list of files it ignore in this mod asset library (get the fallback version instead)
-   */
-  ?ignoredFiles:Array<String>,
-  /**
-   * (optional) maps file extensions to asset types. This ensures e.g. text files with unfamiliar extensions are handled properly.
-   */
-  ?extensionMap:Map<String, PolymodAssetType>,
-  /**
-   * (optional) if your assets folder is not named `assets/`, you can specify the proper name here
-   * This prevents some bugs when calling `Assets.list()`, among other things.
-   */
-  ?assetPrefix:String,
-
-  /**
-   * (optional) the framework params for the libraries.
-   */
-  ?frameworkParams:FrameworkParams,
-
-  /**
-   * (optional) a FireTongue instance for Polymod to hook into for localization support
-   */
-  #if firetongue
-  ?firetongue:FireTongue,
-  #end
-}
-
+/**
+ * Initialized when Polymod mods are loaded, and handles retrieving assets from currently loading mods.
+ */
+@:allow(polymod.Polymod)
+@:access(polymod.PolymodAssets)
 class PolymodAssetLibrary
 {
   public var backend(default, null):IBackend;
   public var fileSystem(default, null):IFileSystem;
 
-  public var type(default, null):Map<String, PolymodAssetType>;
+  public var assetTypes(default, null):Map<String, PolymodAssetType>;
   public var typeLibraries(default, null):Map<String, Array<String>>;
 
   public var assetPrefix(default, null):String = "assets/";
-  public var modIds:Array<String> = null;
-  public var modDirs:Array<String> = null;
-  public var ignoredFiles:Array<String> = null;
+  public var modIds:Array<String> = [];
+  public var modDirs:Array<String> = [];
+  public var ignoredFiles:Array<String> = [];
 
-  private var parseRules:ParseRules = null;
-  private var frameworkParams:FrameworkParams = null;
-  private var extensions:Map<String, PolymodAssetType>;
+  var parseRules:ParseRules;
+  var frameworkParams:FrameworkParams;
+  var extensions:Map<String, PolymodAssetType>;
 
   // Cache for directory listings to avoid repeated file system scans
-  private var _dirCache:Map<String, Array<String>> = new Map();
+  var dirCache:Map<String, Array<String>> = [];
   // Fast lookup for ignored files using Map instead of array searches
-  private var _ignoredFilesCache:Map<String, Bool> = new Map();
+  var ignoredFilesCache:Map<String, Bool> = [];
   // Cache for file existence checks
-  private var _fileExistsCache:Map<String, Bool> = new Map();
+  var fileExistsCache:Map<String, Bool> = [];
   // Cache for asset types to avoid repeated extension parsing
-  private var _assetTypeCache:Map<String, PolymodAssetType> = new Map();
+  var assetTypeCache:Map<String, PolymodAssetType> = [];
   // Pre-built list of all available files across all mods
-  private var _allFilesCache:Array<String> = null;
+  var allFilesCache:Null<Array<String>> = null;
   // Cache for processed text files
-  private var _textCache:Map<String, String> = new Map();
+  var textCache:Map<String, String> = [];
 
   #if firetongue
   private var tongue:FireTongue = null;
@@ -122,21 +74,33 @@ class PolymodAssetLibrary
   public var localeAssetPrefix(default, null):String = null;
   #end
 
-  public function new(params:PolymodAssetLibraryParams)
-  {
-    backend = params.backend;
-    fileSystem = params.fileSystem;
-    backend.polymodLibrary = this;
-    modIds = params.modIds;
-    modDirs = params.modDirs;
-    parseRules = params.parseRules;
-    frameworkParams = params.frameworkParams;
-    ignoredFiles = params.ignoredFiles != null ? params.ignoredFiles.copy() : [];
-    extensions = params.extensionMap;
-    if (params.assetPrefix != null) assetPrefix = params.assetPrefix;
+  // Private constructor, use PolymodAssetLibrary.build() instead!
+  function new(backend:IBackend, fileSystem:IFileSystem,
+    modIds:Array<String>, modDirs:Array<String>,
+    parseRules:ParseRules,
+    frameworkParams:FrameworkParams,
+    ignoredFiles:Array<String>,
+    extensionMap:Map<String, PolymodAssetType>,
+    assetPrefix:String = 'assets/',
 
     #if firetongue
-    tongue = params.firetongue;
+    ?firetongue:FireTongue,
+    #end
+    )
+  {
+    this.backend = backend;
+
+    this.fileSystem = fileSystem;
+    this.modIds = modIds;
+    this.modDirs = modDirs;
+    this.parseRules = parseRules;
+    this.frameworkParams = frameworkParams;
+    this.ignoredFiles = ignoredFiles.copy();
+    this.extensions = extensionMap;
+    this.assetPrefix = assetPrefix;
+
+    #if firetongue
+    tongue = firetongue;
     if (tongue != null)
     {
       // Call when we build the asset library then again each time we change locale.
@@ -148,7 +112,98 @@ class PolymodAssetLibrary
     backend.clearCache();
     init();
 
-    _buildAllFilesCache();
+    buildAllFilesCache();
+  }
+
+  public static function build(params:PolymodAssetLibraryParams):PolymodAssetLibrary
+  {
+    var framework:polymod.Framework = params.framework;
+    if (framework == null)
+    {
+      framework = polymod.PolymodAssets.autoDetectFramework();
+      Polymod.info(FRAMEWORK_INIT, 'Framework: Autodetect, going with $framework');
+    }
+    else
+    {
+      Polymod.info(FRAMEWORK_INIT, 'Framework: User specified $framework');
+    }
+    var backendToUse:Null<IBackend> = null;
+    #if !macro
+    backendToUse = switch (framework)
+    {
+      case CASTLE: new polymod.backends.CastleBackend();
+      case NME: new polymod.backends.NMEBackend();
+      case FLIXEL: new polymod.backends.FlixelBackend();
+      case OPENFL: new polymod.backends.OpenFLBackend();
+      case OPENFL_WITH_NODE: new polymod.backends.OpenFLWithNodeBackend();
+      case LIME: new polymod.backends.LimeBackend();
+      case HEAPS: new polymod.backends.HEAPSBackend();
+      case KHA: new polymod.backends.KhaBackend();
+      case CERAMIC: new polymod.backends.CeramicBackend();
+      case CUSTOM:
+        if (params.customBackend != null)
+        {
+          Type.createInstance(params.customBackend, []);
+        }
+        else
+        {
+          Polymod.error(BACKEND_CUSTOM_UNDEFINED, 'customBackend was not defined!', INIT);
+          null;
+        }
+      default: null;
+    }
+    #end
+    if (backendToUse == null)
+    {
+      Polymod.error(BACKEND_INIT_FAILED, 'Could not initialize backend for framework: $framework', INIT);
+      return null;
+    }
+
+    #if firetongue
+    if (params.firetongue != null)
+    {
+      if (framework == polymod.Framework.NME
+        || framework == polymod.Framework.HEAPS
+        || framework == polymod.Framework.KHA
+        || framework == polymod.Framework.CERAMIC
+        || framework == polymod.Framework.CASTLE)
+      {
+        Polymod.error(POLYMOD_FUNCTIONALITY_NOT_IMPLEMENTED,
+          'Polymod currently does not support FireTongue localization for ${framework}! Nag us on GitHub about it.', INIT);
+      }
+    }
+    #end
+
+    if (backendToUse.polymodLibrary != null)
+    {
+      backendToUse.polymodLibrary.destroy();
+    }
+
+    backendToUse.polymodLibrary = new PolymodAssetLibrary(
+      backendToUse,
+      params.fileSystem,
+      params.modIds,
+      params.modDirs,
+      params.parseRules,
+      params.frameworkParams,
+      params.ignoredFiles,
+      params.extensionMap,
+      params.assetPrefix,
+
+      #if firetongue
+      params.firetongue,
+      #end
+    );
+
+    if (backendToUse.init(params.frameworkParams))
+    {
+      // Initialization successful.
+      return backendToUse.polymodLibrary;
+    }
+    else
+    {
+      return null;
+    }
   }
 
   #if firetongue
@@ -165,52 +220,60 @@ class PolymodAssetLibrary
     localeAssetPrefix = Util.pathJoin(localePrefix, assetPrefix);
 
     // Clear caches when locale changes
-    _clearCaches();
+    clearCaches();
   }
   #end
 
-  public function destroy()
+  function clearCaches():Void
   {
-    backend?.destroy();
-    _clearCaches();
-    Polymod.clearScripts();
+    dirCache = [];
+    ignoredFilesCache = [];
+    fileExistsCache = [];
+    assetTypeCache = [];
+    allFilesCache = null;
+    textCache = [];
   }
 
-  function _clearCaches():Void
-  {
-    _dirCache = new Map();
-    _ignoredFilesCache = new Map();
-    _fileExistsCache = new Map();
-    _assetTypeCache = new Map();
-    _allFilesCache = null;
-    _textCache = new Map();
-  }
-
+  /**
+   * For the given base text, apply any merge and append operations provided by mods.
+   * For example, `json` files may have JSONPatch files to apply.
+   *
+   * @param id The asset ID for the text.
+   * @param modText The base value of the text.
+   * @return The merged and appended text.
+   */
   public function mergeAndAppendText(id:String, modText:String):String
   {
     var cacheKey = PolymodConfig.mergeFolder + id;
-    if (PolymodConfig.enableTextCache && _textCache.exists(cacheKey))
+    if (PolymodConfig.enableTextCache && textCache.exists(cacheKey))
     {
-      return _textCache.get(cacheKey);
+      return textCache.get(cacheKey);
     }
 
     modText = Util.mergeAndAppendText(modText, id, modDirs, getTextDirectly, fileSystem, parseRules);
 
     if (PolymodConfig.enableTextCache)
     {
-      _textCache.set(cacheKey, modText);
+      textCache.set(cacheKey, modText);
     }
 
     return modText;
   }
 
-  public function getExtensionType(ext:String):PolymodAssetType
+  /**
+   * Determine the PolymodAssetType based on the provided extension map.
+   * This can include default extension mappings as well as ones provided by the game.
+   *
+   * @param ext The extension to check.
+   * @return The matching `PolymodAssetType`, or `UNKNOWN` if the asset type isn't found.
+   */
+  public function getAssetType(ext:String):PolymodAssetType
   {
     ext = ext.toLowerCase();
 
-    if (_assetTypeCache.exists(ext))
+    if (assetTypeCache.exists(ext))
     {
-      return _assetTypeCache.get(ext);
+      return assetTypeCache.get(ext);
     }
 
     var result:PolymodAssetType = BYTES;
@@ -219,118 +282,228 @@ class PolymodAssetLibrary
       result = extensions.get(ext);
     }
 
-    _assetTypeCache.set(ext, result);
+    assetTypeCache.set(ext, result);
     return result;
   }
 
   /**
-   * Get text without consideration of any modifications
-   * @param	id
-   * @param	theDir
-   * @return
+   * Fetch bytes directly from the file system.
+   * Queries for any modded asset replacements, but ignores merging and appending.
+   *
+   * @param	id The asset ID of the file.
+   * @param	modDir A specific mod directory to fetch from.
+   * @return The bytes of the modded asset, or `null` if the asset couldn't be fetched.
    */
-  public function getTextDirectly(id:String, directory:String = ''):Null<String>
+  public function getBytesDirectly(id:String, modDir:String = ''):Null<haxe.io.Bytes>
   {
-    var bytes = null;
-    if (checkDirectly(id, directory))
+    if (modDir != '')
     {
-      bytes = fileSystem.getFileBytes(file(id, directory));
+      if (checkDirectly(id, modDir)) {
+        return fileSystem.getFileBytes(file(id, modDir));
+      } else {
+        return null;
+      }
     }
     else
     {
-      bytes = backend.getBytes(id);
-    }
-
-    if (bytes == null)
-    {
-      return null;
-    }
-    else
-    {
-      return bytes.getString(0, bytes.length);
+      return fileSystem.getFileBytes(file(id));
     }
   }
 
+  /**
+   * Fetch text directly from the file system.
+   * Queries for any modded asset replacements, but ignores merging and appending.
+   *
+   * @param	id The asset ID of the file.
+   * @param	modDir A specific mod directory to fetch from.
+   * @return The text of the modded asset, or `null` if the asset couldn't be fetched.
+   */
+  public function getTextDirectly(id:String, modDir:String):Null<String>
+  {
+    var bytes:Null<haxe.io.Bytes> = getBytesDirectly(id, modDir);
+
+    return (bytes == null) ? null : bytes.getString(0, bytes.length);
+  }
+
+  /**
+   * Determine if a file with the given ID exists.
+   * Queries both base assets and all loaded mods.
+   *
+   * @param id The asset ID to query existance of.
+   * @return Whether the asset exists.
+   */
   public function exists(id:String):Bool
   {
     return backend.exists(id);
   }
 
+  /**
+   * Attempts to load an asset synchronously, as string text.
+   * Fetches from both base assets and all loaded mods.
+   *
+   * @param id The asset ID to load.
+   * @return The string text for the file.
+   */
   public function getText(id:String):String
   {
-    if (PolymodConfig.enableTextCache && _textCache.exists(id))
+    if (PolymodConfig.enableTextCache && textCache.exists(id))
     {
-      return _textCache.get(id);
+      return textCache.get(id);
     }
 
     var result = backend.getText(id);
 
     if (PolymodConfig.enableTextCache && result != null)
     {
-      _textCache.set(id, result);
+      textCache.set(id, result);
     }
 
     return result;
   }
 
-  #if lime
-  public function loadText(id:String):lime.app.Future<String>
-  {
-    return backend.loadText(id);
-  }
-  #end
-
+  /**
+   * Attempt to load an asset synchronously, as byte data.
+   * Fetches from both base assets and all loaded mods.
+   *
+   * @param id The asset ID to query existance of.
+   * @return The byte data for the file
+   */
   public function getBytes(id:String):Bytes
   {
     return backend.getBytes(id);
   }
 
   #if lime
+  /**
+   * Attempt to load an asset asynchronously, as byte data.
+   * Fetches from both base assets and all loaded mods.
+   *
+   * @param id The asset ID to query existance of.
+   * @return The byte data for the file
+   */
   public function loadBytes(id:String):lime.app.Future<Bytes>
   {
     return backend.loadBytes(id);
   }
+
+  /**
+   * Attempts to load an asset asynchronously, as string text.
+   * Fetches from both base assets and all loaded mods.
+   *
+   * @param id The asset ID to load.
+   * @return A Future, which provides the string text for the file when asset loading completes.
+   */
+  public function loadText(id:String):lime.app.Future<String>
+  {
+    return backend.loadText(id);
+  }
+
+  /**
+   * Attempt to load an asset synchronously, as an image.
+   * Fetches from both base assets and all loaded mods.
+   *
+   * @param id The asset ID to load.
+   * @return The image for the file.
+   */
+  public function getImage(id:String):lime.graphics.Image {
+    throw 'Not implemented lol';
+  }
+
+  /**
+   * Attempt to load an asset asynchronously, as an image.
+   * Fetches from both base assets and all loaded mods.
+   *
+   * @param id The asset ID to load.
+   * @return A Future, which provides the image for the file when asset loading completes.
+   */
+  public function loadImage(id:String):lime.app.Future<lime.graphics.Image> {
+    throw 'Not implemented lol';
+  }
+
+  #if openfl
+  /**
+   * Attempts to load an asset synchronously, as bitmap data.
+   * Fetches from both base assets and all loaded mods.
+   *
+   * @param id The asset ID to load.
+   * @return The bitmap data for the file.
+   */
+  public function getBitmapData(id:String):openfl.display.BitmapData {
+    throw 'Not implemented lol';
+  }
+
+  /**
+   * Attempts to load an asset asynchronously, as bitmap data.
+   * Fetches from both base assets and all loaded mods.
+   *
+   * @param id The asset ID to load.
+   * @return A Future, which provides the bitmap data for the file when asset loading completes.
+   */
+  public function loadBitmapData(id:String):lime.app.Future<openfl.display.BitmapData> {
+    throw 'Not implemented lol';
+  }
   #end
 
+  /**
+   * @return A list of asset libraries for this framework.
+   */
+  public function listLibraries():Array<String>
+  {
+    return backend.listLibraries();
+  }
+  #end
+
+  /**
+   * Get the absolute system file path for a given asset ID.
+   * Queries both base assets and all loaded mods.
+   *
+   * @param id The asset ID to query.
+   * @return The absolute file path to load for the asset.
+   */
   public function getPath(id:String):String
   {
     return backend.getPath(id);
   }
 
-  public function clearCache()
+  /**
+   * Clear any internal path caches made by this asset library.
+   */
+  public function clearCache():Void
   {
     backend.clearCache();
-    _clearCaches();
+    clearCaches();
   }
 
+  /**
+   * Get a list of all asset IDs of the specified type.
+   * Queries from both base assets and all loaded mods.
+   *
+   * @param type The asset type to filter by (optional).
+   * @return An array of asset IDs.
+   */
   public function list(?type:PolymodAssetType):Array<String>
   {
     // Use pre-built cache when possible
-    if (type == null && _allFilesCache != null)
+    if (type == null && allFilesCache != null)
     {
-      return _allFilesCache.copy();
+      return allFilesCache.copy();
     }
 
     return backend.list(type);
   }
 
-  public function listLibraries():Array<String>
-  {
-    return backend.listLibraries();
-  }
-
   public function listModFiles(?type:PolymodAssetType):Array<String>
   {
     // Use pre-built cache
-    if (_allFilesCache != null)
+    if (allFilesCache != null)
     {
       if (type == null)
       {
-        return _allFilesCache.copy();
+        return allFilesCache.copy();
       }
 
       var filtered:Array<String> = [];
-      for (id in _allFilesCache)
+      for (id in allFilesCache)
       {
         if (check(id, type))
         {
@@ -341,7 +514,7 @@ class PolymodAssetLibrary
     }
 
     var items = [];
-    for (id in this.type.keys())
+    for (id in this.assetTypes.keys())
     {
       if (items.indexOf(id) != -1) continue;
       if (Util.isMergeOrAppend(id)) continue;
@@ -354,59 +527,77 @@ class PolymodAssetLibrary
   }
 
   /**
-   * Check if the given asset exists in the file system
+   * Check if the given asset of the given type exists in the file system.
+   * Queries both base assets and all loaded mods.
    * (If using multiple mods, it will return true if ANY of the mod folders contains this file)
-   * @param	id
-   * @return
+   *
+   * @param	id The asset ID to check.
+   * @param type An asset type to filter by (optional).
+   * @return Whether the given asset of the given type exists in the file system.
    */
   public function check(id:String, ?type:PolymodAssetType):Bool
   {
-    var exists = _checkExists(id);
+    var exists = checkExists(id);
     if (exists && type != null && type != PolymodAssetType.BYTES)
     {
-      var otherType = this.type.get(id);
+      var otherType = this.assetTypes.get(id);
       exists = (otherType == type || otherType == PolymodAssetType.BYTES || otherType == null || otherType == '');
     }
     return exists;
   }
 
-  public function getType(id:String):Null<PolymodAssetType>
+  /**
+   * Get the asset type of the asset with the given ID.
+   *
+   * @param id The asset ID to check.
+   * @return The asset type, or `UNKNOWN` if the file couldn't be located.
+   */
+  public function getType(id:String):PolymodAssetType
   {
-    var exists = _checkExists(id);
+    var exists = checkExists(id);
     if (exists)
     {
-      return this.type.get(id);
+      return this.assetTypes.get(id);
     }
-    return null;
+    return UNKNOWN;
   }
 
-  public function checkDirectly(id:String, modDir:String = ''):Bool
+  /**
+   * Check the file system directly for an asset of the given ID.
+   *
+   * @param id The ID to check.
+   * @param modDir The mod directory to check in.
+   * @return Whether the asset exists.
+   */
+  function checkDirectly(id:String, modDir:String = ''):Bool
   {
     id = stripAssetsPrefix(id);
     if (modDir == null || modDir == '')
     {
-      return _cachedFileSystemExists(id);
+      return cachedFileSystemExists(id);
     }
     else
     {
       var thePath = Util.uCombine([modDir, Util.sl(), id]);
-      return _cachedFileSystemExists(thePath);
+      return cachedFileSystemExists(thePath);
     }
   }
 
   /**
-   * Get the filename of the given asset id
-   * (If using multiple mods, it will check all the mod folders for this file, and return the LAST one found)
-   * @param	id
-   * @return
+   * Get the absolute file path of the given asset id.
+   * Queries both base assets and all loaded mods.
+   *
+   * @param	id The ID of the asset to query.
+   * @param modDir A mod directory to fetch from directly. (optional)
+   * @return The asset's absolute file path.
    */
-  public function file(id:String, fileDir:String = ''):String
+  public function file(id:String, modDir:String = ''):String
   {
     var idStripped = stripAssetsPrefix(id);
-    if (fileDir != '')
+    if (modDir != '')
     {
-      if (idStripped.startsWith(fileDir)) return idStripped;
-      return Util.pathJoin(fileDir, idStripped);
+      if (idStripped.startsWith(modDir)) return idStripped;
+      return Util.pathJoin(modDir, idStripped);
     }
 
     var result = '';
@@ -417,7 +608,7 @@ class PolymodAssetLibrary
       if (localeAssetPrefix != null)
       {
         var localePath = Util.pathJoin(modDir, Util.pathJoin(localeAssetPrefix, idStripped));
-        if (_cachedFileSystemExists(localePath))
+        if (cachedFileSystemExists(localePath))
         {
           result = localePath;
           resultLocalized = true;
@@ -433,7 +624,7 @@ class PolymodAssetLibrary
         // If we have an asset prefix
 
         var filePath = Util.pathJoin(modDir, idStripped);
-        if (_cachedFileSystemExists(filePath)) result = filePath;
+        if (cachedFileSystemExists(filePath)) result = filePath;
       }
     }
     return result;
@@ -458,19 +649,19 @@ class PolymodAssetLibrary
     return null;
   }
 
-  function _cachedFileSystemExists(path:String):Bool
+  function cachedFileSystemExists(path:String):Bool
   {
-    if (_fileExistsCache.exists(path))
+    if (fileExistsCache.exists(path))
     {
-      return _fileExistsCache.get(path);
+      return fileExistsCache.get(path);
     }
 
     var exists = fileSystem.exists(path);
-    _fileExistsCache.set(path, exists);
+    fileExistsCache.set(path, exists);
     return exists;
   }
 
-  function _checkExists(id:String):Bool
+  function checkExists(id:String):Bool
   {
     if (isAssetExcluded(id)) return false;
 
@@ -481,13 +672,13 @@ class PolymodAssetLibrary
       if (localeAssetPrefix != null)
       {
         var localePath = Util.pathJoin(modDir, Util.pathJoin(localeAssetPrefix, id));
-        if (_cachedFileSystemExists(localePath)) return true;
+        if (cachedFileSystemExists(localePath)) return true;
       }
       // Else, FireTongue not enabled.
       #end
 
       var filePath = Util.pathJoin(modDir, id);
-      if (_cachedFileSystemExists(filePath))
+      if (cachedFileSystemExists(filePath))
       {
         return true;
       }
@@ -498,7 +689,7 @@ class PolymodAssetLibrary
 
   function init():Void
   {
-    type = [];
+    assetTypes = [];
     typeLibraries = ['default' => []];
 
     // Load libraries from frameworkParams.
@@ -521,13 +712,13 @@ class PolymodAssetLibrary
     }
   }
 
-  function _buildAllFilesCache():Void
+  function buildAllFilesCache():Void
   {
-    _allFilesCache = [];
-    for (id in type.keys())
+    allFilesCache = [];
+    for (id in assetTypes.keys())
     {
       if (Util.isMergeOrAppend(id)) continue;
-      _allFilesCache.push(id);
+      allFilesCache.push(id);
     }
   }
 
@@ -535,45 +726,45 @@ class PolymodAssetLibrary
   {
     if (extensions == null) extensions = new Map<String, PolymodAssetType>();
 
-    _extensionSet('mp3', AUDIO_SOUND);
-    _extensionSet('ogg', AUDIO_SOUND);
-    _extensionSet('wav', AUDIO_SOUND);
+    extensionSet('mp3', AUDIO_SOUND);
+    extensionSet('ogg', AUDIO_SOUND);
+    extensionSet('wav', AUDIO_SOUND);
 
-    _extensionSet('otf', FONT);
-    _extensionSet('ttf', FONT);
+    extensionSet('otf', FONT);
+    extensionSet('ttf', FONT);
 
-    _extensionSet('bmp', IMAGE);
-    _extensionSet('gif', IMAGE);
-    _extensionSet('jpg', IMAGE);
-    _extensionSet('png', IMAGE);
-    _extensionSet('tga', IMAGE);
-    _extensionSet('tif', IMAGE);
-    _extensionSet('tiff', IMAGE);
+    extensionSet('bmp', IMAGE);
+    extensionSet('gif', IMAGE);
+    extensionSet('jpg', IMAGE);
+    extensionSet('png', IMAGE);
+    extensionSet('tga', IMAGE);
+    extensionSet('tif', IMAGE);
+    extensionSet('tiff', IMAGE);
 
-    _extensionSet('csv', TEXT);
-    _extensionSet('hx', TEXT);
-    _extensionSet('hxc', TEXT);
-    _extensionSet('hxs', TEXT);
-    _extensionSet('json', TEXT);
-    _extensionSet('md', TEXT);
-    _extensionSet('mpf', TEXT);
-    _extensionSet('tmx', TEXT);
-    _extensionSet('tsv', TEXT);
-    _extensionSet('tsx', TEXT);
-    _extensionSet('txt', TEXT);
-    _extensionSet('vdf', TEXT);
-    _extensionSet('xml', TEXT);
+    extensionSet('csv', TEXT);
+    extensionSet('hx', TEXT);
+    extensionSet('hxc', TEXT);
+    extensionSet('hxs', TEXT);
+    extensionSet('json', TEXT);
+    extensionSet('md', TEXT);
+    extensionSet('mpf', TEXT);
+    extensionSet('tmx', TEXT);
+    extensionSet('tsv', TEXT);
+    extensionSet('tsx', TEXT);
+    extensionSet('txt', TEXT);
+    extensionSet('vdf', TEXT);
+    extensionSet('xml', TEXT);
 
-    _extensionSet('avi', VIDEO);
-    _extensionSet('mkv', VIDEO);
-    _extensionSet('mov', VIDEO);
-    _extensionSet('mp4', VIDEO);
-    _extensionSet('webm', VIDEO);
+    extensionSet('avi', VIDEO);
+    extensionSet('mkv', VIDEO);
+    extensionSet('mov', VIDEO);
+    extensionSet('mp4', VIDEO);
+    extensionSet('webm', VIDEO);
   }
 
-  function _extensionSet(str:String, type:PolymodAssetType):Void
+  function extensionSet(str:String, type:PolymodAssetType):Void
   {
-    if (extensions.exists(str) == false)
+    if (!extensions.exists(str))
     {
       extensions.set(str, type);
     }
@@ -586,18 +777,18 @@ class PolymodAssetLibrary
 
     var all:Array<String> = null;
 
-    if (_dirCache.exists(d))
+    if (dirCache.exists(d))
     {
-      all = _dirCache.get(d);
+      all = dirCache.get(d);
     }
     else
     {
       try
       {
-        if (_cachedFileSystemExists(d))
+        if (cachedFileSystemExists(d))
         {
           all = fileSystem.readDirectoryRecursive(d);
-          _dirCache.set(d, all);
+          dirCache.set(d, all);
         }
       }
       catch (msg:Dynamic)
@@ -614,8 +805,8 @@ class PolymodAssetLibrary
       var doti = Util.uLastIndexOf(f, '.');
       var ext:String = doti != -1 ? f.substring(doti + 1) : '';
       ext = ext.toLowerCase();
-      var assetType = getExtensionType(ext);
-      type.set(f, assetType);
+      var assetType = getAssetType(ext);
+      assetTypes.set(f, assetType);
 
       var kruePath:String = f;
       for (folder in [PolymodConfig.mergeFolder, PolymodConfig.appendFolder])
@@ -693,7 +884,7 @@ class PolymodAssetLibrary
 
     try
     {
-      if (_cachedFileSystemExists(redirectPath))
+      if (cachedFileSystemExists(redirectPath))
       {
         all = fileSystem.readDirectoryRecursive(redirectPath);
       }
@@ -714,8 +905,8 @@ class PolymodAssetLibrary
       var doti = Util.uLastIndexOf(f, '.');
       var ext:String = doti != -1 ? f.substring(doti + 1) : '';
       ext = ext.toLowerCase();
-      var assetType = getExtensionType(ext);
-      type.set(f, assetType);
+      var assetType = getAssetType(ext);
+      assetTypes.set(f, assetType);
       if (!typeLibraries.exists(libraryId)) typeLibraries.set(libraryId, []);
       typeLibraries.get(libraryId).push(f);
       #if openfl
@@ -743,7 +934,7 @@ class PolymodAssetLibrary
     var keyCount = typeLibraries.get(libraryId).length;
     Polymod.info(ASSET_REDIRECT_DONE, 'Done loading core asset redirect $redirectPath ($keyCount keys)', INIT);
 
-    _buildAllFilesCache();
+    buildAllFilesCache();
   }
 
   /**
@@ -781,7 +972,7 @@ class PolymodAssetLibrary
   public function isAssetExcluded(id:String):Bool
   {
     if (ignoredFiles.length == 0) return false;
-    if (_ignoredFilesCache.exists(id)) return _ignoredFilesCache.get(id);
+    if (ignoredFilesCache.exists(id)) return ignoredFilesCache.get(id);
 
     var idStripped = stripAssetsPrefix(id);
     var idPrepend = prependAssetsPrefix(idStripped);
@@ -790,12 +981,88 @@ class PolymodAssetLibrary
     {
       if (Util.uIndexOf(idStripped, pattern) == 0 || Util.uIndexOf(idPrepend, pattern) == 0)
       {
-        _ignoredFilesCache.set(id, true);
+        ignoredFilesCache.set(id, true);
         return true;
       }
     }
 
-    _ignoredFilesCache.set(id, false);
+    ignoredFilesCache.set(id, false);
     return false;
   }
+
+  public function destroy():Void
+  {
+    backend?.destroy();
+    clearCaches();
+    Polymod.clearScripts();
+  }
+}
+
+
+typedef PolymodAssetLibraryParams =
+{
+  /**
+   * the Haxe framework you're using (OpenFL, HEAPS, Kha, NME, etc..)
+   */
+  framework:Framework,
+
+  /**
+   * the file system to use to access mod assets from storage
+   */
+  fileSystem:IFileSystem,
+
+  /**
+   * (optional) any specific settings for your particular Framework
+   */
+  ?frameworkParams:FrameworkParams,
+
+  /**
+   * (optional) your own custom backend for handling assets
+   */
+  ?customBackend:Class<IBackend>,
+
+  /**
+   * IDs of the mods to load.
+   * order matters -- mod files will load from first to last, with last taking precedence
+   */
+  modIds:Array<String>,
+
+  /**
+   * paths to each mod's root directories.
+   * order matters -- mods will load from first to last, with last taking precedence
+   */
+  modDirs:Array<String>,
+
+  /**
+   * (optional) formatting rules for parsing various data formats
+   */
+  ?parseRules:ParseRules,
+
+  /**
+   * (optional) list of files it ignore in this mod asset library (get the fallback version instead)
+   */
+  ?ignoredFiles:Array<String>,
+
+  /**
+   * (optional) maps file extensions to asset types. This ensures e.g. text files with unfamiliar extensions are handled properly.
+   */
+  ?extensionMap:Map<String, PolymodAssetType>,
+
+  /**
+   * (optional) if your assets folder is not named `assets/`, you can specify the proper name here
+   * This prevents some bugs when calling `Assets.list()`, among other things.
+   */
+  ?assetPrefix:String,
+
+  #if firetongue
+  /**
+   * (optional) a FireTongue instance for Polymod to hook into for localization support
+   */
+  ?firetongue:FireTongue,
+  #end
+
+  /**
+   * (optional) whether to parse and allow for initialization of classes in script files
+   */
+  ?useScriptedClasses:Bool,
 }

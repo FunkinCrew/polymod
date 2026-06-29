@@ -2,7 +2,7 @@ package polymod.backends;
 
 import haxe.io.Bytes;
 import polymod.Polymod.FrameworkParams;
-import polymod.backends.PolymodAssets.PolymodAssetType;
+import polymod.PolymodAssets.PolymodAssetType;
 import polymod.backends.PolymodAssetLibrary;
 
 class StubBackend implements IBackend
