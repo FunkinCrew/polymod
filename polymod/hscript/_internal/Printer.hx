@@ -716,36 +716,36 @@ class Printer
   {
     var message = switch (#if hscriptPos e.e #else e #end)
     {
-      case EInvalidChar(c): "Invalid character: '" + (StringTools.isEof(c) ? "EOF" : String.fromCharCode(c)) + "' (" + c + ")";
-      case EUnexpected(s): "Unexpected token: \"" + s + "\"";
-      case EUnterminatedString: "Unterminated string";
-      case EUnterminatedComment: "Unterminated comment";
-      case EInvalidPreprocessor(str): "Invalid preprocessor (" + str + ")";
-      case EUnknownVariable(v): "Unknown variable: " + v;
-      case EInvalidIterator(v): "Invalid iterator: " + v;
-      case EInvalidOp(op): "Invalid operator: " + op;
-      case EInvalidAccess(f): "Invalid access to field " + f;
-      case EInvalidModule(m): "Invalid module: " + m;
-      case EBlacklistedModule(m): "Blacklisted module: " + m;
-      case EBlacklistedField(m): "Blacklisted field: " + m;
+      case EInvalidChar(c): 'Invalid character: ${(StringTools.isEof(c) ? "EOF" : String.fromCharCode(c))}';
+      case EUnexpected(s): 'Unexpected token "$s".';
+      case EUnterminatedString: 'Unterminated string.';
+      case EUnterminatedComment: 'Unterminated comment.';
+      case EInvalidPreprocessor(str): 'Invalid preprocessor "$str".';
+      case EUnknownVariable(v): 'Unknown variable "$v".';
+      case EInvalidIterator(v): 'Invalid iterator "$v".';
+      case EInvalidOp(op): 'Invalid operator "$op".';
+      case EInvalidAccess(f): 'Invalid access to field "$f".';
+      case EInvalidModule(m): 'Invalid module "$m".';
+      case EBlacklistedModule(m): 'Blacklisted module "$m".';
+      case EBlacklistedField(m): 'Blacklisted field "$m".';
       case EInvalidArgCount(f, expected, given): 'Provided arguments are fewer than the required function parameters. Got $given, required $expected' + f;
       case EExceedArgsCount(f, allowed, passed): 'Provided arguments exceeds the allowed function parameter count. Passed $passed, allowed $allowed' + f;
-      case EPurgedFunction(f): "Invalid access to purged function (did it throw an uncaught exception earlier?): " + f;
-      case ENullObjectReference(f): "Invalid reference to field of a null object: " + f;
-      case EInvalidInStaticContext(v): "Invalid field access from static context: " + v;
-      case EInvalidScriptedFnAccess(f): "Invalid function access to scripted class: " + f;
-      case EInvalidScriptedVarGet(v): "Invalid variable retrieval to scripted class: " + v;
-      case EInvalidScriptedVarSet(v): "Invalid variable assignment to scripted class: " + v;
-      case EInvalidFinalSet(f): "Invalid final field assignment: " + f;
-      case EInvalidPropGet(p): "Cannot access property " + p + " for reading";
-      case EInvalidPropSet(p): "Cannot access property " + p + " for writing";
-      case EPropVarNotReal(p): "Cannot access property " + p + " because it is not a real variable";
-      case EClassSuperNotCalled: "Super constructor not called";
-      case EClassInvalidSuper: "Unexpected \"super\" in class that does not extend anything.";
+      case EPurgedFunction(f): 'Invalid access to purged function "$f", did it throw an uncaught exception earlier?';
+      case ENullObjectReference(f): 'Null Object Reference: Cannot reference field "$f" of a null object.';
+      case EInvalidInStaticContext(v): 'Cannot access field "$v" from static context.';
+      case EInvalidScriptedFnAccess(f): 'Cannot access function "$f" of scripted class.';
+      case EInvalidScriptedVarGet(v): 'Cannot retrieve field "$v" of scripted class.';
+      case EInvalidScriptedVarSet(v): 'Cannot assign field "$v" of scripted class.';
+      case EInvalidFinalSet(f): 'Cannot assign final field "$f".';
+      case EInvalidPropGet(p): 'Cannot access property "$p" for reading.';
+      case EInvalidPropSet(p): 'Cannot access property "$p" for writing.';
+      case EPropVarNotReal(p): 'Cannot access property "$p" because it is not a real variable.';
+      case EClassSuperNotCalled: 'Super constructor not called.';
+      case EClassInvalidSuper: 'Unexpected "super" in class that does not extend anything.';
       case EClassUnresolvedSuperclass(c, r): 'Unresolved superclass $c (reason: $r)';
       // TODO: Do we need to distinguish these?
-      case EScriptCallThrow(v): "Script threw an exception: " + v;
-      case EScriptThrow(v): "User script threw an exception: " + v;
+      case EScriptCallThrow(v): 'Script threw an exception:\n$v';
+      case EScriptThrow(v): 'User script threw an exception:\n$v';
       case ECustom(msg): msg;
     };
     #if hscriptPos
