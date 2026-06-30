@@ -794,7 +794,9 @@ class Interp
         }
 
         var l = locals.get(id);
-        if (l != null && l.isfinal && l.r != null) return error(EInvalidAccess(id));
+        if (l != null && l.isfinal && l.r != null) {
+          return error(EInvalidAccess(id));
+        }
         if (l == null) setVar(id, v);
         else
           l.r = v;
@@ -927,7 +929,9 @@ class Interp
         // Fallback to local variable
         var l = locals.get(id);
         v = fop(expr(e1), expr(e2));
-        if (l != null && l.isfinal && l.r != null) return error(EInvalidAccess(id));
+        if (l != null && l.isfinal && l.r != null) {
+          return error(EInvalidAccess(id));
+        }
         if (l == null) setVar(id, v)
         else
           l.r = v;
@@ -2446,7 +2450,13 @@ class Interp
     }
     catch (e)
     {
-      error(EInvalidAccess(f));
+      if (e.message.startsWith('Cannot set final ')){
+        error(EInvalidFinalSet(f));
+      } else if (e.message.startsWith('Cannot set private ')) {
+        error(EInvalidPropSet(f));
+      } else {
+        error(EInvalidAccess(f));
+      }
     }
     return v;
   }
