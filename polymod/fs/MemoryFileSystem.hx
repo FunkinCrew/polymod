@@ -3,7 +3,6 @@ package polymod.fs;
 import haxe.io.Bytes;
 import haxe.io.Path;
 import polymod.Polymod;
-import polymod.fs.PolymodFileSystem;
 import polymod.util.Util;
 import polymod.util.VersionUtil;
 import thx.semver.VersionRule;
@@ -22,9 +21,9 @@ import thx.semver.VersionRule;
  */
 class MemoryFileSystem implements IFileSystem
 {
-  var files = new Map<String, Bytes>();
+  var files:Map<String, Bytes> = new Map<String, Bytes>();
   var directories:Array<String> = [];
-  var modRoot:String = "";
+  var modRoot:String = '';
 
   /**
    * Receive parameters to instantiate the MemoryFileSystem.
@@ -32,7 +31,7 @@ class MemoryFileSystem implements IFileSystem
   public function new(params:PolymodFileSystemParams)
   {
     // No-op constructor.
-    modRoot = (params.modRoot == null) ? "" : params.modRoot;
+    modRoot = (params.modRoot == null) ? '' : params.modRoot;
   }
 
   /**
@@ -56,6 +55,8 @@ class MemoryFileSystem implements IFileSystem
 
   /**
    * Call this function to remove a given file from the virtual file system.
+   *
+   * @param path The path name of the file to remove.
    */
   public function removeFile(path:String):Void
   {
@@ -71,20 +72,36 @@ class MemoryFileSystem implements IFileSystem
     directories = [];
   }
 
-  public function exists(path:String)
+  /**
+   * Returns whether the file or directory at the given path exists.
+   *
+   * @param path The path to check.
+   * @return Whether there is a file or directory there.
+   */
+  public function exists(path:String):Bool
   {
     path = Path.removeTrailingSlashes(path);
     return files.exists(path) || directories.contains(path); // checks both files and folders
   }
 
-  public function isDirectory(path:String)
+  /**
+   * Returns whether the provided path is a directory.
+   *
+   * @param path The path to check.
+   * @return Whether the path is a directory.
+   */
+  public function isDirectory(path:String):Bool
   {
     path = Path.removeTrailingSlashes(path);
     return directories.indexOf(path) != -1;
   }
 
   /**
-   * List all files AND directories at the given path.
+   * Returns a list of files and folders contained within the provided directory path.
+   * Does not return files in subfolders, use readDirectoryRecursive for that.
+   *
+   * @param path The path to check.
+   * @return An array of file paths and folder paths.
    */
   public function readDirectory(path:String):Array<String>
   {
@@ -114,10 +131,10 @@ class MemoryFileSystem implements IFileSystem
   }
 
   /**
-   * Directly retrieve the text contents of a file.
+   * Returns the content of a given file as a string.
    *
-   * @param path The path name of the file to read.
-   * @return The text contents of the file.
+   * @param path The file to read.
+   * @return The text content of the file, or `null` if the file can't be found.
    */
   public function getFileContent(path:String):Null<String>
   {
@@ -127,22 +144,24 @@ class MemoryFileSystem implements IFileSystem
   }
 
   /**
-   * Directly retrieve the binary contents of a file.
+   * Returns the content of a given file as Bytes.
    *
-   * @param path The path name of the file to read.
-   * @return The contents of the file as Bytes.
+   * @param path The file to read.
+   * @return The byte content of the file, or `null` if the file can't be found.
    */
-  public function getFileBytes(path:String):Bytes
+  public function getFileBytes(path:String):Null<Bytes>
   {
     return files.get(path);
   }
 
   /**
-   * List all files at or below the given path.
-       *
-       * @param path The path name of the directory to read.
+   * Returns a list of files contained within the provided directory path.
+   * Checks all subfolders recursively. Returns only files.
+   *
+   * @param path The path to check.
+   * @return An array of file paths.
    */
-  public function readDirectoryRecursive(path:String)
+  public function readDirectoryRecursive(path:String):Array<String>
   {
     path = Path.removeTrailingSlashes(path);
     var result = [];
@@ -162,6 +181,12 @@ class MemoryFileSystem implements IFileSystem
     return result;
   }
 
+  /**
+   * Provide a list of valid mods for this file system to load.
+   *
+   * @param apiVersionRule (optional) A version query to match against the mod's API version.
+   * @return An array of matching mods.
+   */
   public function scanMods(?apiVersionRule:VersionRule):Array<ModMetadata>
   {
     if (apiVersionRule == null) apiVersionRule = VersionUtil.DEFAULT_VERSION_RULE;
@@ -188,12 +213,28 @@ class MemoryFileSystem implements IFileSystem
     return result;
   }
 
-  @:deprecated("getMetadata is deprecated, use getMetadataByDir")
+  /**
+   * Get the metadata for a given mod.
+   * This function is DEPRECATED, use `getMetadataByDir` for the same result.
+   *
+   * @param dirName The directory name of the mod.
+   * @param origin The error reporting origin.
+   * @return The mod metadata, or `null` if not found.
+   */
+  @:deprecated('getMetadata is deprecated, use getMetadataByDir')
   public function getMetadata(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
     return getMetadataByDir(dirName, origin);
   }
 
+  /**
+   * Provides the metadata for a given mod by its directory.
+   *
+   * @param dirName The directory of the mod.
+   * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc.).
+   *   Used for error reporting.
+   * @return The mod metadata, or `null` if the mod does not exist.
+   */
   public function getMetadataByDir(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
     var modpath = Util.pathJoin(modRoot, dirName);
@@ -239,6 +280,14 @@ class MemoryFileSystem implements IFileSystem
     return null;
   }
 
+  /**
+   * Provides the metadata for a given mod by its ID.
+   *
+   * @param modId The ID of the mod.
+   * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc.).
+   *   Used for error reporting.
+   * @return The mod metadata, or `null` if the mod does not exist.
+   */
   public function getMetadataById(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
     return null;

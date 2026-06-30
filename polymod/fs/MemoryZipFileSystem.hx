@@ -1,26 +1,28 @@
 package polymod.fs;
 
-// import format.zip.Reader;
 import polymod.Polymod;
 import polymod.fs.ZipFileSystem.ZipFileSystemParams;
 import polymod.util.Util;
 import haxe.io.Bytes;
 import haxe.io.BytesInput;
 import haxe.io.Path;
-import haxe.zip.Entry;
 
 #if !html5
+/**
+ * MemoryZipFileSystem is only supported on HTML5.
+ */
+@SuppressWarnings('checkstyle:FieldDocComment')
 class MemoryZipFileSystem extends StubFileSystem
 {
   public function new(params:ZipFileSystemParams)
   {
     super(params);
-    Polymod.error(POLYMOD_FUNCTIONALITY_NOT_IMPLEMENTED, "This file system not supported for this platform, and is only intended for use in html5");
+    Polymod.error(POLYMOD_FUNCTIONALITY_NOT_IMPLEMENTED, 'This file system not supported for this platform, and is only intended for use in html5');
   }
 
-  public function addZipFile(zipName:String, zipBytes:Bytes)
+  public function addZipFile(zipName:String, zipBytes:Bytes):Void
   {
-    Polymod.error(POLYMOD_FUNCTIONALITY_NOT_IMPLEMENTED, "This file system not supported for this platform, and is only intended for use in html5");
+    Polymod.error(POLYMOD_FUNCTIONALITY_NOT_IMPLEMENTED, 'This file system not supported for this platform, and is only intended for use in html5');
   }
 }
 #else
@@ -62,8 +64,11 @@ class MemoryZipFileSystem extends MemoryFileSystem
    * Extracts the contents of a zip file (provided as bytes) and stores the contents in the MemoryFileSystem.
    *
    * @see https://github.com/HaxeFoundation/haxe.org-comments/issues/41#issuecomment-845576836
+   *
+   * @param zipName The name of the zip file.
+   * @param zipBytes The bytes containing the zip file data.
    */
-  public function addZipFile(zipName:String, zipBytes:Bytes)
+  public function addZipFile(zipName:String, zipBytes:Bytes):Void
   {
     var bytesInput = new BytesInput(zipBytes);
     var reader = new haxe.zip.Reader(bytesInput);
@@ -98,17 +103,33 @@ class MemoryZipFileSystem extends MemoryFileSystem
     return compressedBytes; // if it wasn't actually compressed
   }
 
-  @:deprecated("getMetadata is deprecated, use getMetadataByDir")
+  @:deprecated('getMetadata is deprecated, use getMetadataByDir')
   public override function getMetadata(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
     return getMetadataByDir(dirName, origin);
   }
 
+  /**
+   * Provides the metadata for a given mod by its directory.
+   *
+   * @param dir The directory of the mod.
+   * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc.).
+   *   Used for error reporting.
+   * @return The mod metadata, or `null` if the mod does not exist.
+   */
   public override function getMetadataByDir(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
     return super.getMetadataByDir(dirName, origin);
   }
 
+  /**
+   * Provides the metadata for a given mod by its ID.
+   *
+   * @param modId The ID of the mod.
+   * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc.).
+   *   Used for error reporting.
+   * @return The mod metadata, or `null` if the mod does not exist.
+   */
   public override function getMetadataById(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
     return super.getMetadataById(modId, origin);

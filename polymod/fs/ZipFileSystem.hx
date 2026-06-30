@@ -18,7 +18,13 @@ typedef ZipFileSystemParams =
 
 // Automatically chooses between MemoryZipFileSystem and SysZipFileSystem
 #if sys
+/**
+ * A filesystem which supports ZIP files.
+ */
 typedef ZipFileSystem = SysZipFileSystem;
 #else
+/**
+ * A filesystem which supports ZIP files.
+ */
 typedef ZipFileSystem = MemoryZipFileSystem;
 #end

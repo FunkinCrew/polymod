@@ -54,7 +54,7 @@ class PolymodAssets
    */
   public static function getBytesDirectly(id:String):haxe.io.Bytes
   {
-    throw 'Not implemented lol';
+    return Polymod.assetLibrary.getBytesDirectly(id, '');
   }
 
   /**
@@ -66,9 +66,9 @@ class PolymodAssets
    * @param modId The specific mod directory to fetch from.
    * @return The byte data for the file.
    */
-  public static function getBytesFromMod(id:String, modId:String):String
+  public static function getBytesFromMod(id:String, modId:String):haxe.io.Bytes
   {
-    throw 'Not implemented lol';
+    return Polymod.assetLibrary.getBytesDirectly(id, modId);
   }
 
   /**
