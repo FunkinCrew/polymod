@@ -56,8 +56,7 @@ class SysZipFileSystem extends SysFileSystem
     zipParsers = [];
     fileDirectories = [];
 
-    if (params.autoScan == null) params.autoScan = true;
-    if (params.autoScan) addAllZips();
+    if (params.autoScan ?? true) addAllZips();
   }
 
   #if (!windows)
@@ -95,8 +94,7 @@ class SysZipFileSystem extends SysFileSystem
 
       // Check that the ZIP is valid.
       if (zipParser == null || !zipParser.isValid()) {
-        trace('Removing invalid ZipParser: $zipPath');
-        zipParsers.remove(zipPath);
+        purgeZipPath(zipPath);
         return null;
       }
 
@@ -145,6 +143,8 @@ class SysZipFileSystem extends SysFileSystem
   }
 
   public override function scanMods(?apiVersionRule:VersionRule):Array<ModMetadata> {
+    validateZipCache();
+
     var result:Array<ModMetadata> = super.scanMods(apiVersionRule);
 
     var knownDirectories:Array<String> = [for (key => value in this.modMetadataLocations) value];
@@ -259,17 +259,19 @@ class SysZipFileSystem extends SysFileSystem
       {
         if (Path.directory(insensitive ? file.toLowerCase() : file) == path)
         {
-          result.push(Path.withoutDirectory(file));
+          if (!result.contains(Path.withoutDirectory(file))) result.push(Path.withoutDirectory(file));
         }
       }
       for (dir in fileDirectories)
       {
         if (Path.directory(insensitive ? dir.toLowerCase() : dir) == path)
         {
-          result.push(Path.withoutDirectory(dir));
+          if (!result.contains(Path.withoutDirectory(dir))) result.push(Path.withoutDirectory(dir));
         }
       }
     }
+
+    result = result.filterUnique();
 
     return result;
   }
@@ -334,12 +336,45 @@ class SysZipFileSystem extends SysFileSystem
       while (fileDirectory != "" && !fileDirectories.contains(fileDirectory))
       {
         fileDirectories.push(fileDirectory);
+        filesLocations.set(fileDirectory, zipPath);
         fileDirectory = Path.directory(fileDirectory);
       }
     }
 
     // Store the ZIP parser for later use.
     zipParsers.set(zipPath, zipParser);
+  }
+
+  function validateZipCache():Void {
+    for (zipPath => zipParser in zipParsers)
+    {
+      // Check that the associated ZIP is still valid.
+      if (zipParser == null || !zipParser.isValid())
+      {
+        purgeZipPath(zipPath);
+      }
+    }
+  }
+
+  /**
+   * The provided ZIP path has been determined to be invalid.
+   * Any files or directories u
+   *
+   * @param zipPath
+   */
+  function purgeZipPath(zipPath:String):Void {
+    Polymod.debug('Purging invalid ZIP: ${zipPath}');
+
+    zipParsers.remove(zipPath);
+
+    for (filePath => fileZipPath in filesLocations)
+    {
+      if (fileZipPath == zipPath) {
+        Polymod.debug('  - ${filePath}');
+        filesLocations.remove(filePath);
+        if (fileDirectories.contains(filePath)) fileDirectories.remove(filePath);
+      }
+    }
   }
 }
 #end
