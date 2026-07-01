@@ -1,6 +1,11 @@
 package polymod.fs;
 
+import haxe.io.Bytes;
+import polymod.Polymod.ModMetadata;
+import polymod.Polymod.PolymodErrorOrigin;
 import thx.semver.VersionRule;
+import polymod.fs.PolymodFileSystem.IFileSystem;
+import polymod.fs.PolymodFileSystem.PolymodFileSystemParams;
 
 /**
  * This stub file system returns false for all requests.
@@ -11,9 +16,14 @@ import thx.semver.VersionRule;
 @SuppressWarnings('checkstyle:FieldDocComment')
 class StubFileSystem implements IFileSystem
 {
-  public function new(params:PolymodFileSystem.PolymodFileSystemParams) {}
+  public function new(params:PolymodFileSystemParams) {}
 
   public inline function exists(path:String):Bool
+  {
+    return false;
+  }
+
+  public inline function existsByModId(path:String, modId:String):Bool
   {
     return false;
   }
@@ -33,7 +43,12 @@ class StubFileSystem implements IFileSystem
     return null;
   }
 
-  public inline function getFileBytes(path:String):Null<haxe.io.Bytes>
+  public inline function getFileBytes(path:String):Null<Bytes>
+  {
+    return null;
+  }
+
+  public inline function getFileBytesByModId(path:String, modId:String):Null<haxe.io.Bytes>
   {
     return null;
   }
@@ -48,12 +63,17 @@ class StubFileSystem implements IFileSystem
     return [];
   }
 
-  public inline function getMetadataByDir(dir:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
+  public inline function scanModDirectoriesForId(modId:String, ?origin:PolymodErrorOrigin):Null<String>
   {
     return null;
   }
 
-  public inline function getMetadataById(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
+  public inline function getMetadataByModDir(dir:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
+  {
+    return null;
+  }
+
+  public inline function getMetadataByModId(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
     return null;
   }

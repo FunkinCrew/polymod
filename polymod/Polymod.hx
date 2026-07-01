@@ -277,7 +277,7 @@ class Polymod
       {
         var modId:Null<String> = params.modIds[i];
         if (modId == null) continue;
-        var meta:ModMetadata = fileSystem.getMetadataById(modId);
+        var meta:ModMetadata = fileSystem.getMetadataByModId(modId);
 
         if (meta != null)
         {
@@ -297,7 +297,7 @@ class Polymod
       for (i in 0...params.dirs.length)
       {
         var modDir:Null<String> = params.dirs[i];
-        var meta:ModMetadata = fileSystem.getMetadataByDir(modDir);
+        var meta:ModMetadata = fileSystem.getMetadataByModDir(modDir);
 
         if (meta != null)
         {

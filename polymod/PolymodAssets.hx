@@ -1,5 +1,6 @@
 package polymod;
 
+import openfl.media.Sound;
 import haxe.io.Bytes;
 import polymod.Polymod.Framework;
 import polymod.Polymod.FrameworkParams;
@@ -40,7 +41,7 @@ class PolymodAssets
    * @param id The asset ID to query existance of.
    * @return The byte data for the file
    */
-  public static function getBytes(id:String):haxe.io.Bytes
+  public static function getBytes(id:String):Null<haxe.io.Bytes>
   {
     return Polymod.assetLibrary.getBytes(id);
   }
@@ -52,7 +53,7 @@ class PolymodAssets
    * @param id The asset ID to load.
    * @return The byte data for the file.
    */
-  public static function getBytesDirectly(id:String):haxe.io.Bytes
+  public static function getBytesDirectly(id:String):Null<haxe.io.Bytes>
   {
     return Polymod.assetLibrary.getBytesDirectly(id, '');
   }
@@ -66,9 +67,10 @@ class PolymodAssets
    * @param modId The specific mod directory to fetch from.
    * @return The byte data for the file.
    */
-  public static function getBytesFromMod(id:String, modId:String):haxe.io.Bytes
+  public static function getBytesFromMod(id:String, modId:String):Null<haxe.io.Bytes>
   {
-    return Polymod.assetLibrary.getBytesDirectly(id, modId);
+    var modDir = Polymod.assetLibrary.getModDirectory(modId);
+    return Polymod.assetLibrary.getBytesDirectly(id, modDir);
   }
 
   /**
@@ -78,7 +80,7 @@ class PolymodAssets
    * @param id The asset ID to load.
    * @return The string text for the file.
    */
-  public static function getText(id:String):String
+  public static function getText(id:String):Null<String>
   {
     return Polymod.assetLibrary.getText(id);
   }
@@ -90,7 +92,7 @@ class PolymodAssets
    * @param id The asset ID to load.
    * @return The string text for the file.
    */
-  public static function getTextDirectly(id:String):String
+  public static function getTextDirectly(id:String):Null<String>
   {
     return Polymod.assetLibrary.getTextDirectly(id, '');
   }
@@ -104,9 +106,10 @@ class PolymodAssets
    * @param modId The specific mod directory to fetch from.
    * @return The string text for the file.
    */
-  public static function getTextFromMod(id:String, modId:String):String
+  public static function getTextFromMod(id:String, modId:String):Null<String>
   {
-    return Polymod.assetLibrary.getTextDirectly(id, modId);
+    var modDir = Polymod.assetLibrary.getModDirectory(modId);
+    return Polymod.assetLibrary.getTextDirectly(id, modDir);
   }
 
   #if lime
@@ -133,6 +136,111 @@ class PolymodAssets
   {
     return Polymod.assetLibrary.loadText(id);
   }
+
+  #if openfl
+  /**
+   * Attempts to load an asset synchronously, as bitmap data.
+   * Fetches from both base assets and all loaded mods, with later mods taking priority.
+   *
+   * @param id The asset ID to load.
+   * @return The bitmap data for the file.
+   */
+  public static function getBitmapData(id:String):Null<openfl.display.BitmapData>
+  {
+    return Polymod.assetLibrary.getBitmapData(id);
+  }
+
+  /**
+   * Attempts to load an asset synchronously, as bitmap data.
+   * Fetches from base assets, ignoring mods even if they are loaded.
+   *
+   * @param id The asset ID to load.
+   * @return The bitmap data for the file.
+   */
+  public static function getBitmapDataDirectly(id:String):Null<openfl.display.BitmapData>
+  {
+    return Polymod.assetLibrary.getBitmapDataDirectly(id, '');
+  }
+
+  /**
+   * Attempts to load an asset synchronously, as bitmap data.
+   * Fetches directly from a given mod by ID.
+   * NOTE: This can fetch modded assets, even if the mod ID is not loaded.
+   *
+   * @param id The asset ID to load.
+   * @param modId The specific mod directory to fetch from.
+   * @return The bitmap data for the file.
+   */
+  public static function getBitmapDataFromMod(id:String, modId:String):Null<openfl.display.BitmapData>
+  {
+    var modDir = Polymod.assetLibrary.getModDirectory(modId);
+    return Polymod.assetLibrary.getBitmapDataDirectly(id, modDir);
+  }
+
+  /**
+   * Attempt to load an asset asynchronously, as bitmap data.
+   * Fetches from both base assets and all loaded mods.
+   *
+   * @param id The asset ID to query existance of.
+   * @return A Future, which provides the bitmap data for the file when asset loading completes.
+   */
+  public static function loadBitmapData(id:String):lime.app.Future<openfl.display.BitmapData>
+  {
+    return Polymod.assetLibrary.loadBitmapData(id);
+  }
+
+  /**
+   * Attempts to load an asset synchronously, as sound data.
+   * Fetches from both base assets and all loaded mods, with later mods taking priority.
+   *
+   * @param id The asset ID to load.
+   * @return The sound data for the file.
+   */
+  public static function getSound(id:String):Null<openfl.media.Sound>
+  {
+    return Polymod.assetLibrary.getSound(id);
+  }
+
+  /**
+   * Attempts to load an asset synchronously, as sound data.
+   * Fetches from base assets, ignoring mods even if they are loaded.
+   *
+   * @param id The asset ID to load.
+   * @return The sound data for the file.
+   */
+  public static function getSoundDirectly(id:String):Null<openfl.media.Sound>
+  {
+    return Polymod.assetLibrary.getSoundDirectly(id, '');
+  }
+
+  /**
+   * Attempts to load an asset synchronously, as sound data.
+   * Fetches directly from a given mod by ID.
+   * NOTE: This can fetch modded assets, even if the mod ID is not loaded.
+   *
+   * @param id The asset ID to load.
+   * @param modId The specific mod directory to fetch from.
+   * @return The sound data for the file.
+   */
+  public static function getSoundFromMod(id:String, modId:String):Null<openfl.media.Sound>
+  {
+    var modDir = Polymod.assetLibrary.getModDirectory(modId);
+    return Polymod.assetLibrary.getSoundDirectly(id, modDir);
+  }
+
+  /**
+   * Attempt to load an asset asynchronously, as sound data.
+   * Fetches from both base assets and all loaded mods.
+   *
+   * @param id The asset ID to query existance of.
+   * @return A Future, which provides the sound data for the file when asset loading completes.
+   */
+  public static function loadSound(id:String):lime.app.Future<openfl.media.Sound>
+  {
+    return Polymod.assetLibrary.loadSound(id);
+  }
+  #end
+
   #end
 
   /**

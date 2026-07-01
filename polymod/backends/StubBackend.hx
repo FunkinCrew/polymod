@@ -45,6 +45,28 @@ class StubBackend implements IBackend
   {
     return null;
   }
+
+  #if openfl
+  public function getBitmapData(id:String):Null<openfl.display.BitmapData>
+  {
+    return null;
+  }
+
+  public function getSound(id:String):Null<openfl.media.Sound>
+  {
+    return null;
+  }
+
+  public function loadBitmapData(id:String):lime.app.Future<openfl.display.BitmapData>
+  {
+    return null;
+  }
+
+  public function loadSound(id:String):lime.app.Future<openfl.media.Sound>
+  {
+    return null;
+  }
+  #end
   #end
 
   public function getPath(id:String):Null<String>

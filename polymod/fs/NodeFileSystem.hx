@@ -11,6 +11,8 @@ import polymod.fs.PolymodFileSystem.IFileSystem;
 import polymod.util.Util;
 import polymod.util.VersionUtil;
 import thx.semver.VersionRule;
+import polymod.fs.PolymodFileSystem.IFileSystem;
+import polymod.fs.PolymodFileSystem.PolymodFileSystemParams;
 
 /**
  * An implementation of IFileSystem which accesses files from the local directory,
@@ -140,6 +142,22 @@ class NodeFileSystem implements IFileSystem
   }
 
   /**
+   * Return whether the file or directory exists in a specific mod.
+   *
+   * @param path The path to check.
+   * @param modId A specific mod ID to check within.
+   * @return Whether the file or directory exists in that mod.
+   */
+  public function existsByModId(path:String, modId:String):Bool
+  {
+    var modDir:Null<String> = scanModDirectoriesForId(modId);
+    if (modDir == null) return false;
+    var relativeDir = Util.pathJoin(modRoot, modDir);
+
+    return exists(Util.pathJoin(relativeDir, path));
+  }
+
+  /**
    * Returns whether the provided path is a directory.
    *
    * @param path The path to check.
@@ -188,6 +206,22 @@ class NodeFileSystem implements IFileSystem
   }
 
   /**
+   * Get the byte data for a file from a specific mod.
+   *
+   * @param path The path to retrieve byte data from, relative to the asset root.
+   * @param modId A specific mod ID to retrieve an asset from.
+   * @return The file bytes, or `null` if it couldn't be fetched.
+   */
+  public function getFileBytesByModId(path:String, modId:String):Null<haxe.io.Bytes>
+  {
+    var modDir:Null<String> = scanModDirectoriesForId(modId);
+    if (modDir == null) return null;
+    var relativeDir = Util.pathJoin(modRoot, modDir);
+
+    return getFileBytes(Util.pathJoin(relativeDir, path));
+  }
+
+  /**
    * Returns a list of files contained within the provided directory path.
    * Checks all subfolders recursively. Returns only files.
    *
@@ -221,7 +255,7 @@ class NodeFileSystem implements IFileSystem
 
       if (!isDirectory(testDir)) continue;
 
-      var meta:ModMetadata = this.getMetadataByDir(dir, PolymodErrorOrigin.SCAN);
+      var meta:ModMetadata = this.getMetadataByModDir(dir, PolymodErrorOrigin.SCAN);
 
       if (meta == null) continue;
 
@@ -235,16 +269,16 @@ class NodeFileSystem implements IFileSystem
 
   /**
    * Get the metadata for a given mod.
-   * This function is DEPRECATED, use `getMetadataByDir` for the same result.
+   * This function is DEPRECATED, use `getMetadataByModDir` for the same result.
    *
    * @param dirName The directory name of the mod.
    * @param origin The error reporting origin.
    * @return The mod metadata, or `null` if not found.
    */
-  @:deprecated('getMetadata is deprecated, use getMetadataByDir')
+  @:deprecated('getMetadata is deprecated, use getMetadataByModDir')
   public function getMetadata(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
-    return getMetadataByDir(dirName, origin);
+    return getMetadataByModDir(dirName, origin);
   }
 
   /**
@@ -255,7 +289,7 @@ class NodeFileSystem implements IFileSystem
    *   Used for error reporting.
    * @return The mod metadata, or `null` if the mod does not exist.
    */
-  public function getMetadataByDir(dir:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
+  public function getMetadataByModDir(dir:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
     if (exists(dir))
     {
@@ -300,7 +334,7 @@ class NodeFileSystem implements IFileSystem
    *   Used for error reporting.
    * @return The mod metadata, or `null` if the mod does not exist.
    */
-  public function getMetadataById(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
+  public function getMetadataByModId(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
     return null;
   }
