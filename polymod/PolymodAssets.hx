@@ -35,6 +35,31 @@ class PolymodAssets
   }
 
   /**
+   * Determine if a file with the given ID exists.
+   * Queries only base assets, ignoring mods even if they are loaded.
+   *
+   * @param id The asset ID to query existance of.
+   * @return Whether the asset exists.
+   */
+  public static function existsDirectly(id:String):Bool
+  {
+    return Polymod.assetLibrary.checkDirectly(id, '');
+  }
+
+  /**
+   * Determine if a file with the given ID exists.
+   * Queries directly from a given mod by ID.
+   *
+   * @param id The asset ID to query existance of.
+   * @param modId The specific mod directory to fetch from.
+   * @return Whether the asset exists.
+   */
+  public static function existsInMod(id:String, modId:String):Bool
+  {
+    return Polymod.assetLibrary.checkDirectly(id, modId);
+  }
+
+  /**
    * Attempt to load an asset synchronously, as byte data.
    * Fetches from both base assets and all loaded mods, with later mods taking priority.
    *

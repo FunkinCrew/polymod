@@ -640,16 +640,16 @@ class PolymodAssetLibrary
    * @param modId The mod ID to check in.
    * @return Whether the asset exists.
    */
-  function checkDirectly(id:String, modId:String = ''):Bool
+  public function checkDirectly(id:String, modId:String = ''):Bool
   {
-    id = stripAssetsPrefix(id);
+    var idStripped = stripAssetsPrefix(id);
     if (modId == null || modId == '')
     {
-      return cachedFileSystemExists(id);
+      return cachedFileSystemExists(idStripped);
     }
     else
     {
-      return fileSystem.existsByModId(id, modId);
+      return fileSystem.existsByModId(idStripped, modId);
     }
   }
 
