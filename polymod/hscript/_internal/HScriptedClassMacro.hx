@@ -481,10 +481,16 @@ class HScriptedClassMacro
 
   static function buildScriptedClass_toString(cls:ClassType):Field
   {
+    var access:Array<Access> = [APublic];
+    if (cls.findField('toString') != null)
+    {
+      access.push(AOverride);
+    }
+
     return {
       name: 'toString',
       doc: null,
-      access: [APublic, AOverride],
+      access: access,
       meta: null,
       pos: cls.pos,
       kind: FFun(
