@@ -58,6 +58,11 @@ class StubFileSystem implements IFileSystem
     return [];
   }
 
+  public function readModDirectory(modDir:String, recursive:Bool = true):Array<String>
+  {
+    return [];
+  }
+
   public inline function scanMods(?apiVersionRule:VersionRule):Array<ModMetadata>
   {
     return [];

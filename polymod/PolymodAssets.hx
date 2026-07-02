@@ -293,6 +293,30 @@ class PolymodAssets
   }
 
   /**
+   * Get a list of all asset IDs of the specified type.
+   * Queries from base assets only, ignoring mods even if they are loaded.
+   *
+   * @param type The asset type to filter by (optional).
+   * @return An array of asset IDs.
+   */
+  public static function listDirectly(?type:PolymodAssetType):Array<String>
+  {
+    return Polymod.assetLibrary.listDirectly('', type);
+  }
+
+  /**
+   * Get a list of all asset IDs of the specified type in the specified mod.
+   *
+   * @param modId The mod ID to query.
+   * @param type The asset type to filter by (optional).
+   * @return An array of asset IDs.
+   */
+  public static function listInMod(modId:String, ?type:PolymodAssetType):Array<String>
+  {
+    return Polymod.assetLibrary.listDirectly(modId, type);
+  }
+
+  /**
    * Determine the correct framework to use based on the current environment.
    * Powered by compile-time macros.
    * @return The framework to use.

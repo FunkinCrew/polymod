@@ -563,6 +563,35 @@ class PolymodAssetLibrary
     return backend.list(type);
   }
 
+  public function listDirectly(modId:String, ?type:PolymodAssetType):Array<String>
+  {
+    var result:Array<String> = [];
+
+    if (modId == '')
+    {
+      result = fileSystem.readDirectoryRecursive(assetPrefix);
+    }
+    else
+    {
+      var modDir = fileSystem.scanModDirectoriesForId(modId);
+      if (modDir != null)
+      {
+        result = fileSystem.readModDirectory(modDir, true);
+      }
+    }
+
+    // Filter
+    return result.filter((id) -> {
+      if (isAssetExcluded(id)) return false;
+
+      if (type == null) return true;
+
+      var assetType = getAssetType(haxe.io.Path.extension(id));
+      if (assetType != type) return false;
+      return true;
+    });
+  }
+
   public function listModFiles(?type:PolymodAssetType):Array<String>
   {
     // Use pre-built cache
@@ -599,7 +628,7 @@ class PolymodAssetLibrary
 
   /**
    * Check if the given asset of the given type exists in the file system.
-   * Queries both base assets and all loaded mods.
+   * Queries only loaded mods and excludes base game assets. For some reason.
    * (If using multiple mods, it will return true if ANY of the mod folders contains this file)
    *
    * @param id The asset ID to check.

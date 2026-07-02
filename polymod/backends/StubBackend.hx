@@ -79,6 +79,11 @@ class StubBackend implements IBackend
     return [];
   }
 
+  public function listDirectly(modId:String, ?type:PolymodAssetType):Array<String>
+  {
+    return [];
+  }
+
   public function listLibraries():Array<String>
   {
     return [];

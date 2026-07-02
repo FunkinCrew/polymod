@@ -118,6 +118,8 @@ interface IFileSystem
    */
   public function readDirectoryRecursive(path:String):Array<String>;
 
+  public function readModDirectory(modDir:String, recursive:Bool = true):Array<String>;
+
   /**
    * Returns the content of a given file as a string.
    *

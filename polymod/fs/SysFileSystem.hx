@@ -101,7 +101,14 @@ class SysFileSystem implements IFileSystem
     }
   }
 
-    /**
+  public function readModDirectory(modDir:String, recursive:Bool = true):Array<String>
+  {
+    return recursive
+      ? readDirectoryRecursive(Util.pathJoin(modRoot, modDir))
+      : readDirectory(Util.pathJoin(modRoot, modDir));
+  }
+
+  /**
    * Get the byte data for a file.
    *
    * @param path The path to retrieve byte data from.
