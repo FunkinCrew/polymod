@@ -4,7 +4,7 @@ import haxe.io.Bytes;
 import polymod.Polymod;
 import polymod.util.Util;
 import polymod.backends.PolymodAssetLibrary;
-import polymod.backends.PolymodAssets.PolymodAssetType;
+import polymod.PolymodAssets.PolymodAssetType;
 #if unifill
 import unifill.Unifill;
 #end
@@ -151,7 +151,7 @@ class HEAPSModLoader extends Loader
 
   public override function load(path:String):Any
   {
-    if (p.getExtensionType(Util.uExtension(path)) == TEXT)
+    if (p.getAssetType(Util.uExtension(path)) == TEXT)
     {
       return loadText(path);
     }

@@ -7,7 +7,7 @@ import polymod.Polymod.FrameworkParams;
 import polymod.Polymod.PolymodError;
 import polymod.util.Util;
 import polymod.backends.PolymodAssetLibrary;
-import polymod.backends.PolymodAssets.PolymodAssetType;
+import polymod.PolymodAssets.PolymodAssetType;
 #if unifill
 import unifill.Unifill;
 #end

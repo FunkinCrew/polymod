@@ -38,20 +38,20 @@ class Util
     return uIndexOf(id, PolymodConfig.mergeFolder) == 0 || uIndexOf(id, PolymodConfig.appendFolder) == 0;
   }
 
-  public static function mergeAndAppendText(baseText:String, id:String, dirs:Array<String>, getModText:String->String->String, fileSystem:IFileSystem,
+  public static function mergeAndAppendText(baseText:String, id:String, modIds:Array<String>, getModText:String->String->String, fileSystem:IFileSystem,
       parseRules:ParseRules = null):String
   {
     var text = baseText;
 
-    for (d in dirs)
+    for (modId in modIds)
     {
-      if (fileSystem.exists(pathMerge(id, d)))
+      if (fileSystem.exists(pathMerge(id, modId)))
       {
-        text = mergeText(text, id, d, getModText, parseRules);
+        text = mergeText(text, id, modId, getModText, parseRules);
       }
-      if (fileSystem.exists(pathAppend(id, d)))
+      if (fileSystem.exists(pathAppend(id, modId)))
       {
-        text = appendText(text, id, d, getModText, parseRules);
+        text = appendText(text, id, modId, getModText, parseRules);
       }
     }
 
@@ -87,7 +87,7 @@ class Util
    * @param	mergeRules	formatting rules to help with merging
    * @return
    */
-  public static function mergeText(baseText:String, id:String, theDir:String = '', getModText:String->String->String, parseRules:ParseRules = null):String
+  public static function mergeText(baseText:String, id:String, modId:String = '', getModText:String->String->String, parseRules:ParseRules = null):String
   {
     var extension = uExtension(id, true);
     id = stripPrefix(id);
@@ -101,7 +101,7 @@ class Util
     }
     if (format != null)
     {
-      var mergeText = getModText(mergeFile, theDir);
+      var mergeText = getModText(mergeFile, modId);
       return format.merge(baseText, mergeText, id);
     }
     else
@@ -112,7 +112,7 @@ class Util
     return baseText;
   }
 
-  public static function appendText(baseText:String, id:String, theDir:String, getModText:String->String->String, parseRules:ParseRules = null):String
+  public static function appendText(baseText:String, id:String, modId:String, getModText:String->String->String, parseRules:ParseRules = null):String
   {
     var extension = uExtension(id, true);
     id = stripPrefix(id);
@@ -125,7 +125,7 @@ class Util
     }
     if (format != null)
     {
-      var appendText = getModText(Util.pathJoin(PolymodConfig.appendFolder, id), theDir);
+      var appendText = getModText(Util.pathJoin(PolymodConfig.appendFolder, id), modId);
       return format.append(baseText, appendText, id);
     }
     return baseText;

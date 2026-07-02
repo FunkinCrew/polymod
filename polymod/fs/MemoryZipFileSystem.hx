@@ -1,26 +1,30 @@
 package polymod.fs;
 
-// import format.zip.Reader;
 import polymod.Polymod;
 import polymod.fs.ZipFileSystem.ZipFileSystemParams;
 import polymod.util.Util;
 import haxe.io.Bytes;
 import haxe.io.BytesInput;
 import haxe.io.Path;
-import haxe.zip.Entry;
+import polymod.fs.PolymodFileSystem.IFileSystem;
+import polymod.fs.PolymodFileSystem.PolymodFileSystemParams;
 
 #if !html5
+/**
+ * MemoryZipFileSystem is only supported on HTML5.
+ */
+@SuppressWarnings('checkstyle:FieldDocComment')
 class MemoryZipFileSystem extends StubFileSystem
 {
   public function new(params:ZipFileSystemParams)
   {
     super(params);
-    Polymod.error(POLYMOD_FUNCTIONALITY_NOT_IMPLEMENTED, "This file system not supported for this platform, and is only intended for use in html5");
+    Polymod.error(POLYMOD_FUNCTIONALITY_NOT_IMPLEMENTED, 'This file system not supported for this platform, and is only intended for use in html5');
   }
 
-  public function addZipFile(zipName:String, zipBytes:Bytes)
+  public function addZipFile(zipName:String, zipBytes:Bytes):Void
   {
-    Polymod.error(POLYMOD_FUNCTIONALITY_NOT_IMPLEMENTED, "This file system not supported for this platform, and is only intended for use in html5");
+    Polymod.error(POLYMOD_FUNCTIONALITY_NOT_IMPLEMENTED, 'This file system not supported for this platform, and is only intended for use in html5');
   }
 }
 #else
@@ -62,8 +66,11 @@ class MemoryZipFileSystem extends MemoryFileSystem
    * Extracts the contents of a zip file (provided as bytes) and stores the contents in the MemoryFileSystem.
    *
    * @see https://github.com/HaxeFoundation/haxe.org-comments/issues/41#issuecomment-845576836
+   *
+   * @param zipName The name of the zip file.
+   * @param zipBytes The bytes containing the zip file data.
    */
-  public function addZipFile(zipName:String, zipBytes:Bytes)
+  public function addZipFile(zipName:String, zipBytes:Bytes):Void
   {
     var bytesInput = new BytesInput(zipBytes);
     var reader = new haxe.zip.Reader(bytesInput);
@@ -89,7 +96,7 @@ class MemoryZipFileSystem extends MemoryFileSystem
     }
   }
 
-  override function getFileBytes(path:String):Bytes
+  override public function getFileBytes(path:String):Bytes
   {
     var compressedBytes = super.getFileBytes(path);
 
@@ -98,20 +105,68 @@ class MemoryZipFileSystem extends MemoryFileSystem
     return compressedBytes; // if it wasn't actually compressed
   }
 
-  @:deprecated("getMetadata is deprecated, use getMetadataByDir")
+  /**
+   * Get the byte data for a file from a specific mod.
+   *
+   * @param path The path to retrieve byte data from, relative to the asset root.
+   * @param modId A specific mod ID to retrieve an asset from.
+   * @return The file bytes, or `null` if it couldn't be fetched.
+   */
+  override public function getFileBytesByModId(path:String, modId:String):Null<haxe.io.Bytes>
+  {
+    var modDir:Null<String> = scanModDirectoriesForId(modId);
+    if (modDir == null) return null;
+    var relativeDir = Util.pathJoin(modRoot, modDir);
+
+    return getFileBytes(Util.pathJoin(relativeDir, path));
+  }
+
+  /**
+   * Return whether the file or directory exists in a specific mod.
+   *
+   * @param path The path to check.
+   * @param modId A specific mod ID to check within.
+   * @return Whether the file or directory exists in that mod.
+   */
+  override public function existsByModId(path:String, modId:String):Bool
+  {
+    var modDir:Null<String> = scanModDirectoriesForId(modId);
+    if (modDir == null) return false;
+    var relativeDir = Util.pathJoin(modRoot, modDir);
+
+    return exists(Util.pathJoin(relativeDir, path));
+  }
+
+  @:deprecated('getMetadata is deprecated, use getMetadataByModDir')
   public override function getMetadata(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
-    return getMetadataByDir(dirName, origin);
+    return getMetadataByModDir(dirName, origin);
   }
 
-  public override function getMetadataByDir(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
+  /**
+   * Provides the metadata for a given mod by its directory.
+   *
+   * @param dirName The directory of the mod.
+   * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc.).
+   *   Used for error reporting.
+   * @return The mod metadata, or `null` if the mod does not exist.
+   */
+  public override function getMetadataByModDir(dirName:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
-    return super.getMetadataByDir(dirName, origin);
+    return super.getMetadataByModDir(dirName, origin);
   }
 
-  public override function getMetadataById(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
+  /**
+   * Provides the metadata for a given mod by its ID.
+   *
+   * @param modId The ID of the mod.
+   * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc.).
+   *   Used for error reporting.
+   * @return The mod metadata, or `null` if the mod does not exist.
+   */
+  public override function getMetadataByModId(modId:String, ?origin:PolymodErrorOrigin):Null<ModMetadata>
   {
-    return super.getMetadataById(modId, origin);
+    return super.getMetadataByModId(modId, origin);
   }
 }
 #end

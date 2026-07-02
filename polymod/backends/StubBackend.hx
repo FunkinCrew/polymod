@@ -2,7 +2,7 @@ package polymod.backends;
 
 import haxe.io.Bytes;
 import polymod.Polymod.FrameworkParams;
-import polymod.backends.PolymodAssets.PolymodAssetType;
+import polymod.PolymodAssets.PolymodAssetType;
 import polymod.backends.PolymodAssetLibrary;
 
 class StubBackend implements IBackend
@@ -45,6 +45,28 @@ class StubBackend implements IBackend
   {
     return null;
   }
+
+  #if openfl
+  public function getBitmapData(id:String):Null<openfl.display.BitmapData>
+  {
+    return null;
+  }
+
+  public function getSound(id:String):Null<openfl.media.Sound>
+  {
+    return null;
+  }
+
+  public function loadBitmapData(id:String):lime.app.Future<openfl.display.BitmapData>
+  {
+    return null;
+  }
+
+  public function loadSound(id:String):lime.app.Future<openfl.media.Sound>
+  {
+    return null;
+  }
+  #end
   #end
 
   public function getPath(id:String):Null<String>
@@ -53,6 +75,11 @@ class StubBackend implements IBackend
   }
 
   public function list(type:PolymodAssetType = null):Array<String>
+  {
+    return [];
+  }
+
+  public function listDirectly(modId:String, ?type:PolymodAssetType):Array<String>
   {
     return [];
   }
