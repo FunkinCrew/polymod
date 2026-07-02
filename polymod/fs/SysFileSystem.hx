@@ -67,7 +67,7 @@ class SysFileSystem implements IFileSystem
     #if (!windows)
     path = getPathLike(path);
     #end
-    return getFileBytes(path).toString();
+    return getFileBytes(path)?.toString();
   }
 
   public function getFileBytes(path:String)
@@ -183,7 +183,12 @@ class SysFileSystem implements IFileSystem
       }
       else
       {
-        var metaText = getFileContent(metaFile);
+        var metaText:Null<String> = getFileContent(metaFile);
+        if (metaText == null || metaText == '') {
+          Polymod.warning(MOD_MISSING_METADATA, 'Could not read mod metadata file for mod "$dirName"', origin);
+          return null;
+        }
+
         meta = ModMetadata.fromJsonStr(metaText, origin);
       }
 
