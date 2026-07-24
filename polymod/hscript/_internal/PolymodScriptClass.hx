@@ -399,6 +399,11 @@ class PolymodScriptClass
           Polymod.error(SCRIPT_PARSE_FAILED,
             'Error while parsing class ${path}#${errLine}: EClassUnresolvedSuperclass' + '\n' + 'Unresolved superclass "${cls}", ${reason}', SCRIPT_RUNTIME);
           return false;
+        case EInvalidAccessorCombination(accessors):
+          Polymod.error(
+            SCRIPT_PARSE_FAILED,
+            'Error while parsing function ${path}#${errLine}: EInvalidAccessorCombination' + '\n' + 'Invalid modifier combination: ${accessors.join(' + ')}', SCRIPT_RUNTIME);
+            return false;
         default:
           Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script ${path}#${errLine}: ' + '\n' + 'An unknown error occurred: ${err}', SCRIPT_RUNTIME);
           return false;
@@ -897,7 +902,6 @@ class PolymodScriptClass
       superClass = Type.createInstance(clsToCreate, args);
     }
 
-    // Throw an error if the script class has an instance field with the same name as one from the super class.
     for (f in _c.fields)
     {
       switch (f.kind)
@@ -905,10 +909,39 @@ class PolymodScriptClass
         case KVar(v):
           if (!f.access.contains(AStatic) && superHasField(f.name))
           {
-            throw 'Redefinition of variable "${f.name}" from superclass not allowed';
+            // Throw an error if the script class has an instance field with the same name as one from the super class.
+            throw 'Redefinition of variable "${f.name}" from superclass not allowed.';
           }
+        case KFunction(fn):
+          #if POLYMOD_STRICT_SYNTAX
+          if (f.access.contains(AOverride) && !superHasField(f.name))
+          {
+            // Throw an error if a function is declared overwritten but isn't overriding anything.
+            throw "Field " + f.name + " is declared 'override' but doesn't override any field.";
+          }
+          else if (!f.access.contains(AOverride) && superHasField(f.name))
+          {
+            var superClassPackage:String = '';
+            if (superClass is PolymodScriptClass)
+            {
+              superClassPackage = Util.getFullClassName((cast superClass : PolymodScriptClass)._c);
+            }
+            else
+            {
+              // TODO: Fetch entire package name?
+              superClassPackage = Util.getTypeNameOf(superClass);
+            }
 
-        case _:
+            // Throw an error if a function is overriden but doesn't have the override accessor.
+            throw "Field " + f.name + " should be declared with 'override' since it is inherited from superclass " + superClassPackage + '.';
+          }
+          else if (f.access.contains(AOverride) && superClass == null)
+          {
+            // Throw an error if the override accessor is used with no super class.
+            throw "Invalid modifier: override on field" + f.name + " of class that has no parent.";
+          }
+          #end
+        default:
       }
     }
   }
