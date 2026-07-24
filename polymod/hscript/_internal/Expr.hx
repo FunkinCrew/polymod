@@ -180,6 +180,7 @@ enum Error
   EClassInvalidSuper; // Accessing "super" in a parentless class
   EScriptThrow(v:Dynamic); // Script called "throw"
   EScriptCallThrow(v:Dynamic); // Script called a function which threw
+  EInvalidAccessorCombination(accessors:Array<String>);
   // Fallback error type.
   ECustom(msg:String);
 }
