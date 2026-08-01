@@ -104,6 +104,8 @@ class Parser
   var idents:Array<Bool>;
   var uid:Int = 0;
 
+  var packageSet:Bool = false;
+
   #if hscriptPos
   var origin:String;
   var tokenMin:Int;
@@ -1463,6 +1465,13 @@ class Parser
     switch (ident)
     {
       case "package":
+        #if POLYMOD_STRICT_SYNTAX
+        if (!packageSet)
+          packageSet = true;
+        else
+          error(ECustom("Unknown identifier: package"), currentPos, currentPos); // Throw an error if there was a package already set.
+        #end
+
         var path = parsePath();
         ensure(TSemicolon);
         return DPackage(path);
