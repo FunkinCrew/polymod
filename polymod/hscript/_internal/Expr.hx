@@ -345,9 +345,29 @@ typedef TypeDecl =
 typedef InterfaceDecl =
 {
   > ModuleType,
+
+  /**
+   * The classes imported by the scripted class
+   * This gets resolved at interpretation time to save performance and improve sandboxing
+   */
+  var imports:Map<String, ClassImport>;
+
+  /**
+   * A list of imports that have yet to be validated
+   *
+   * Scripted classes that import other scripted classes might be parsed before the class they import,
+   * so imports have to be done in two passes.
+   */
+  var importsToValidate:Map<String, ClassImport>;
+
   var extend:Array<CType>;
   var fields:Array<FieldDecl>;
   var isExtern:Bool;
+
+  /**
+   * The package the interface belongs to
+   */
+  var pkg:Array<String>;
 }
 
 typedef FieldDecl =

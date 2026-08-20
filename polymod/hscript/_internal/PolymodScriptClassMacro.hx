@@ -69,6 +69,34 @@ class PolymodScriptClassMacro
     return macro polymod.hscript._internal.PolymodScriptClassMacro.fetchPackagesList();
   }
 
+  /**
+   * @return An expression containing a map of each interface package name and the data for it needed for it to be constructed at runtime.
+   */
+  public static macro function listInterfaceImpls():ExprOf<Map<String, Array<Dynamic>>>
+  {
+    if (!onGenerateCallbackRegistered)
+    {
+      onGenerateCallbackRegistered = true;
+      haxe.macro.Context.onGenerate(onGenerate);
+    }
+    return macro polymod.hscript._internal.PolymodScriptClassMacro.fetchInterfaceImpls();
+  }
+
+  /**
+   * @return An expression containing a map of each class package and the interfaces it extends.
+   * We aren't able to resolve this at runtime so we use a macro.
+   */
+  public static macro function listClassesExtendingInterfaces():ExprOf<Map<String, Array<String>>>
+  {
+    if (!onGenerateCallbackRegistered)
+    {
+      onGenerateCallbackRegistered = true;
+      haxe.macro.Context.onGenerate(onGenerate);
+    }
+    return macro polymod.hscript._internal.PolymodScriptClassMacro.fetchClassesExtendingInterfaces();
+  }
+
+
   #if macro
   static var onGenerateCallbackRegistered:Bool = false;
   static var onAfterTypingCallbackRegistered:Bool = false;
@@ -81,6 +109,8 @@ class PolymodScriptClassMacro
     // Reset these, since onGenerate persists across multiple builds.
     var abstractImplEntries:Array<Array<String>> = [];
     var typedefEntries:Array<Array<String>> = [];
+    var interfaces:Map<String, Array<Dynamic>> = [];
+    var classesExtendingInterfaces:Map<String, Array<String>> = [];
 
     var startTime:Float = Sys.time();
 
@@ -94,6 +124,123 @@ class PolymodScriptClassMacro
           var classType:ClassType = t.get();
           var classPack:String = classType.pack.join('.');
           var classPath:String = t.toString();
+
+          if (classType.isInterface)
+          {
+            var interfacePath:String = t.toString();
+
+            if (_params.length > 0) continue;
+
+            var interfaceFields:Array<ClassField> = classType.fields.get();
+            var staticFields:Array<ClassField> = classType.statics.get();
+            var extend:Array<String> = [for (inter in classType.interfaces) inter.t.toString()];
+
+            // We can't use the typedefs from `Expr` as they throw an error, so we have to define out own info to process later.
+            var fieldDecls:Array<InterfaceFieldDecl> = [];
+
+            for (field in interfaceFields)
+            {
+              if (field.meta.get().length > 0) continue;
+
+              var fieldAccess:Array<String> = [];
+              var fieldKind:Null<String> = null;
+              var fieldKindParams:Dynamic = null;
+
+              if (field.isPublic)
+                fieldAccess.push('public');
+              else
+                fieldAccess.push('private');
+
+              if (staticFields.contains(field))
+                fieldAccess.push('static');
+
+              switch (field.kind)
+              {
+                case FVar(read, write):
+                  var getAccess = fetchVarAccess(read);
+                  var setAccess = fetchVarAccess(write);
+
+                  fieldKind = 'var';
+                  fieldKindParams = {
+                    get: getAccess ?? 'get',
+                    set: setAccess ?? 'set',
+                    isFinal: field.isFinal,
+                  }
+                case FMethod(k):
+                  if (k != MethNormal) continue;
+
+                  var args:Array<String> = [];
+                  switch (field.type)
+                  {
+                    case TFun(funcArgs, ret):
+                      for (arg in funcArgs)
+                      {
+                        args.push(arg.name);
+                      }
+                    default:
+                  }
+                  fieldKind = 'method';
+                  fieldKindParams = {
+                    args: args,
+                  }
+              }
+
+              var fieldDecl:InterfaceFieldDecl = {
+                name: field.name,
+                access: fieldAccess,
+                kind: fieldKind,
+                kindParams: fieldKindParams,
+              }
+              fieldDecls.push(fieldDecl);
+            }
+            interfaceCount++;
+            interfaces.set(interfacePath, [fieldDecls, extend]);
+          }
+          else
+          {
+            var interfacesImplemented:Array<Ref<ClassType>> = [for (inter in classType.interfaces) inter.t];
+            var superCls:ClassType = classType.superClass?.t?.get() ?? null;
+            while (superCls != null)
+            {
+              var superClassInterfaces:Array<Ref<ClassType>> = [for (inter in superCls.interfaces) inter.t];
+              interfacesImplemented = interfacesImplemented.concat(superClassInterfaces);
+
+              superCls = superCls.superClass?.t?.get() ?? null;
+            }
+
+            // Only append classes that actually implement interfaces.
+            if (interfacesImplemented.length > 0)
+            {
+              // Store all unique interfaces that this class has.
+              var extend:Array<String> = [];
+              for (implement in interfacesImplemented)
+              {
+                if (implement.get().params.length > 0) continue;
+
+                var interfacePath:String = implement.toString();
+
+                if (!extend.contains(interfacePath)) extend.push(interfacePath);
+
+                var superInterfaces:Array<String> = MacroUtil.listSuperInterfaces(implement.get());
+                for (superInt in superInterfaces)
+                {
+                  if (!extend.contains(superInt)) extend.push(superInt);
+                }
+              }
+              classesExtendingInterfaces.set(classPath, extend);
+            }
+
+            if (MacroUtil.implementsInterface(classType, hscriptedClassType))
+            {
+              var superClass:Null<ClassType> = classType.superClass != null ? classType.superClass.t.get() : null;
+
+              if (superClass == null) throw 'No superclass for ' + classPath;
+
+              var superClassPath:String = '${superClass.pack.concat([superClass.name]).join(".")}';
+              var entryData = [superClassPath, classPath];
+              hscriptedClassEntries.push(entryData);
+            }
+          }
 
           addPackageClass(classPack, classPath);
         case TType(t, _params):
@@ -182,7 +329,9 @@ class PolymodScriptClassMacro
     var metaData = {
       abstractImpls: abstractImplEntries,
       typedefs: typedefEntries,
-      packages: packageEntries
+      packages: packageEntries,
+      interfaceEntries: interfaces,
+      extendingInterfaces: classesExtendingInterfaces,
     };
 
     var metaDataHXSF = haxe.Serializer.run(metaData);
@@ -194,7 +343,8 @@ class PolymodScriptClassMacro
 
     Context.info('PolymodScriptClassMacro: '
       + 'Registered ${abstractImplEntries.length} abstract impls, '
-      + '${typedefEntries.length} typedefs '
+      + '${typedefEntries.length} typedefs, '
+      + '${interfaceCount} interfaces '
       + 'in ${duration} sec.',
       Context.currentPos());
   }
@@ -464,7 +614,29 @@ class PolymodScriptClassMacro
       packageEntries.set(pack, list);
     }
   }
+
+  static function fetchVarAccess(access:haxe.macro.Type.VarAccess):Null<String>
+  {
+    return switch (access)
+    {
+      case AccNormal: 'default';
+      case AccNo: 'null';
+      case AccNever: 'never';
+      default: null;
+    }
+  }
   #end
+
+  static var _metadata:Dynamic = null;
+
+  static function fetchMetadata():Dynamic
+  {
+    if (_metadata != null) return _metadata;
+
+    var metaDataHXSF:String = haxe.Resource.getString(METADATA_RESOURCE_NAME);
+    _metadata = haxe.Unserializer.run(metaDataHXSF);
+    return _metadata;
+  }
 
   public static function fetchAbstractImpls():Map<String, AbstractImplEntry>
   {
@@ -564,15 +736,18 @@ class PolymodScriptClassMacro
     return [];
   }
 
-  static var _metadata:Dynamic = null;
-
-  static function fetchMetadata():Dynamic
+  public static function fetchInterfaceImpls():Map<String, Array<Dynamic>>
   {
-    if (_metadata != null) return _metadata;
+    var metadata = fetchMetadata();
 
-    var metaDataHXSF:String = haxe.Resource.getString(METADATA_RESOURCE_NAME);
-    _metadata = haxe.Unserializer.run(metaDataHXSF);
-    return _metadata;
+    return metadata.interfaceEntries;
+  }
+
+  public static function fetchClassesExtendingInterfaces():Map<String, Array<String>>
+  {
+    var metadata = fetchMetadata();
+
+    return metadata.extendingInterfaces;
   }
 
   #if js
@@ -601,3 +776,12 @@ typedef AbstractImplEntry =
   cls:Class<Dynamic>,
   polymodCls:Null<Class<Dynamic>>,
 };
+
+
+typedef InterfaceFieldDecl =
+{
+  var name:String;
+  var access:Array<String>;
+  var kind:String;
+  var kindParams:Dynamic;
+}
