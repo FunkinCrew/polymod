@@ -7,6 +7,26 @@ import haxe.macro.Type;
 class MacroUtil
 {
   #if macro
+  public static function listSuperInterfaces(classType:ClassType):Array<String>
+  {
+    if (!classType.isInterface) return [];
+
+    var superInterfaces:Array<String> = [];
+    for (i in classType.interfaces)
+    {
+      superInterfaces.push(i.t.toString());
+
+      // Will recursively do this until there's no nothing extends.
+      var extend:Array<String> = listSuperInterfaces(i.t.get());
+      for (e in extend)
+      {
+        if (!superInterfaces.contains(e))
+          superInterfaces.push(e);
+      }
+    }
+    return superInterfaces;
+  }
+
   public static function implementsInterface(classType:ClassType, interfaceType:ClassType):Bool
   {
     for (i in classType.interfaces)

@@ -1643,10 +1643,23 @@ class Parser
         var fields = [];
         ensure(TBrOpen);
         while (!maybe(TBrClose))
-          fields.push(parseInterfaceField());
+        {
+          var newField:FieldDecl = parseInterfaceField();
+
+          for (field in fields)
+          {
+            if (field.name == newField.name)
+            {
+              error(ECustom('Duplicate field declaration: ${newField.name}'), currentPos, currentPos);
+            }
+          }
+          fields.push(newField);
+        }
 
         return DInterface(
           {
+            imports: [],
+            importsToValidate: [],
             name: name,
             meta: meta,
             params: params,
@@ -1654,6 +1667,7 @@ class Parser
             extend: extend,
             fields: fields,
             isExtern: isExtern,
+            pkg: [],
           });
       default:
         unexpected(TId(ident));
@@ -1767,18 +1781,26 @@ class Parser
   function parseInterfaceField():Null<FieldDecl>
   {
     var meta = parseMetadata();
-    var access = [];
+    var access = [APublic]; // Interface fields default to public.
     while (true)
     {
       var id = getIdent();
       switch (id)
       {
         case "public":
-          access.push(APublic);
+          access.remove(APrivate);
+
+          if (!access.contains(APublic))
+            access.push(APublic);
         case "private":
-          access.push(APrivate);
+          access.remove(APublic);
+
+          if (!access.contains(APrivate))
+            access.push(APrivate);
         case "static":
-          access.push(AStatic);
+          if (!access.contains(AStatic))
+            access.push(AStatic);
+
         case "function":
           var name = getIdent();
           ensure(TPOpen);

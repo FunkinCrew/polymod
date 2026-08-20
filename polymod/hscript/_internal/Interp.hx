@@ -54,6 +54,7 @@ class Interp
   private static var _scriptClassUsings:Map<String, Array<ClassImport>> = new Map<String, Array<ClassImport>>();
   private static var _scriptClassDescriptors:Map<String, ClassDecl> = new Map<String, ClassDecl>();
   private static var _scriptEnumDescriptors:Map<String, EnumDecl> = new Map<String, EnumDecl>();
+  private static var _scriptInterfaceDescriptors:Map<String, InterfaceDecl> = new Map<String, InterfaceDecl>();
 
   var _propTrack:Map<String, Bool> = [];
 
@@ -594,6 +595,28 @@ class Interp
     }
   }
 
+  static function registerScriptInterface(i:InterfaceDecl)
+  {
+    var name:String = i.name;
+    if (i.pkg != null && i.pkg.length > 0)
+    {
+      name = i.pkg.join('.') + '.' + i.name;
+    }
+
+    if (_scriptInterfaceDescriptors.exists(name) || PolymodScriptClass.interfaceImpls.exists(name) || _scriptClassDescriptors.exists(name))
+    {
+      Polymod.error(SCRIPTED_CLASS_ALREADY_REGISTERED,
+      'Scripted interface with fully qualified name "$name" has already been defined. Please change the interface or the package name to ensure uniqueness.',
+      SCRIPT_RUNTIME);
+      return;
+    }
+    else
+    {
+      Polymod.debug('Registering scripted interface $name');
+      _scriptInterfaceDescriptors.set(name, i);
+    }
+  }
+
   private static function registerScriptEnum(e:EnumDecl)
   {
     var name = e.name;
@@ -636,6 +659,11 @@ class Interp
     return _scriptClassDescriptors.get(name);
   }
 
+  public static function findScriptInterfaceDescriptor(name:String)
+  {
+    return _scriptInterfaceDescriptors.get(name);
+  }
+
   private function resetVariables()
   {
     variables = new Map<String, Dynamic>();
@@ -674,6 +702,17 @@ class Interp
     // We clear this field so it later re-generates when validating imports.
     @:privateAccess
     PolymodScriptClass._scriptClassesByPackage = null;
+
+    // This needs to be cleared since the scripted interface data could be outdated. Will be later re-populated.
+    @:privateAccess
+    {
+      PolymodScriptClass._classesExtendingInterfaces?.clear();
+      PolymodScriptClass._classesExtendingInterfaces = null;
+    }
+
+    // Do this first since scripted interfaces are checked through their scripted decls.
+    PolymodStaticInterfaceReference.clearScriptedInterfaces();
+    _scriptInterfaceDescriptors.clear();
 
     // Also clear the imports from the import.hx files.
     _scriptClassImports.clear();
@@ -1372,6 +1411,10 @@ class Interp
         var enumResult:Null<String> = PolymodEnum.tryResolve(importedClass.fullPath);
         if (enumResult != null) return enumResult;
 
+        // Resolve imported scripted interface.
+        var resultInterface = PolymodStaticInterfaceReference.tryBuild(importedClass.fullPath);
+        if (resultInterface != null) return resultInterface;
+
         // Resolve imported scripted classes.
         var result = PolymodStaticClassReference.tryBuild(importedClass.fullPath);
         if (result != null) return result;
@@ -1399,12 +1442,18 @@ class Interp
         var enumResult:Null<String> = PolymodEnum.tryResolve(localClassId);
         if (enumResult != null) return enumResult;
 
+        var resultInterface = PolymodStaticInterfaceReference.tryBuild(localClassId);
+        if (resultInterface != null) return resultInterface;
+
         var result = PolymodStaticClassReference.tryBuild(localClassId);
         if (result != null) return result;
       }
 
       var enumResult:Null<String> = PolymodEnum.tryResolve(id);
       if (enumResult != null) return enumResult;
+
+      var resultInterface = PolymodStaticInterfaceReference.tryBuild(id);
+      if (resultInterface != null) return resultInterface;
 
       // Try to retrieve a scripted class with this name in the base package.
       var result = PolymodStaticClassReference.tryBuild(id);
@@ -1471,6 +1520,7 @@ class Interp
     return null;
   }
 
+
   /**
    * Tries to resolve the type of an imported class, which will end up in `cls`, `enm` or `abs`.
    * @param importedClass The import to resolve.
@@ -1501,7 +1551,7 @@ class Interp
         importedClass.cls = PolymodScriptClass.typedefs.get(fullPath);
         break;
       }
-      else
+      else if (!PolymodScriptClass.interfaceImpls.exists(fullPath)) // Base interfaces can be resolved, we don't want that.
       {
         var resultCls:Class<Dynamic> = Type.resolveClass(fullPath);
         #if POLYMOD_CPPIA
@@ -3086,6 +3136,23 @@ class Interp
             staticFields: staticFields,
           };
           registerScriptClass(classDecl);
+        case DInterface(i):
+          if (isImportFile) continue;
+
+          var interfaceDecl:InterfaceDecl =
+          {
+            imports: imports,
+            importsToValidate: importsToValidate,
+            name: i.name,
+            params: i.params,
+            meta: i.meta,
+            isPrivate: i.isPrivate,
+            pkg: pkg,
+            extend: i.extend,
+            isExtern: i.isExtern,
+            fields: i.fields,
+          }
+          registerScriptInterface(interfaceDecl);
         case DEnum(e):
           if (isImportFile) continue;
 
@@ -3111,7 +3178,6 @@ class Interp
 
           registerScriptEnum(enumDecl);
         case DTypedef(_):
-        case DInterface(_):
       }
     }
   }
@@ -3123,6 +3189,144 @@ class Interp
     registerModules(decls, origin);
   }
 
+  public static function validateInterfaceImports():Void
+  {
+    // Mostly the same with `validateImports` except we don't need to check for using.
+    for (path => inter in _scriptInterfaceDescriptors)
+    {
+      // Automatically import interfaces classes with the same package or a parent package.
+      var interfaceList:Array<String> = [for (key in PolymodScriptClass.interfaceImpls.keys()) key].concat([for (key in _scriptInterfaceDescriptors.keys()) key]);
+      for (fullInterfacePath in interfaceList)
+      {
+        var fullPathSplit:Array<String> = fullInterfacePath.split('.');
+        var interfaceName:String = fullPathSplit[fullPathSplit.length - 1];
+        var interfacePkg:Null<Array<String>> = fullPathSplit.length == 1 ? null : fullPathSplit.slice(0, -1);
+
+        var interfaceImport:ClassImport =
+        {
+          name: interfaceName,
+          pkg: interfacePkg,
+          fullPath: fullInterfacePath,
+        }
+
+        if ((interfacePkg?.length ?? 0) == 0)
+        {
+          inter.imports.set(interfaceName, interfaceImport);
+          continue;
+        }
+
+        if (interfacePkg != null && fullInterfacePath.indexOf(interfacePkg.join('.')) == 0)
+        {
+          inter.imports.set(interfaceName, interfaceImport);
+        }
+      }
+
+      // Now we need to import scripted classes.
+      for (cls in _scriptClassDescriptors)
+      {
+        var clsPath:String = Util.getFullClassName(cls);
+        var classImport:ClassImport =
+        {
+          name: cls.name,
+          pkg: cls.pkg,
+          fullPath: clsPath
+        }
+
+        if ((cls.pkg?.length ?? 0) == 0)
+        {
+          inter.imports.set(cls.name, classImport);
+          continue;
+        }
+
+        var hasPackage:Bool = cls.pkg != null && cls.pkg.length > 0;
+        var fullPackage:String = hasPackage ? cls.pkg.join(".") + "." : "";
+        if (hasPackage && clsPath.indexOf(fullPackage) == 0)
+        {
+          inter.imports.set(cls.name, classImport);
+        }
+      }
+
+      // Import classes from the import.hx files.
+      var pkg:String = inter.pkg?.join(".") ?? "";
+
+      for (key => imps in _scriptClassImports)
+      {
+        if (!pkg.startsWith(key) && key.length != 0) continue;
+
+        for (imp in imps)
+          inter.imports.set(imp.name, imp);
+      }
+
+      // Add validated imports.
+      for (key => imp in inter.importsToValidate)
+      {
+        if (PolymodScriptClass.interfaceImpls.exists(imp.fullPath) || _scriptInterfaceDescriptors.exists(imp.fullPath) || _scriptClassDescriptors.exists(imp.fullPath)
+        || _scriptEnumDescriptors.exists(imp.fullPath))
+        {
+          inter.imports.set(key, imp);
+          continue;
+        }
+
+        Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not import ${imp.fullPath}. Check to ensure the module exists and is spelled correctly.', SCRIPT_RUNTIME);
+      }
+    }
+
+    // Re-iterate through the interfaces to validate that any extends are properly imported.
+    // We don't have an Interp inside interfaces so we have to do this.
+    for (path => inter in _scriptInterfaceDescriptors)
+    {
+      if (inter.extend.length == 0) continue;
+
+      var interfacePath:String = path;
+
+      for (extend in inter.extend)
+      {
+        var superClassPath:String = new Printer().typeToString(extend);
+        var baseInterfaceName:String = superClassPath;
+
+        switch (extend)
+        {
+          case CTPath(path, params):
+            if (params != null && params.length > 0)
+            {
+              Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not extend ${superClassPath}, do not include type parameters in super class name.', SCRIPT_RUNTIME);
+
+              _scriptInterfaceDescriptors.remove(interfacePath);
+              break;
+            }
+            baseInterfaceName = path[path.length - 1];
+
+            // The full package was used for the interface.
+            // Check to see if said interface exists.
+            if (path.length > 1)
+            {
+              if (!PolymodScriptClass.interfaceImpls.exists(superClassPath) && !_scriptInterfaceDescriptors.exists(superClassPath))
+              {
+                Polymod.error(SCRIPTED_CLASS_NOT_REGISTERED, 'Could not import ${superClassPath}. Check to ensure the module exists and is spelled correctly.', SCRIPT_RUNTIME);
+                _scriptInterfaceDescriptors.remove(interfacePath);
+                break;
+              }
+            }
+            else
+            {
+              // Check to see if it's been properly imported.
+              var interfaceImport:ClassImport = inter.imports.get(baseInterfaceName);
+
+              // Interface isn't imported.
+              if (interfaceImport == null)
+              {
+                Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Interface $superClassPath has not been defined.', SCRIPT_RUNTIME);
+                _scriptInterfaceDescriptors.remove(interfacePath);
+                break;
+              }
+            }
+          default:
+        }
+      }
+    }
+    PolymodStaticInterfaceReference.cacheScriptedInterfaces();
+  }
+
   public static function validateImports():Void
   {
     for (cls in _scriptClassDescriptors)
@@ -3130,11 +3334,13 @@ class Interp
       var clsPath = Util.getFullClassName(cls);
 
       // Automatically import classes with the same package or a parent package.
+      // First scripted classes.
       for (imp in _scriptClassDescriptors)
       {
         if (cls == imp) continue;
 
-        var classImport = {
+        var classImport =
+        {
           name: imp.name,
           pkg: imp.pkg,
           fullPath: Util.getFullClassName(imp)
@@ -3151,6 +3357,34 @@ class Interp
         if (hasPackage && clsPath.indexOf(fullPackage) == 0)
         {
           cls.imports.set(imp.name, classImport);
+        }
+      }
+
+      // Now import interfaces.
+      // Populate list of interfaces to validate.
+      var interfaceList:Array<String> = [for (key in PolymodScriptClass.interfaceImpls.keys()) key].concat([for (key in _scriptInterfaceDescriptors.keys()) key]);
+      for (fullInterfacePath in interfaceList)
+      {
+        var fullPathSplit:Array<String> = fullInterfacePath.split('.');
+        var interfaceName:String = fullPathSplit[fullPathSplit.length - 1];
+        var interfacePkg:Null<Array<String>> = fullPathSplit.length == 1 ? null : fullPathSplit.slice(0, -1);
+
+        var interfaceImport:ClassImport =
+        {
+          name: interfaceName,
+          pkg: interfacePkg,
+          fullPath: fullInterfacePath,
+        }
+
+        if ((interfacePkg?.length ?? 0) == 0)
+        {
+          cls.imports.set(interfaceName, interfaceImport);
+          continue;
+        }
+
+        if (interfacePkg != null && fullInterfacePath.indexOf(interfacePkg.join('.')) == 0)
+        {
+          cls.imports.set(interfaceName, interfaceImport);
         }
       }
 
@@ -3186,13 +3420,8 @@ class Interp
           continue;
         }
 
-        if (_scriptClassDescriptors.exists(imp.fullPath))
-        {
-          cls.imports.set(key, imp);
-          continue;
-        }
-
-        if (_scriptEnumDescriptors.exists(imp.fullPath))
+        if (PolymodScriptClass.interfaceImpls.exists(imp.fullPath) || _scriptInterfaceDescriptors.exists(imp.fullPath) ||
+          _scriptClassDescriptors.exists(imp.fullPath) || _scriptEnumDescriptors.exists(imp.fullPath))
         {
           cls.imports.set(key, imp);
           continue;
@@ -3261,6 +3490,7 @@ class Interp
         }
       }
     }
+    validateInterfaceImports();
   }
 
   static function importWildcard(cls:ClassDecl, wildcardImport:ClassImport):Void

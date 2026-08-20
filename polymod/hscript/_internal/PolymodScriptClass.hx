@@ -261,6 +261,28 @@ class PolymodScriptClass
     return _abstractClassImpls;
   }
 
+  static var _interfaceImpls:Map<String, PolymodStaticInterfaceReference>;
+  public static var interfaceImpls(get, never):Map<String, PolymodStaticInterfaceReference>;
+
+  static function get_interfaceImpls():Map<String, PolymodStaticInterfaceReference>
+  {
+    if (_interfaceImpls == null)
+    {
+      _interfaceImpls = new Map<String, PolymodStaticInterfaceReference>();
+
+      var impls = PolymodScriptClassMacro.listInterfaceImpls();
+      if (impls != null)
+      {
+        for (key in impls.keys())
+        {
+          _interfaceImpls.set(key, PolymodStaticInterfaceReference.tryBuild(key));
+        }
+      }
+    }
+    return _interfaceImpls;
+  }
+
+
   /**
    * Define a list of `typeName -> Class` which provides a reference to each typedef,
    * since typedefs can't be normally resolved at runtime.
@@ -329,13 +351,62 @@ class PolymodScriptClass
         var list:Array<String> = _scriptClassesByPackage.get(pack) ?? [];
         var fullPath:String = Util.getFullClassName(cls);
 
-        if (!list.contains(fullPath))
-          list.push(fullPath);
+        if (!list.contains(fullPath)) list.push(fullPath);
 
         _scriptClassesByPackage.set(cls.pkg.join('.'), list);
       }
     }
     return _scriptClassesByPackage;
+  }
+
+  static var _classesExtendingInterfaces:Map<String, Array<String>>;
+
+  /**
+   * Defines the list of classes that extend what interfaces.
+   * Used for when we want to use `Std.isOfType` to check if a class implements an interface.
+   * @return Map<String, Array<String>>
+   */
+  public static var classesExtendingInterfaces(get, never):Map<String, Array<String>>;
+
+  static function get_classesExtendingInterfaces():Map<String, Array<String>>
+  {
+    if (_classesExtendingInterfaces == null)
+    {
+      _classesExtendingInterfaces = PolymodScriptClassMacro.listClassesExtendingInterfaces();
+
+      // Append for scripted interfaces as well.
+      @:privateAccess
+      for (key => decl in Interp._scriptClassDescriptors)
+      {
+        if (decl.implement.length == 0)
+          continue;
+
+        for (extend in decl.implement)
+        {
+          var interfaceExtends:Array<String> = [];
+
+          var extendName:String = new Printer().typeToString(extend);
+          var interfaceName:String = decl.imports.get(extendName)?.fullPath ?? extendName;
+
+          // Retrieve the interface reference first. A cache will be used if found.
+          var ref:PolymodStaticInterfaceReference = PolymodStaticInterfaceReference.tryBuild(extendName);
+          if (ref != null)
+          {
+            if (!interfaceExtends.contains(ref.id))
+              interfaceExtends.push(ref.id);
+
+            for (int in ref.superInterfaces)
+            {
+              if (!interfaceExtends.contains(int))
+                interfaceExtends.push(int);
+            }
+          }
+          _classesExtendingInterfaces.set(key, interfaceExtends);
+        }
+      }
+    }
+
+    return _classesExtendingInterfaces;
   }
 
   /**
@@ -628,8 +699,16 @@ class PolymodScriptClass
     }
 
     var typeClassDecl:ClassDecl = null;
+    var typeInterface:PolymodStaticInterfaceReference = null;
     var typeFullName:String = '';
-    if (t is PolymodStaticClassReference)
+
+    if (t is PolymodStaticInterfaceReference)
+    {
+      var ref = cast(t, PolymodStaticInterfaceReference);
+      typeInterface = ref;
+      typeFullName = typeInterface.id; // `id` is always the full package name for an interface.
+    }
+    else if (t is PolymodStaticClassReference)
     {
       var o = cast(t, PolymodStaticClassReference);
       typeClassDecl = o.cls;
@@ -642,7 +721,7 @@ class PolymodScriptClass
 
     // Check again for a class descriptor just in case.
     // We check for the full package name in case the scripted class was packaged.
-    if (typeClassDecl == null)
+    if (typeClassDecl == null && typeInterface == null)
     {
       var typeNameSplit:Array<String> = typeFullName.split('.');
       var typeName:String = typeNameSplit.length < 1 ? typeFullName : typeNameSplit[typeNameSplit.length - 1];
@@ -656,18 +735,45 @@ class PolymodScriptClass
     }
 
     // `v` can be a PolymodScriptClass if you call `this` from a scripted class.
-    if (v is HScriptedClass || v is PolymodStaticClassReference || v is PolymodScriptClass)
+    if (v is HScriptedClass || v is PolymodScriptClass)
     {
       var proxy:PolymodAbstractScriptClass = switch (v)
       {
         case (_ is HScriptedClass) => true: v._asc;
-        case (_ is PolymodStaticClassReference) => true: v.cls;
         default: cast v;
       }
-      var allPackages:Array<String> = [proxy.fullyQualifiedName].concat(getSuperClasses(proxy._c));
+      var fullClassName:String = proxy.fullyQualifiedName;
+      if (typeInterface != null)
+      {
+        // This scripted class does not extend an interface.
+        if (!classesExtendingInterfaces.exists(fullClassName))
+          return false;
 
-      // Check whether the base class or any super classes are the same type as the type class.
-      return allPackages.indexOf(typeFullName) != -1;
+        // Check for whether the interface exists in the extends list.
+        var interfaceList:Array<String> = classesExtendingInterfaces.get(fullClassName);
+        return interfaceList.contains(typeFullName);
+      }
+      else
+      {
+        var allPackages:Array<String> = [fullClassName].concat(getSuperClasses(proxy._c));
+
+        // Check whether the base class or any super classes are the same type as the type class.
+        return allPackages.indexOf(typeFullName) != -1;
+      }
+    }
+
+    // This interface reference is from a source code class.
+    if (typeInterface != null && typeInterface.interfaceDecl == null)
+    {
+      var clsName:String = Util.getTypeNameOf(v);
+
+      // This scripted class does not extend an interface.
+      if (!classesExtendingInterfaces.exists(clsName)) return false;
+
+      // Check for whether the interface exists in the extends list.
+      var interfaceList:Array<String> = classesExtendingInterfaces.get(clsName);
+
+      return interfaceList.contains(typeFullName);
     }
 
     // If we're on this line then it means `v` isn't a scripted class and `t` is instead.
@@ -749,6 +855,7 @@ class PolymodScriptClass
     }
     _interp = new Interp(targetClass, this);
     _c = c;
+    validateInterfaces();
     buildCaches();
 
     var ctorField = findField("new");
@@ -1057,6 +1164,7 @@ class PolymodScriptClass
 
   private var _c:ClassDecl;
   private var _interp:Interp;
+  private var _interfacesList:Map<String, PolymodStaticInterfaceReference>;
 
   public var superClass:Dynamic = null;
   public var topASC(default, null):Null<PolymodAbstractScriptClass>;
@@ -1066,6 +1174,55 @@ class PolymodScriptClass
   private inline function get_fullyQualifiedName():String
   {
     return Util.getFullClassName(_c);
+  }
+
+  private function validateInterfaces():Void
+  {
+    if (_c.implement.length == 0) return;
+
+    _interfacesList = new Map<String, PolymodStaticInterfaceReference>();
+    for (implement in _c.implement)
+    {
+      var extendName:String = new Printer().typeToString(implement);
+
+      // Attempt to resolve the interface, will throw an error if it isn't able to.
+      var ref:PolymodStaticInterfaceReference = this._interp.resolve(extendName);
+
+      if (ref == null || !Std.isOfType(ref, PolymodStaticInterfaceReference))
+      {
+        this._interp.error(ECustom("You can only implement an interface"));
+      }
+      else
+      {
+        // We need to check that this interface isn't already extended through a super class.
+        // Else, this interface is redundant.
+        if (classesExtendingInterfaces.exists(fullyQualifiedName) && classesExtendingInterfaces.get(fullyQualifiedName).contains(ref.id))
+        {
+          continue;
+        }
+
+        var superInterfaceList:Array<String> = [];
+        for (inter in _interfacesList)
+        {
+          superInterfaceList = superInterfaceList.concat(inter.superInterfaces);
+        }
+
+        // Don't append this interface if it's already being extended or if it's a parent of another.
+        if (!_interfacesList.exists(ref.id) && !superInterfaceList.contains(ref.id))
+        {
+          _interfacesList.set(ref.id, ref);
+        }
+      }
+    }
+
+    for (interfaceRef in _interfacesList)
+    {
+      var errors:Array<String> = interfaceRef.trySatisfy(_c);
+      if (errors.length > 0)
+      {
+        throw errors.join('\n');
+      }
+    }
   }
 
   /**
