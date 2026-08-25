@@ -91,7 +91,7 @@ class PolymodStaticInterfaceReference
    */
   public static function tryBuild(id:String):PolymodStaticInterfaceReference
   {
-    if (!PolymodScriptClass.interfaceImpls.exists(id) && Interp.findScriptInterfaceDescriptor(id) == null)
+    if (!PolymodScriptClass.baseInterfaceClasses.contains(id) && Interp.findScriptInterfaceDescriptor(id) == null)
     {
       return null;
     }
@@ -265,18 +265,20 @@ class PolymodStaticInterfaceReference
   public function getScriptInterfaceFields(key:String):InterfaceFields
   {
     var fieldsDecl = new InterfaceFields();
-    fieldsDecl.set(key, interfaceDecl.fields);
+    var scriptDecl = Interp.findScriptInterfaceDescriptor(key);
 
-    for (e in interfaceDecl.extend)
+    fieldsDecl.set(key, scriptDecl.fields);
+
+    for (e in scriptDecl.extend)
     {
       switch (e)
       {
         case CTPath(path, _):
           var baseInterfaceName:String = path[path.length - 1];
-          var fullName:String = interfaceDecl.imports?.get(baseInterfaceName)?.fullPath ?? path.join('.');
+          var fullName:String = scriptDecl.imports?.get(baseInterfaceName)?.fullPath ?? path.join('.');
 
           var extendFieldsList:InterfaceFields = new InterfaceFields();
-          if (PolymodScriptClass.interfaceImpls.exists(fullName))
+          if (PolymodScriptClass.baseInterfaceClasses.contains(fullName))
           {
             // Fetch the base internal interface and retrieve its fields.
             // These fields should be cached by now so we can just easily retrieve them.

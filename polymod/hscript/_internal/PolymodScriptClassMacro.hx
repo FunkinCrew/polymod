@@ -135,7 +135,7 @@ class PolymodScriptClassMacro
             var staticFields:Array<ClassField> = classType.statics.get();
             var extend:Array<String> = [for (inter in classType.interfaces) inter.t.toString()];
 
-            // We can't use the typedefs from `Expr` as they throw an error, so we have to define out own info to process later.
+            // We can't use the typedefs from `Expr` as they throw an error, so we have to define our own info to process later.
             var fieldDecls:Array<InterfaceFieldDecl> = [];
 
             for (field in interfaceFields)

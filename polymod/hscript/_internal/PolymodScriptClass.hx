@@ -261,7 +261,33 @@ class PolymodScriptClass
     return _abstractClassImpls;
   }
 
-  static var _interfaceImpls:Map<String, PolymodStaticInterfaceReference>;
+  static var _baseInterfaceClasses:Array<String> = null;
+
+  /**
+   * The list of source code base interfaces classes.
+   * Automatically populated at compile time.
+   */
+  public static var baseInterfaceClasses(get, never):Array<String>;
+
+  static function get_baseInterfaceClasses():Array<String>
+  {
+    if (_baseInterfaceClasses == null)
+    {
+      _baseInterfaceClasses = new Array<String>();
+      for (key in PolymodScriptClassMacro.listInterfaceImpls().keys())
+      {
+        _baseInterfaceClasses.push(key);
+      }
+    }
+    return _baseInterfaceClasses;
+  }
+
+
+  static var _interfaceImpls:Map<String, PolymodStaticInterfaceReference> = null;
+
+  /**
+   * A list of static references for all interface classes available at runtime.
+   */
   public static var interfaceImpls(get, never):Map<String, PolymodStaticInterfaceReference>;
 
   static function get_interfaceImpls():Map<String, PolymodStaticInterfaceReference>
@@ -270,18 +296,13 @@ class PolymodScriptClass
     {
       _interfaceImpls = new Map<String, PolymodStaticInterfaceReference>();
 
-      var impls = PolymodScriptClassMacro.listInterfaceImpls();
-      if (impls != null)
+      for (key in baseInterfaceClasses)
       {
-        for (key in impls.keys())
-        {
-          _interfaceImpls.set(key, PolymodStaticInterfaceReference.tryBuild(key));
-        }
+        _interfaceImpls.set(key, PolymodStaticInterfaceReference.tryBuild(key));
       }
     }
     return _interfaceImpls;
   }
-
 
   /**
    * Define a list of `typeName -> Class` which provides a reference to each typedef,
