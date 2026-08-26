@@ -43,7 +43,15 @@ class PolymodStaticInterfaceReference
 
   function get_superInterfaces():Array<String>
   {
-    return [for (i in getFields().keys()) i];
+    var list:Array<String> = [];
+    for (i in getFields().keys())
+    {
+      if (i == id)
+        continue;
+
+      list.push(i);
+    }
+    return list;
   }
 
   /**
@@ -116,13 +124,22 @@ class PolymodStaticInterfaceReference
    * Iterates through each field of this interface to see whether this class meets all of the requirements.
    * If it doesn't, a list of errors will be thrown.
    * @param cls The class to check.
+   * @param satisfied The list of interfaces that this class has already satisifed. Only really used to prevent redundant checks for interfaces we don't need to.
    * @return A list of errors needed to be resolved.
    */
-  public function trySatisfy(cls:ClassDecl):Array<String>
+  public function trySatisfy(cls:ClassDecl, ?satisfied:Array<PolymodStaticInterfaceReference>):Array<String>
   {
+    satisfied ??= [];
+
     var errorList:Array<String> = [];
     for (interfaceId => interfaceFields in getFields())
     {
+      // If this is an interface that the scripted class already satisfied, continue to the next one, no need to check again.
+      if (satisfied.length > 0 && satisfied.findIndex((inter:PolymodStaticInterfaceReference) -> return [inter.id].concat(inter.superInterfaces).contains(interfaceId)) != -1)
+      {
+        continue;
+      }
+
       for (field in interfaceFields)
       {
         var foundField:Null<FieldDecl> = cls.fields.find((clsField:FieldDecl) -> return clsField.name == field.name);

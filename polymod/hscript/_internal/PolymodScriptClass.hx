@@ -1215,34 +1215,45 @@ class PolymodScriptClass
       }
       else
       {
-        // We need to check that this interface isn't already extended through a super class.
+        // We need to check that this interface aren't already extended through a super class.
         // Else, this interface is redundant.
-        if (classesExtendingInterfaces.exists(fullyQualifiedName) && classesExtendingInterfaces.get(fullyQualifiedName).contains(ref.id))
+        var superClasses:Array<String> = getSuperClasses(_c);
+        for (cls in superClasses)
         {
-          continue;
+          if (classesExtendingInterfaces.exists(cls))
+          {
+            // We can assume the super interfaces are satisfied as long as this top interface is.
+            if (classesExtendingInterfaces.get(cls).contains(ref.id))
+            {
+              continue;
+            }
+          }
         }
 
-        var superInterfaceList:Array<String> = [];
+        // We retrieve the current list of super interfaces to check that we don't accidentally implement a super interface to the class.
+        var currentSuperInterfaceList:Array<String> = [];
         for (inter in _interfacesList)
         {
-          superInterfaceList = superInterfaceList.concat(inter.superInterfaces);
+          currentSuperInterfaceList = currentSuperInterfaceList.concat(inter.superInterfaces);
         }
 
-        // Don't append this interface if it's already being extended or if it's a parent of another.
-        if (!_interfacesList.exists(ref.id) && !superInterfaceList.contains(ref.id))
+        // Don't append this interface if the class already implements it.
+        if (!_interfacesList.exists(ref.id) && !currentSuperInterfaceList.contains(ref.id))
         {
           _interfacesList.set(ref.id, ref);
         }
       }
     }
 
+    var satisfiedList:Array<PolymodStaticInterfaceReference> = [];
     for (interfaceRef in _interfacesList)
     {
-      var errors:Array<String> = interfaceRef.trySatisfy(_c);
+      var errors:Array<String> = interfaceRef.trySatisfy(_c, satisfiedList);
       if (errors.length > 0)
       {
         throw errors.join('\n');
       }
+      satisfiedList.push(interfaceRef);
     }
   }
 
