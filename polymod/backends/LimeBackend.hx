@@ -486,11 +486,17 @@ class LimeModLibrary extends LimeAssetLibrary
 
     #if html5
     imageCache = new Map<String, lime.graphics.Image>();
+    soundCache = new Map<String, AudioBuffer>();
+
+    #if !POLYMOD_DISABLE_WEB_PRELOAD
+    // This step is opt-out because not all games can benefit from this
+    // Funkin' for example bumps the web memory to 10GB with Memory Rework and Great Sorting
     @:nullSafety(Off)
     preloadImagesToCache();
-    soundCache = new Map<String, AudioBuffer>();
     @:nullSafety(Off)
     preloadSoundsToCache();
+    #end
+
     #end
   }
 
@@ -663,6 +669,9 @@ class LimeModLibrary extends LimeAssetLibrary
           buffer = AudioBuffer.fromBytes(bytes);
         }
       }
+      #if html5
+      soundCache.set(filePath, buffer);
+      #end
 
       return buffer;
     }
