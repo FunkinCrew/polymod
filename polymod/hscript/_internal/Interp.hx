@@ -3254,12 +3254,31 @@ class Interp
         if (!pkg.startsWith(key) && key.length != 0) continue;
 
         for (imp in imps)
-          inter.imports.set(imp.name, imp);
+        {
+          if (imp.wildcard)
+          {
+            for (name => clsImport in importWildcard(inter.imports, imp))
+            {
+              inter.imports.set(name, clsImport);
+            }
+          }
+          else
+            inter.imports.set(imp.name, imp);
+        }
       }
 
       // Add validated imports.
       for (key => imp in inter.importsToValidate)
       {
+        if (imp.wildcard)
+        {
+          for (name => clsImport in importWildcard(inter.imports, imp))
+          {
+            inter.imports.set(name, clsImport);
+          }
+          continue;
+        }
+
         if (PolymodScriptClass.interfaceImpls.exists(imp.fullPath) || _scriptInterfaceDescriptors.exists(imp.fullPath) || _scriptClassDescriptors.exists(imp.fullPath)
         || _scriptEnumDescriptors.exists(imp.fullPath))
         {
@@ -3398,7 +3417,12 @@ class Interp
         for (imp in imps)
         {
           if (imp.wildcard)
-            importWildcard(cls, imp);
+          {
+            for (name => clsImport in importWildcard(cls.imports, imp))
+            {
+              cls.imports.set(name, clsImport);
+            }
+          }
           else
             cls.imports.set(imp.name, imp);
         }
@@ -3416,7 +3440,10 @@ class Interp
       {
         if (imp.wildcard)
         {
-          importWildcard(cls, imp);
+          for (name => clsImport in importWildcard(cls.imports, imp))
+          {
+            cls.imports.set(name, clsImport);
+          }
           continue;
         }
 
@@ -3493,7 +3520,7 @@ class Interp
     validateInterfaceImports();
   }
 
-  static function importWildcard(cls:ClassDecl, wildcardImport:ClassImport):Void
+  static function importWildcard(importList:Map<String, ClassImport>, wildcardImport:ClassImport):Map<String, ClassImport>
   {
     var pack:String = wildcardImport.fullPath;
     var classesToImport:Array<String> = [];
@@ -3505,15 +3532,16 @@ class Interp
       classesToImport = classesToImport.concat(PolymodScriptClass.scriptClassesByPackage.get(pack));
 
     if (classesToImport.length == 0)
-      return;
+      return [];
 
+    var validImports:Map<String, ClassImport> = [];
     for (clsName in classesToImport)
     {
       var name:String = clsName.substr(pack.length + 1);
 
-      if (cls.imports.exists(name))
+      if (importList.exists(name))
       {
-        if (cls.imports.get(name) == null)
+        if (importList.get(name) == null)
         {
           Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Scripted class ${name} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
         }
@@ -3538,12 +3566,13 @@ class Interp
         // Check if this is a scripted class.
         if (_scriptClassDescriptors.exists(classImport.fullPath) || _scriptEnumDescriptors.exists(classImport.fullPath))
         {
-          cls.imports.set(classImport.name, classImport);
+          validImports.set(classImport.name, classImport);
           continue;
         }
       }
-      cls.imports.set(classImport.name, classImport);
+      validImports.set(classImport.name, classImport);
     }
+    return validImports;
   }
 
   /**
