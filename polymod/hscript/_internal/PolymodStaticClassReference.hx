@@ -42,7 +42,7 @@ class PolymodStaticClassReference
     #end
 
     @:privateAccess {
-      if (Interp._scriptClassDescriptors.exists(clsName))
+      if (Interp._scriptClassDescriptors.exists(clsName) && !PolymodScriptClass.blacklistedScriptClasses.contains(clsName))
       {
         return new PolymodStaticClassReference(Interp._scriptClassDescriptors.get(clsName));
       }

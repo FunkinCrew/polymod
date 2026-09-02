@@ -1314,6 +1314,35 @@ class Polymod
 
     PolymodScriptClass.bumpBlacklistGeneration();
   }
+
+  /**
+   * When a scripted class defines an import for another scripted class, you can blacklist it from being imported.
+   * @param importPath The full import path to blacklist, as a string.
+   */
+  public static function blacklistScriptClassImport(importPath:String):Void
+  {
+    PolymodScriptClass.blacklistedScriptClasses.push(importPath);
+  }
+
+  /**
+   * When an instance field from a script calss is being called, you can blacklist it from being called.
+   * @param cls The class type with the fields.
+   * @param fields The instance fields you want to blacklist.
+   */
+  public static function blacklistScriptClassInstanceFields(cls:String, fields:Array<String>):Void
+  {
+    PolymodScriptClass.blacklistedScriptClassInstanceFields.set(cls, fields);
+  }
+
+  /**
+   * When a static field from a script class is being called, you can blacklist it from being used.
+   * @param cls The class type with the fields.
+   * @param fields The static fields you want to blacklist.
+   */
+  public static function blacklistScriptClassStaticFields(cls:String, fields:Array<String>):Void
+  {
+    PolymodScriptClass.blacklistedScriptClassStaticFields.set(cls, fields);
+  }
 }
 
 /**

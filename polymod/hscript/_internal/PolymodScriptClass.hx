@@ -50,6 +50,24 @@ class PolymodScriptClass
    */
   public static final blacklistedInstanceFields:Map<String, Array<String>> = new Map<String, Array<String>>();
 
+  /*
+   * List of blacklisted full package script classes that aren't able to be imported.
+   * Cleared everytime scripts are reset.
+   */
+  public static var blacklistedScriptClasses:Array<String> = [];
+
+  /**
+   * Provide a scripted class with an array of its static fields to blacklist them.
+   * Blacklisted fields cannot be gotten or set.
+   */
+  public static final blacklistedScriptClassStaticFields:Map<String, Array<String>> = new Map<String, Array<String>>();
+
+  /**
+   * Provide a scripted class with an array of its static fields to blacklist them.
+   * Blacklisted fields cannot be gotten or set.
+   */
+  public static final blacklistedScriptClassInstanceFields:Map<String, Array<String>> = new Map<String, Array<String>>();
+
   /**
    * Field names that may not be reached even through a receiver whose type is not known.
    */
@@ -552,6 +570,10 @@ class PolymodScriptClass
   public static function clearScriptedClasses():Void
   {
     scriptInterp.clearScriptClassDescriptors();
+
+    blacklistedScriptClasses = [];
+    blacklistedScriptClassStaticFields.clear();
+    blacklistedScriptClassInstanceFields.clear();
   }
 
   /**
