@@ -230,31 +230,6 @@ class PolymodScriptClass
    * STATIC PROPERTIES
    */
   /**
-   * Define a list of script classes to override the default behavior of Polymod.
-   * For example, script classes should import `ScriptedSprite` instead of `Sprite`.
-   */
-  public static var scriptClassOverrides(get, never):Map<String, Class<Dynamic>>;
-
-  static var _scriptClassOverrides:Map<String, Class<Dynamic>> = null;
-
-  static function get_scriptClassOverrides():Map<String, Class<Dynamic>>
-  {
-    if (_scriptClassOverrides == null)
-    {
-      _scriptClassOverrides = new Map<String, Class<Dynamic>>();
-
-      var baseScriptClassOverrides:Map<String, Class<Dynamic>> = PolymodScriptClassMacro.listHScriptedClasses();
-
-      for (key => value in baseScriptClassOverrides)
-      {
-        _scriptClassOverrides.set(key, value);
-      }
-    }
-
-    return _scriptClassOverrides;
-  }
-
-  /**
    * Define a list of all the abstracts we have available at compile time,
    * and map them to internal implementation classes.
    * We use this to access the functions of these abstracts.
@@ -718,10 +693,6 @@ class PolymodScriptClass
         {
           targetClass = null;
         }
-        else if (scriptClassOverrides.exists(clsPath))
-        {
-          targetClass = scriptClassOverrides.get(clsPath);
-        }
         #if POLYMOD_CPPIA
         else if (PolymodCppiaClassReference.hasCppiaClass(clsPath))
         {
@@ -860,17 +831,8 @@ class PolymodScriptClass
     {
       var clsToCreate:Class<Dynamic> = null;
 
-      if (scriptClassOverrides.exists(fullExtendString))
-      {
-        clsToCreate = scriptClassOverrides.get(fullExtendString);
-
-        if (clsToCreate == null)
-        {
-          _interp.error(EClassUnresolvedSuperclass(fullExtendString, 'WHY?'));
-        }
-      }
       #if POLYMOD_CPPIA
-      else if (PolymodCppiaClassReference.hasCppiaClass(fullExtendString))
+      if (PolymodCppiaClassReference.hasCppiaClass(fullExtendString))
       {
         clsToCreate = PolymodCppiaClassReference.getCppiaClass(fullExtendString);
 
@@ -879,8 +841,9 @@ class PolymodScriptClass
           _interp.error(EClassUnresolvedSuperclass(fullExtendString, 'no loaded compiled script provides it'));
         }
       }
+      else
       #end
-      else if (_c.imports.exists(extendString))
+      if (_c.imports.exists(extendString))
       {
         clsToCreate = _c.imports.get(extendString).cls;
 

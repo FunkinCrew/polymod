@@ -5,14 +5,13 @@ import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Type;
 import haxe.macro.Type.ClassType;
-import polymod.util.MacroUtil;
 #end
 
 using StringTools;
 
 /**
- * Provides a macro which, after types are generated, populates a list of classes which extend `polymod.hscript.HScriptedClass`.
- * We have to do weird shenanigans to make the data accessible at runtime though.
+ * Provides a macro which, generates implementations of types so that they can be usable by HScript.
+ * We have to do weird shenanigans to make them accessible at runtime though.
  */
 class PolymodScriptClassMacro
 {
@@ -20,23 +19,6 @@ class PolymodScriptClassMacro
    * The name for the Haxe resource that stores Generation Metadata.
    */
   static inline final METADATA_RESOURCE_NAME:String = 'PolymodScriptClassMacro_METADATA';
-
-  /**
-   * Returns a `Map<String, Class<Dynamic>>` which maps superclass paths to scripted classes.
-   * So `class ScriptedStage extends Stage implements HScriptable` will be `"Stage" -> ScriptedStage`
-   *
-   * @return An expression containing a map of superclasses to their scripted classes
-   */
-  public static macro function listHScriptedClasses():ExprOf<Map<String, Class<Dynamic>>>
-  {
-    if (!onGenerateCallbackRegistered)
-    {
-      onGenerateCallbackRegistered = true;
-      haxe.macro.Context.onGenerate(onGenerate);
-    }
-
-    return macro polymod.hscript._internal.PolymodScriptClassMacro.fetchHScriptedClasses();
-  }
 
   /**
    * @return An expression containing a map of abstract classes to their implementations
@@ -97,9 +79,6 @@ class PolymodScriptClassMacro
     packageEntries.clear();
 
     // Reset these, since onGenerate persists across multiple builds.
-    var hscriptedClassType:ClassType = MacroUtil.getClassType('polymod.hscript.HScriptedClass');
-
-    var hscriptedClassEntries:Array<Array<String>> = [];
     var abstractImplEntries:Array<Array<String>> = [];
     var typedefEntries:Array<Array<String>> = [];
 
@@ -115,21 +94,6 @@ class PolymodScriptClassMacro
           var classType:ClassType = t.get();
           var classPack:String = classType.pack.join('.');
           var classPath:String = t.toString();
-
-          if (classType.isInterface)
-          {
-            // Ignore interfaces.
-          }
-          else if (MacroUtil.implementsInterface(classType, hscriptedClassType))
-          {
-            var superClass:Null<ClassType> = classType.superClass != null ? classType.superClass.t.get() : null;
-
-            if (superClass == null) throw 'No superclass for ' + classPath;
-
-            var superClassPath:String = '${superClass.pack.concat([superClass.name]).join(".")}';
-            var entryData = [superClassPath, classPath];
-            hscriptedClassEntries.push(entryData);
-          }
 
           addPackageClass(classPack, classPath);
         case TType(t, _params):
@@ -216,7 +180,6 @@ class PolymodScriptClassMacro
     }
 
     var metaData = {
-      hscriptedClasses: hscriptedClassEntries,
       abstractImpls: abstractImplEntries,
       typedefs: typedefEntries,
       packages: packageEntries
@@ -230,8 +193,7 @@ class PolymodScriptClassMacro
     var duration:Float = endTime - startTime;
 
     Context.info('PolymodScriptClassMacro: '
-      + 'Registered ${hscriptedClassEntries.length} HScriptedClasses, '
-      + '${abstractImplEntries.length} abstract impls, '
+      + 'Registered ${abstractImplEntries.length} abstract impls, '
       + '${typedefEntries.length} typedefs '
       + 'in ${duration} sec.',
       Context.currentPos());
@@ -265,7 +227,8 @@ class PolymodScriptClassMacro
             var abstractImplStatics:Array<ClassField> = abstractImplType.statics.get();
 
             var isAbstractImplExtern = abstractImplType.isExtern;
-            if (isAbstractImplExtern) {
+            if (isAbstractImplExtern)
+            {
               // TODO: abstract externs tend to be problematic and cause lots of build errors,
               // so we just skip them for now. If you can find a fix, feel free.
               continue;
@@ -503,38 +466,6 @@ class PolymodScriptClassMacro
   }
   #end
 
-  public static function fetchHScriptedClasses():Map<String, Class<Dynamic>>
-  {
-    var metaData = fetchMetadata();
-
-    if (metaData.hscriptedClasses != null)
-    {
-      var result:Map<String, Class<Dynamic>> = [];
-
-      // Each element is formatted as `[superClassPath, classPath]`.
-
-      var hscriptedClasses:Array<Array<String>> = cast metaData.hscriptedClasses;
-      for (element in hscriptedClasses)
-      {
-        if (element.length != 2)
-        {
-          throw 'Malformed element in hscriptedClasses: ' + element;
-        }
-
-        var superClassPath:String = element[0];
-        var classPath:String = element[1];
-        var classType:Class<Dynamic> = cast Type.resolveClass(classPath);
-        result.set(superClassPath, classType);
-      }
-
-      return result;
-    }
-    else
-    {
-      throw 'No hscriptedClasses found in PolymodScriptClassMacro!';
-    }
-  }
-
   public static function fetchAbstractImpls():Map<String, AbstractImplEntry>
   {
     var metaData = fetchMetadata();
@@ -634,6 +565,7 @@ class PolymodScriptClassMacro
   }
 
   static var _metadata:Dynamic = null;
+
   static function fetchMetadata():Dynamic
   {
     if (_metadata != null) return _metadata;
