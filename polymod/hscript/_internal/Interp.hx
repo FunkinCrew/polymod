@@ -77,6 +77,8 @@ class Interp
   var curExpr:Expr;
   #end
 
+  var inPrivateAccess:Bool = false;
+
   function getClassDecl():Null<ClassDecl>
   {
     if (_classDeclOverride != null)
@@ -2032,8 +2034,17 @@ class Interp
           restore(old);
           return val;
         }
-      case EMeta(_, _, e):
-        return expr(e);
+      case EMeta(name, args, e):
+        switch (name)
+        {
+          case ':privateAccess':
+            inPrivateAccess = true;
+            var obj = expr(e); // We evaulate the expression knowing we're in a private access.
+            inPrivateAccess = false;
+            return obj;
+          default:
+            return expr(e);
+        }
       case ECheckType(e, _):
         return expr(e);
     }
@@ -2568,7 +2579,7 @@ class Interp
     #if hl oCls = oCls.replace('$', ''); #end
 
     #if POLYMOD_STRICT_SYNTAX
-    if (!checkPrivateAccess(o, f))
+    if (!checkPrivateAccess(o, f) && !inPrivateAccess)
     {
       error(EPrivateField(f));
       return null;
@@ -2692,7 +2703,7 @@ class Interp
     #if hl oCls = oCls.replace('$', ''); #end
 
     #if POLYMOD_STRICT_SYNTAX
-    if (!checkPrivateAccess(o, f))
+    if (!checkPrivateAccess(o, f) && !inPrivateAccess)
     {
       error(EPrivateField(f));
       return null;
