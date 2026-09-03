@@ -347,7 +347,7 @@ class PolymodAssetLibrary
     return (bytes == null) ? null : bytes.getString(0, bytes.length);
   }
 
-  #if openfl
+  #if (openfl && !nme)
   /**
    * Fetch text directly from the file system.
    * Queries for any modded asset replacements, but ignores merging and appending.
@@ -611,6 +611,7 @@ class PolymodAssetLibrary
     return soundFuture;
   }
   #end
+  #end
 
   /**
    * @return A list of asset libraries for this framework.
@@ -619,7 +620,6 @@ class PolymodAssetLibrary
   {
     return backend.listLibraries();
   }
-  #end
 
   /**
    * Get the absolute system file path for a given asset ID.
@@ -1039,7 +1039,7 @@ class PolymodAssetLibrary
         typeLibraries.get('default').push(file);
       }
 
-      #if openfl
+      #if (openfl && !nme)
       if (assetType == FONT)
       {
         var font = Font.fromFile(this.file(file, modDir));
@@ -1103,7 +1103,7 @@ class PolymodAssetLibrary
       assetTypes.set(f, assetType);
       if (!typeLibraries.exists(libraryId)) typeLibraries.set(libraryId, []);
       typeLibraries.get(libraryId).push(f);
-      #if openfl
+      #if (openfl && !nme)
       if (assetType == FONT)
       {
         var font = Font.fromFile(file(f, redirectPath));

@@ -190,6 +190,8 @@ class Interp
 
     // Don't try to resolve classes without a valid import.
     error(EInvalidModule(cl));
+
+    return null;
   }
 
   private var _nextCallObject:Dynamic = null;

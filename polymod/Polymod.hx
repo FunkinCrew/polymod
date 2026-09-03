@@ -279,7 +279,6 @@ class Polymod
     params.dirs ??= [];
     params.ignoredFiles ??= [];
 
-    var shouldLoadMods:Bool = params.modIds.length == 0 && params.dirs.length == 0;
     if (params.fileSystemParams == null) params.fileSystemParams = {modRoot: modRoot};
     if (params.fileSystemParams.modRoot == null) params.fileSystemParams.modRoot = modRoot;
     if (params.apiVersionRule == null) params.apiVersionRule = VersionUtil.DEFAULT_VERSION_RULE;
@@ -847,7 +846,7 @@ class Polymod
     #if hscript_typer
     polymod.hscript._internal.PolymodTyperEx.clearAllModules();
     #end
-    polymod.hscript.HScriptable.ScriptRunner.clearScripts();
+    polymod.hscript.ScriptRunner.clearScripts();
   }
 
   static function prepareRegisterScriptedClasses():Void
@@ -964,6 +963,12 @@ class Polymod
 
       return lime.app.Future.withValue(results);
     });
+  }
+  #else
+  public static function registerAllScriptClassesAsync():Array<Bool>
+  {
+    Polymod.error(SCRIPT_PARSE_FAILED, 'Asynchronous script loading is not supported on this platform!');
+    return [];
   }
   #end
 

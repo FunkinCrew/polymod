@@ -104,24 +104,7 @@ abstract class BaseFileSystem implements IFileSystem
 
     return new Future(performWork, true);
   }
-  #end
 
-  /**
-   * Get the byte data for a file from a specific mod.
-   *
-   * @param path The path to retrieve byte data from, relative to the asset root.
-   * @param modId A specific mod ID to retrieve an asset from.
-   * @return The file bytes, or `null` if it couldn't be fetched.
-   */
-  public function getFileBytesByModId(path:String, modId:String):Null<Bytes>
-  {
-    var modDir:String = scanModDirectoriesForId(modId) ?? return null;
-    var relativeDir:String = Util.pathJoin(modRoot, modDir);
-
-    return getFileBytes(Util.pathJoin(relativeDir, path));
-  }
-
-  #if lime
   /**
    * Load the byte data for a file from a specific mod, asynchronously.
    *
@@ -138,6 +121,21 @@ abstract class BaseFileSystem implements IFileSystem
     return loadFileBytes(Util.pathJoin(relativeDir, path));
   }
   #end
+
+  /**
+   * Get the byte data for a file from a specific mod.
+   *
+   * @param path The path to retrieve byte data from, relative to the asset root.
+   * @param modId A specific mod ID to retrieve an asset from.
+   * @return The file bytes, or `null` if it couldn't be fetched.
+   */
+  public function getFileBytesByModId(path:String, modId:String):Null<Bytes>
+  {
+    var modDir:String = scanModDirectoriesForId(modId) ?? return null;
+    var relativeDir:String = Util.pathJoin(modRoot, modDir);
+
+    return getFileBytes(Util.pathJoin(relativeDir, path));
+  }
 
   /**
    * Provide a list of valid mods for this file system to load.
@@ -295,7 +293,6 @@ abstract class BaseFileSystem implements IFileSystem
 
   function getModIconPath(modPath:String, ?origin:PolymodErrorOrigin):Null<String>
   {
-    var foundIcon = false;
     for (iconBasePath in PolymodConfig.modIconFile)
     {
       var iconFile = Util.pathJoin(modPath, iconBasePath);
