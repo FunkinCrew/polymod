@@ -736,6 +736,23 @@ class Util
     return errorMessage;
   }
 
+  public static function getSuperClasses(obj:Dynamic):Array<String>
+  {
+    var cls = Type.getClass(obj) ?? Type.resolveClass(getTypeNameOf(obj));
+    if (cls == null) return [];
+
+    var superCls:Dynamic = Type.getSuperClass(cls);
+    if (superCls == null) return [];
+
+    var superClassList:Array<String> = [];
+    while (superCls != null)
+    {
+      superClassList.push(Type.getClassName(superCls));
+      superCls = Type.getSuperClass(superCls);
+    }
+    return superClassList;
+  }
+
   public static function getTypeNameOf(obj:Dynamic):String
   {
     var type = Type.typeof(obj);

@@ -683,8 +683,8 @@ class Printer
       if (m.params != null)
       {
         output += "(";
-        for (i in 0...m.params.length)
-        {
+      for (i in 0...m.params.length)
+      {
           var param:Expr = m.params[i];
           output += this.exprToString(param);
           if (i < m.params.length - 1) output += ", ";
@@ -726,6 +726,7 @@ class Printer
       case EInvalidIterator(v): 'Invalid iterator "$v".';
       case EInvalidOp(op): 'Invalid operator "$op".';
       case EInvalidAccess(f): 'Invalid access to field "$f".';
+      case EPrivateField(f): 'Cannot access private field "$f".';
       case EInvalidModule(m): 'Invalid module "$m".';
       case EBlacklistedModule(m): 'Blacklisted module "$m".';
       case EBlacklistedField(m): 'Blacklisted field "$m".';
