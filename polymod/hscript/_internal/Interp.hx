@@ -292,6 +292,15 @@ class Interp
       // Force call super function.
       return o.scriptCallSuper(f, args);
     }
+
+    #if POLYMOD_STRICT_SYNTAX
+    if (!checkPrivateAccess(o, f))
+    {
+      error(EPrivateField(f));
+      return null;
+    }
+    #end
+
     else if (Std.isOfType(o, PolymodStaticAbstractReference))
     {
       var ref:PolymodStaticAbstractReference = cast(o, PolymodStaticAbstractReference);
@@ -2477,6 +2486,10 @@ class Interp
 
   function checkPrivateAccess(o:Dynamic, f:String):Bool
   {
+    // If we're in a private access block, automatically allow it.
+    if (inPrivateAccess)
+      return true;
+
     // First, script classes.
     if (Std.isOfType(o, PolymodStaticClassReference))
     {
@@ -2585,7 +2598,7 @@ class Interp
     #if hl oCls = oCls.replace('$', ''); #end
 
     #if POLYMOD_STRICT_SYNTAX
-    if (!checkPrivateAccess(o, f) && !inPrivateAccess)
+    if (!checkPrivateAccess(o, f))
     {
       error(EPrivateField(f));
       return null;
@@ -2709,7 +2722,7 @@ class Interp
     #if hl oCls = oCls.replace('$', ''); #end
 
     #if POLYMOD_STRICT_SYNTAX
-    if (!checkPrivateAccess(o, f) && !inPrivateAccess)
+    if (!checkPrivateAccess(o, f))
     {
       error(EPrivateField(f));
       return null;
