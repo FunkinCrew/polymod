@@ -6,6 +6,9 @@ import polymod.Polymod.PolymodErrorOrigin;
 import thx.semver.VersionRule;
 import polymod.fs.PolymodFileSystem.IFileSystem;
 import polymod.fs.PolymodFileSystem.PolymodFileSystemParams;
+#if lime
+import lime.app.Future;
+#end
 
 /**
  * This stub file system returns false for all requests.
@@ -16,7 +19,7 @@ import polymod.fs.PolymodFileSystem.PolymodFileSystemParams;
 @SuppressWarnings('checkstyle:FieldDocComment')
 class StubFileSystem implements IFileSystem
 {
-  public final modRoot:String;
+  public final modRoot:String = '';
   public function new(params:PolymodFileSystemParams) {}
 
   public inline function exists(path:String):Bool
@@ -49,14 +52,26 @@ class StubFileSystem implements IFileSystem
     return null;
   }
 
-  public function onLoadMod(id:String):Void {}
-
-  public function onUnloadMod(id:String):Void {}
-
   public inline function getFileBytesByModId(path:String, modId:String):Null<haxe.io.Bytes>
   {
     return null;
   }
+
+  #if lime
+  public inline function loadFileBytes(path:String):Future<haxe.io.Bytes>
+  {
+    return cast Future.withError('Cannot load file bytes from stub file system');
+  }
+
+  public inline function loadFileBytesByModId(path:String, modId:String):Future<haxe.io.Bytes>
+  {
+    return cast Future.withError('Cannot load file bytes from stub file system');
+  }
+  #end
+
+  public function onLoadMod(id:String):Void {}
+
+  public function onUnloadMod(id:String):Void {}
 
   public inline function readDirectoryRecursive(path:String):Array<String>
   {

@@ -1112,7 +1112,7 @@ class Polymod
    * Called on platforms that don't support synchronous file access.
    *
    * @return A list of futures for each script class being registered, providing `true` for success or an error if failed.
-  **/
+   */
   public static function registerAllScriptClassesAsync():lime.app.Future<Array<lime.app.Future<Bool>>>
   {
     Polymod.info(SCRIPT_PARSE_START, 'Parsing script classes asynchronously...');
