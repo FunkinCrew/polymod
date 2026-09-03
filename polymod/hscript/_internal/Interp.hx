@@ -2750,7 +2750,7 @@ class Interp
       return null;
     }
 
-    // Check for script class blacklisted functions.
+    // Check for script class blacklisted fields.
     var oScriptCls:Null<String> = Util.getScriptClassName(o);
     if (oScriptCls != null && ((PolymodScriptClass.blacklistedScriptClassStaticFields.get(oScriptCls)?.contains(f) ?? false)
       || (PolymodScriptClass.blacklistedScriptClassInstanceFields.get(oScriptCls)?.contains(f) ?? false)))
@@ -2891,6 +2891,15 @@ class Interp
         Polymod.error(SCRIPTED_CLASS_BLACKLISTED_FIELD, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
         return null;
       }
+    }
+
+    // Check for script class blacklisted.
+    var oScriptCls:Null<String> = Util.getScriptClassName(o);
+    if (oScriptCls != null && ((PolymodScriptClass.blacklistedScriptClassStaticFields.get(oScriptCls)?.contains(f) ?? false)
+      || (PolymodScriptClass.blacklistedScriptClassInstanceFields.get(oScriptCls)?.contains(f) ?? false)))
+    {
+      error(EBlacklistedField(f));
+      return null;
     }
 
     // Otherwise, we assume the field is fine to use.
