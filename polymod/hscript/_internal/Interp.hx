@@ -2038,10 +2038,16 @@ class Interp
         switch (name)
         {
           case ':privateAccess':
-            inPrivateAccess = true;
-            var obj = expr(e); // We evaulate the expression knowing we're in a private access.
-            inPrivateAccess = false;
-            return obj;
+            // Check to make sure we aren't already in a private access block.
+            // Otherwise the state'll be overwritten and the original block won't work anymore.
+            if (!inPrivateAccess)
+            {
+              inPrivateAccess = true;
+              var obj = expr(e); // We evaulate the expression knowing we're in a private access.
+              inPrivateAccess = false;
+              return obj;
+            }
+            return expr(e);
           default:
             return expr(e);
         }
