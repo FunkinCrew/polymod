@@ -160,6 +160,7 @@ enum Error
   EInvalidIterator(v:String);
   EInvalidOp(op:String);
   EInvalidAccess(f:String);
+  EPrivateField(f:String);
   EInvalidModule(m:String);
   EBlacklistedModule(m:String);
   EBlacklistedField(f:String);

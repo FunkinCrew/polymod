@@ -27,6 +27,7 @@ import polymod.util.Util;
 import haxe.PosInfos;
 import haxe.Constraints.IMap;
 
+using Lambda;
 using StringTools;
 
 private enum Stop
@@ -123,23 +124,35 @@ class Interp
       return Type.createInstance(defaultVariables.get(cl), args);
     }
 
+    function tryBuildClass(clsRef:PolymodStaticClassReference, args:Array<Dynamic>):Null<Dynamic>
+    {
+      if (clsRef.cls != getClassDecl() && !clsRef.canInstantiate)
+      {
+        error(ECustom('Cannot access private constructor of "${clsRef.cls.name}"'));
+        return null;
+      }
+      return clsRef.instantiate(args);
+    }
+
     // Try to retrieve a scripted class with this name in the same package.
     if (getClassDecl().pkg != null && getClassDecl().pkg.length > 0)
     {
       var localClassId = getClassDecl().pkg.join('.') + "." + cl;
       var clsRef = PolymodStaticClassReference.tryBuild(localClassId);
-      if (clsRef != null) return clsRef.instantiate(args);
+      if (clsRef != null) return tryBuildClass(clsRef, args);
     }
 
     // Try to retrieve a scripted class with this name in the base package.
     var clsRef = PolymodStaticClassReference.tryBuild(cl);
-    if (clsRef != null) return clsRef.instantiate(args);
+    if (clsRef != null) return tryBuildClass(clsRef, args);
+
     @:privateAccess
     if (getClassDecl().imports != null && getClassDecl().imports.exists(cl))
     {
       var clsRef = PolymodStaticClassReference.tryBuild(getClassDecl().imports.get(cl).fullPath);
-      if (clsRef != null) return clsRef.instantiate(args);
+      if (clsRef != null) return tryBuildClass(clsRef, args);
     }
+
     @:privateAccess
     if (getClassDecl()?.pkg != null)
     {
@@ -148,7 +161,15 @@ class Interp
       if (_scriptClassDescriptors.exists(packagedClass))
       {
         // OVERRIDE CHANGE: Create a PolymodScriptClass instead of a ScriptClass
-        var proxy:PolymodAbstractScriptClass = new PolymodScriptClass(_scriptClassDescriptors.get(packagedClass), args);
+        var clsDescriptor:ClassDecl = findScriptClassDescriptor(packagedClass);
+        var ctorField:Null<FieldDecl> = clsDescriptor.fields.find((f) -> f.name == 'new');
+        if (clsDescriptor != getClassDecl() && ctorField?.access.contains(APrivate))
+        {
+          error(ECustom('Cannot access private constructor of ${clsRef.cls.name}'));
+          return null;
+        }
+
+        var proxy:PolymodAbstractScriptClass = new PolymodScriptClass(clsDescriptor, args);
         return proxy;
       }
     }
@@ -159,7 +180,14 @@ class Interp
       if (_scriptClassDescriptors.exists(importedClass.fullPath))
       {
         // OVERRIDE CHANGE: Create a PolymodScriptClass instead of a ScriptClass
-        var proxy:PolymodAbstractScriptClass = new PolymodScriptClass(_scriptClassDescriptors.get(importedClass.fullPath), args);
+        var clsDescriptor:ClassDecl = findScriptClassDescriptor(importedClass.fullPath);
+        var ctorField:Null<FieldDecl> = clsDescriptor.fields.find((f) -> f.name == 'new');
+        if (clsDescriptor != getClassDecl() && ctorField?.access.contains(APrivate))
+        {
+          error(ECustom('Cannot access private constructor of ${clsRef.cls.name}'));
+          return null;
+        }
+        var proxy:PolymodAbstractScriptClass = new PolymodScriptClass(clsDescriptor, args);
         return proxy;
       }
 
@@ -776,9 +804,7 @@ class Interp
     return assignValue(e1, expr(e2));
   }
 
-  function assignValue(e1:Expr,
-    v:Dynamic,
-    _abstractInlineAssign:Bool = false):Null<Dynamic>
+  function assignValue(e1:Expr, v:Dynamic, _abstractInlineAssign:Bool = false):Null<Dynamic>
   {
     switch (Tools.expr(e1))
     {
@@ -2432,6 +2458,100 @@ class Interp
     return null;
   }
 
+  function checkPrivateAccess(o:Dynamic, f:String):Bool
+  {
+    // First, script classes.
+    if (Std.isOfType(o, PolymodStaticClassReference))
+    {
+      var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
+
+      // We are retrieving this field within the same script class context.
+      if (o.cls == getClassDecl())
+        return true;
+
+      var field:Null<FieldDecl> = PolymodScriptClass.scriptInterp.getScriptClassStaticFieldDecl(ref.getFullyQualifiedName(), f);
+      if (field != null && field.access.contains(APrivate))
+      {
+        return false;
+      }
+    }
+    else if (Std.isOfType(o, PolymodScriptClass))
+    {
+      var ref:PolymodAbstractScriptClass = cast(o, PolymodAbstractScriptClass);
+
+      if (ref.fullyQualifiedName == getClassFullyQualifiedName())
+        return true;
+
+      // If this script class shares the same superclasses with this class we're in (inheritance) then we can access it if the field is any of those.
+      var superClasses:Array<String> = PolymodScriptClass.getSuperClasses(getClassDecl()) ?? [];
+      var inheritatedSuperClasses:Array<String> = [ref.fullyQualifiedName].concat(PolymodScriptClass.getSuperClasses(ref._c)).filter((superCls:String) -> return superClasses.contains(superCls));
+
+      var superClass:Dynamic = ref.superClass;
+      while (superClass != null)
+      {
+        if (Std.isOfType(superClass, PolymodScriptClass))
+        {
+          var scriptCls:PolymodScriptClass = cast(superClass, PolymodScriptClass);
+          if (inheritatedSuperClasses.contains(scriptCls.fullyQualifiedName))
+          {
+            var fieldDecl = scriptCls.findField(f);
+            if (fieldDecl != null && fieldDecl.access.contains(APrivate))
+            {
+              return true;
+            }
+          }
+          superClass = superClass.superClass;
+        }
+        else
+        {
+          var superClsName:String = Util.getTypeNameOf(superClass);
+          if (inheritatedSuperClasses.contains(superClsName))
+          {
+            if (PolymodFinalMacro.getPrivateFieldsOf(superClsName).contains(f))
+            {
+              return true;
+            }
+          }
+          superClass = Type.getSuperClass(superClass);
+        }
+      }
+
+      // Regular check the script class itself has within the script class itself.
+      var fieldDecl:Null<FieldDecl> = ref.findField(f);
+      if (fieldDecl != null && fieldDecl.access.contains(APrivate))
+      {
+        return false;
+      }
+    }
+    else if (Std.isOfType(o, PolymodStaticAbstractReference))
+    {
+      // Abstracts can't have private instance fields.
+      return true;
+    }
+    else
+    {
+      // We're checking for fields from within a regular class.
+      var superClasses:Array<String> = PolymodScriptClass.getSuperClasses(getClassDecl()) ?? [];
+      var inheritatedSuperClasses:Array<String> = [Util.getTypeNameOf(o)].concat(Util.getSuperClasses(o) ?? []).filter((superCls:String) -> return superClasses.contains(superCls));
+
+      for (cls in inheritatedSuperClasses)
+      {
+        if (PolymodFinalMacro.getPrivateFields(cls).contains(f))
+        {
+          return true;
+        }
+      }
+
+      // Check from within the class itself.
+      if (PolymodFinalMacro.getPrivateFieldsOf(o).contains(f))
+      {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   function get(o:Dynamic, f:String):Null<Dynamic>
   {
     if (o == null) error(ENullObjectReference(f));
@@ -2446,6 +2566,14 @@ class Interp
 
     var oCls:String = Util.getTypeNameOf(o);
     #if hl oCls = oCls.replace('$', ''); #end
+
+    #if POLYMOD_STRICT_SYNTAX
+    if (!checkPrivateAccess(o, f))
+    {
+      error(EPrivateField(f));
+      return null;
+    }
+    #end
 
     // Check if the field is a blacklisted static field.
     if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
@@ -2562,6 +2690,14 @@ class Interp
 
     var oCls:String = Util.getTypeNameOf(o);
     #if hl oCls = oCls.replace('$', ''); #end
+
+    #if POLYMOD_STRICT_SYNTAX
+    if (!checkPrivateAccess(o, f))
+    {
+      error(EPrivateField(f));
+      return null;
+    }
+    #end
 
     // Check if the field is a blacklisted static field.
     if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))

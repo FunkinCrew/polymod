@@ -765,6 +765,8 @@ class PolymodScriptClass
       createSuperClass(args);
     }
     _constructorArgs = args;
+
+    validateClassFields();
   }
 
   var __superClassFieldList:Array<String> = null;
@@ -864,7 +866,10 @@ class PolymodScriptClass
 
       superClass = Type.createInstance(clsToCreate, args);
     }
+  }
 
+  private function validateClassFields():Void
+  {
     for (f in _c.fields)
     {
       switch (f.kind)

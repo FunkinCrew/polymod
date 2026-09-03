@@ -3,6 +3,7 @@ package polymod.hscript._internal;
 import polymod.hscript._internal.Expr;
 import polymod.util.Util;
 
+using Lambda;
 using StringTools;
 
 /**
@@ -13,6 +14,14 @@ using StringTools;
 class PolymodStaticClassReference
 {
   public var cls:Null<ClassDecl>;
+
+  public var canInstantiate(get, never):Bool;
+
+  public function get_canInstantiate():Bool
+  {
+    var ctorField = cls.fields.find((f) -> f.name == 'new');
+    return !ctorField.access.contains(APrivate);
+  }
 
   public function new(?cls:ClassDecl)
   {
