@@ -116,7 +116,8 @@ class PolymodBaseClassMacro
       'scriptCall',
       'scriptGet',
       'scriptSet',
-      'scriptHas'
+      'scriptHas',
+      'getScriptClassName'
     ];
 
     for (fld in fields)
@@ -308,6 +309,25 @@ class PolymodBaseClassMacro
       pos: buildPos,
     };
 
+    var scriptClassNameField:Field = {
+      name: 'getScriptClassName',
+      doc: 'Returns the full Polymod/HScript class name attached to this generated class instance.',
+      access: [APublic],
+      pos: buildPos,
+      meta: null,
+      kind: FFun({
+        args: [],
+        ret: macro :Null<String>,
+        expr: useBridge() ? (macro
+        {
+          return polymod.hscript.PolymodScriptBridge.getScriptClassName(_asc);
+        }) : (macro
+        {
+          return _asc == null ? null : _asc.fullyQualifiedName;
+        }),
+      }),
+    };
+
     var skipASCField:Field = {
       name: '_skipAscFrom',
       doc: 'An array of functions from which to skip passing down to the abstract script class. Used the best in combination with `scriptCallSuper`.',
@@ -461,6 +481,7 @@ class PolymodBaseClassMacro
 
     return [
       ascField,
+      scriptClassNameField,
       skipASCField,
       getField,
       setField,

@@ -52,6 +52,12 @@ interface HScriptedClass
   // INSTANCE METHODS
   //
   /**
+   * Returns the full Polymod/HScript class name attached to this generated class instance.
+   * Returns `null` if no scripted class is attached.
+   */
+  // public function getScriptClassName():Null<String>;
+  //
+  /**
    * Call a custom instance function on a scripted class, by the given name, with the given arguments.
    *
    * @param funcName The name of the function to call.
