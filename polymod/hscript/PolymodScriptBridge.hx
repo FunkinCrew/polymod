@@ -33,6 +33,18 @@ class PolymodScriptBridge
     return script.callFunction(funcName, funcArgs ?? []);
   }
 
+  /**
+   * Returns the full name of the Polymod/HScript class attached to a generated
+   * class instance, or null when no scripted class is attached.
+   */
+  public static function getScriptClassName(asc:Dynamic):Null<String>
+  {
+    if (asc == null) return null;
+
+    var script:PolymodAbstractScriptClass = cast asc;
+    return script.fullyQualifiedName;
+  }
+
   public static function fieldRead(asc:Dynamic, varName:String):Dynamic
   {
     if (asc == null) return null;
