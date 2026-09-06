@@ -323,6 +323,7 @@ class PolymodBaseClassMacro
           return polymod.hscript.PolymodScriptBridge.getScriptClassName(_asc);
         }) : (macro
         {
+          @:nullSafety(Off)
           return _asc == null ? null : _asc.fullyQualifiedName;
         }),
       }),
