@@ -3206,54 +3206,74 @@ class Interp
 
     if (fieldDecl != null)
     {
-      if (!this.variables.exists(prefixedName))
+      switch (fieldDecl.kind)
       {
-        switch (fieldDecl.kind)
-        {
-          case KFunction(fn):
+        case KFunction(fn):
+          if (!this.variables.exists(prefixedName))
+          {
             var result = buildScriptClassStaticFunction(clsName, fieldName);
             this.variables.set(prefixedName, result);
             return result;
-          case KVar(v):
-            if (v.get != null)
+          }
+          return this.variables.get(prefixedName);
+
+        case KVar(v):
+          if (v.get != null)
+          {
+            switch (v.get)
             {
-              switch (v.get)
-              {
-                case 'get':
-                  var getterFunc = 'get_${fieldName}';
-                  if (hasScriptClassStaticFunction(clsName, getterFunc))
+              case 'get':
+                var getterFunc = 'get_${fieldName}';
+                final getName = '${clsName}#$getterFunc';
+                if (hasScriptClassStaticFunction(clsName, getterFunc))
+                {
+                  if (_propTrack.exists(getName))
                   {
-                    return callScriptClassStaticFunction(clsName, getterFunc, []);
+                    return this.variables.get(prefixedName);
                   }
                   else
                   {
-                    throw 'Could not resolve getter for property ${prefixedName}';
+                    _propTrack.set(getName, true);
+                    var result = callScriptClassStaticFunction(clsName, getterFunc, []);
+                    _propTrack.remove(getName);
+                    return result;
                   }
-                case 'default':
+                }
+                else
+                {
+                  throw 'Could not resolve getter for property ${prefixedName}';
+                }
+
+              case 'default':
+                if (!this.variables.exists(prefixedName))
+                {
                   var result = this.expr(v.expr);
                   this.variables.set(prefixedName, result);
                   return result;
-                default:
-                  throw 'Could not resolve getter for property ${prefixedName}';
-              }
+                }
+                return this.variables.get(prefixedName);
+
+              default:
+                throw 'Could not resolve getter for property ${prefixedName}';
             }
-            else if (v.expr != null)
-            {
-              var result = this.expr(v.expr);
-              this.variables.set(prefixedName, result);
-              return result;
-            }
-            else
-            {
-              throw 'Could not resolve field declaration for ${prefixedName}';
-            }
-          default:
-            throw 'Could not resolve field kind for ${prefixedName}';
-        }
-      }
-      else
-      {
-        return this.variables.get(prefixedName);
+          }
+          else if (this.variables.exists(prefixedName))
+          {
+            return this.variables.get(prefixedName);
+          }
+          else if (v.expr != null)
+          {
+            var result = this.expr(v.expr);
+            this.variables.set(prefixedName, result);
+            return result;
+          }
+          else
+          {
+            throw 'Could not resolve field declaration for ${prefixedName}';
+          }
+
+        default:
+          throw 'Could not resolve field kind for ${prefixedName}';
       }
     }
     else
@@ -3284,9 +3304,21 @@ class Interp
             {
               case 'set':
                 var setterFunc = 'set_${fieldName}';
+                final setName = '${clsName}#$setterFunc';
                 if (hasScriptClassStaticFunction(clsName, setterFunc))
                 {
-                  return callScriptClassStaticFunction(clsName, setterFunc, [value]);
+                  if (!_propTrack.exists(setName))
+                  {
+                    _propTrack.set(setName, true);
+                    var out = callScriptClassStaticFunction(clsName, setterFunc, [value]);
+                    _propTrack.remove(setName);
+                    return (out == null) ? value : out;
+                  }
+                  else
+                  {
+                    this.variables.set(prefixedName, value);
+                    return value;
+                  }
                 }
                 else
                 {
