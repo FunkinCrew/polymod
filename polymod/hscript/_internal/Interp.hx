@@ -763,9 +763,15 @@ class Interp
       }
     }
 
-    // Fallback to setting in local scope.
-    variables.set(id, v);
-    return v;
+    if (_proxy != null && _proxy.fieldExists(id) || variables.exists(id))
+    {
+      // Fallback to setting in local scope.
+      variables.set(id, v);
+      return v;
+    }
+
+    error(EUnknownVariable(id));
+    return null;
   }
 
   /**
