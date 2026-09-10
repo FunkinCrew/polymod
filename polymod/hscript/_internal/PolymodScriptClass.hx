@@ -1286,6 +1286,8 @@ class PolymodScriptClass
 
         for (fld in fields)
         {
+          if(blacklistedStaticFields.exists(u.cls) && blacklistedStaticFields.get(u.cls).contains(fld)) continue;
+          
           var field:Dynamic = Reflect.getProperty(u.cls, fld);
           if (!Reflect.isFunction(field)) continue;
 
