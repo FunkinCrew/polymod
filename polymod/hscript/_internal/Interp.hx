@@ -526,17 +526,12 @@ class Interp
       // Populate function arguments.
 
       var previousClassDecl = _classDeclOverride;
-      // previousValues is used to restore variables after they are shadowed in the local scope.
-      var previousValues:Map<String, Dynamic> = setFunctionValues(fn, args, fnName);
-
       this._classDeclOverride = cls;
 
-      var localsCopy:Map<String,
-        {r:Dynamic, ?isfinal:Null<Bool>}> = this.locals.copy();
       var result:Dynamic = null;
       try
       {
-        result = this.executeEx(fn.expr);
+        result = this.executeFunction(fn, fnName, args);
       }
       catch (err:Expr.Error)
       {
@@ -547,20 +542,7 @@ class Interp
         return null;
       }
 
-      // Restore previous values.
-      for (a in fn.args)
-      {
-        if (previousValues.exists(a.name))
-        {
-          this.variables.set(a.name, previousValues.get(a.name));
-        }
-        else
-        {
-          this.variables.remove(a.name);
-        }
-      }
       this._classDeclOverride = previousClassDecl;
-      this.locals = localsCopy;
 
       return result;
     }
@@ -819,12 +801,11 @@ class Interp
    * @param fn The function declaration to extract arguments from.
    * @param args The arguments to pass to the function.
    * @param name The function's name
-   * @return The Map containing the variable values before they are shadowed in the local scope.
+   * @param declarePrevious Whether to store overriden values in the local scope, so that those can be restored later.
    */
-  public function setFunctionValues(fn:Null<FunctionDecl>, args:Array<Dynamic> = null, name:String = "Unknown"):Map<String, Dynamic>
+  public function setFunctionValues(fn:Null<FunctionDecl>, ?args:Array<Dynamic>, name:String = "Unknown", declarePrevious:Bool = true):Void
   {
-    var previousValues:Map<String, Dynamic> = [];
-    if (fn == null) return previousValues;
+    if (fn == null) return;
 
     validateArgumentCount(fn.args, args, name);
 
@@ -843,16 +824,13 @@ class Interp
         value = this.expr(a.value);
       }
 
-      // NOTE: We assign these as variables rather than locals because those get wiped when we enter the function.
-      if (this.variables.exists(a.name))
+      if (declarePrevious)
       {
-        previousValues.set(a.name, this.variables.get(a.name));
+        this.declared.push({ n: a.name, old: this.locals.get(a.name) });
       }
-      this.variables.set(a.name, value);
+      this.locals.set(a.name, { r: value });
       i++;
     }
-
-    return previousValues;
   }
 
   function assign(e1:Expr, e2:Expr):Dynamic
@@ -1288,9 +1266,45 @@ class Interp
   {
     // Directly call execute (assume error handling happens higher).
     depth = 0;
-    locals = new Map();
-    declared = new Array();
+    locals = [];
+    declared = [];
     return exprReturn(expr);
+  }
+
+  public function executeFunction(fn:FunctionDecl, fnName:String, args:Array<Dynamic>):Dynamic
+  {
+    var oldDepth:Int = this.depth;
+    var oldLocals = this.duplicate(locals);
+    var oldDeclared = this.declared;
+
+    this.locals = [];
+    this.declared = [];
+    this.depth++;
+
+    setFunctionValues(fn, args, fnName, false);
+
+    var result:Null<Dynamic> = null;
+    var exception:Null<Dynamic> = null;
+    try
+    {
+      result = exprReturn(fn.expr);
+    }
+    catch (err:Dynamic)
+    {
+      exception = err;
+    }
+
+    this.depth = oldDepth;
+    this.locals = oldLocals;
+    this.declared = oldDeclared;
+
+    // Assuming this error will be handled higher.
+    if (exception != null)
+    {
+      throw exception;
+    }
+
+    return result;
   }
 
   function exprReturn(e):Null<Dynamic>
@@ -1790,19 +1804,9 @@ class Interp
         throw SReturn;
       case EFunction(params, fexpr, name, _):
         var capturedLocals = duplicate(this.locals);
-        var capturedVariables:Map<String, Dynamic> = [];
         var capturedCallObject = this._nextCallObject;
         var capturedClassDeclOverride = this._classDeclOverride;
         var me = this;
-
-        // Retrieve only the non-default variables
-        for (k => v in variables)
-        {
-          if (!defaultVariables.exists(k))
-          {
-            capturedVariables.set(k, v);
-          }
-        }
 
         // This CREATES a new function in memory, that we call later.
         var newFun:Dynamic = function(args:Array<Dynamic>)
@@ -1851,17 +1855,6 @@ class Interp
           me._nextCallObject = capturedCallObject;
           me._classDeclOverride = capturedClassDeclOverride;
 
-          // Restore removed variables (those are usually arguments)
-          for (k => v in capturedVariables)
-          {
-            if (me.variables.exists(k))
-            {
-              capturedVariables.remove(k);
-              continue;
-            }
-            me.variables.set(k, v);
-          }
-
           for (i in 0...params.length)
           {
             me.locals.set(params[i].name, {
@@ -1873,12 +1866,6 @@ class Interp
 
           inline function restoreContext()
           {
-            // Remove the restored arguments again
-            for (k in capturedVariables.keys())
-            {
-              me.variables.remove(k);
-            }
-
             restore(oldDecl);
             me.locals = old;
             me.depth = depth;
