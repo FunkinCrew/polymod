@@ -99,6 +99,11 @@ class HEAPSBackend implements IBackend
     throw 'Function not implemented';
   }
 
+  public function listLibraries():Array<String>
+  {
+    throw 'Function not implemented';
+  }
+
   public function getPath(id:String):String
   {
     throw 'Function not implemented';
@@ -229,7 +234,7 @@ class ModFileEntry extends BytesFileEntry
     var dirPath = isDir ? path : Util.uPathPop(fullFilePath);
 
     var itemPaths = [];
-    for (id in p.type.keys())
+    for (id in p.assetTypes.keys())
     {
       if (id.indexOf(dirPath) != 0) continue;
       if (Util.isMergeOrAppend(id)) continue;
@@ -290,16 +295,16 @@ class ModFileEntry extends BytesFileEntry
     return super.getBytes();
   }
 
-  override function readByte():Int
+  override function readBytes(out:Bytes, outPos:Int, pos:Int, len:Int):Int
   {
     initBytes();
-    return super.readByte();
+    return super.readBytes(out, outPos, pos, len);
   }
 
-  override function read(out:Bytes, pos:Int, size:Int)
+  override function readFull(bytes:Bytes, pos:Int, len:Int)
   {
     initBytes();
-    return super.read(out, pos, size);
+    return super.readFull(bytes, pos, len);
   }
 
   override function loadBitmap(onLoaded:LoadedBitmap->Void):Void

@@ -45,7 +45,9 @@
     },
     {
       "name": "thx.semver",
-      "type": "haxelib"
+      "type": "git",
+      "ref": "master",
+      "url": "https://github.com/fponticelli/thx.semver"
     }
   ]
 }
