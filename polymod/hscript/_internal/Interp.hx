@@ -2531,6 +2531,13 @@ class Interp
     }
     #end
 
+    #if js
+    if (Std.isOfType(o, Class) && Reflect.hasField(o, f))
+    {
+      return untyped o[f];
+    }
+    #end
+
     // Default behavior
     #if hl
     // On HL, hasField on properties returns true but Reflect.field
@@ -2639,6 +2646,14 @@ class Interp
 
       error(EInvalidScriptedVarSet(f));
     }
+
+    #if js
+    if (Std.isOfType(o, Class) && Reflect.hasField(o, f))
+    {
+      untyped o[f] = v;
+      return v;
+    }
+    #end
 
     try
     {
