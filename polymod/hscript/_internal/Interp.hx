@@ -1555,6 +1555,12 @@ class Interp
     {
       if (PolymodScriptClass.importOverrides.exists(fullPath))
       {
+        if (PolymodScriptClass.backwardsCompatibilityImports.exists(fullPath))
+        {
+          // This import alias is a backwards compatibility import, notify the user that they should change the class to the provided one.
+          backwardsCompatibilityImport(fullPath);
+        }
+
         // importOverrides can exist but be null (if it was set to null).
         // If so, that means the class is blacklisted.
         importedClass.cls = PolymodScriptClass.importOverrides.get(fullPath) ?? return false;
@@ -2369,6 +2375,11 @@ class Interp
   {
     if (PolymodScriptClass.importOverrides.exists(path))
     {
+      if (PolymodScriptClass.backwardsCompatibilityImports.exists(path))
+      {
+        backwardsCompatibilityImport(path);
+      }
+
       var alias:Null<Class<Dynamic>> = PolymodScriptClass.importOverrides.get(path);
       if (alias == null) error(EBlacklistedModule(path));
       return alias;
@@ -3566,6 +3577,28 @@ class Interp
       validImports.set(classImport.name, classImport);
     }
     return validImports;
+  }
+
+  /**
+   * Warns the user that the given import of `path` is used for backwards compatibility.
+   * @param path The path to alert the user of.
+   */
+  public static function backwardsCompatibilityImport(path:String):Void
+  {
+    // Don't throw a warning if this is already a default import.
+    if (PolymodScriptClass.defaultImports.exists(path))
+      return;
+
+    // This import alias is a backwards compatibility import, notify the user that they should change the class to the provided one.
+    var backwardsCompatInfo = PolymodScriptClass.backwardsCompatibilityImports.get(path);
+    if (backwardsCompatInfo != null)
+    {
+      var newClassName:String = Type.getClassName(backwardsCompatInfo.cls);
+      var infoMessage:String = backwardsCompatInfo.info.message ?? 'Please import and adjust your script to use $newClassName instead.';
+      var message:String = 'Scripted class ${path} has been changed since ${backwardsCompatInfo.info.version}.\nWhile this import can be used, read the below to help with migration:\n\n$infoMessage';
+
+      Polymod.warning(SCRIPTED_CLASS_BACKWARDS_COMPATIBILITY_IMPORT, message, SCRIPT_RUNTIME);
+    }
   }
 
   /**
