@@ -1,6 +1,8 @@
 package polymod.hscript._internal;
 
+import thx.semver.Version;
 import haxe.ds.ObjectMap;
+import polymod.Polymod.BackwardsCompatibilityInfo;
 import polymod.hscript._internal.Expr.EnumDecl;
 import polymod.hscript._internal.Expr.ClassDecl;
 import polymod.hscript._internal.Expr.ClassImport;
@@ -36,6 +38,11 @@ class PolymodScriptClass
    * Provide a class name along with a corresponding class to import it in every scripted class.
    */
   public static final defaultImports:Map<String, Class<Dynamic>> = new Map<String, Class<Dynamic>>();
+
+  /**
+   * Provides a list of full class paths that have since been changed from the given version number key.
+   */
+  public static final backwardsCompatibilityImports:Map<String, {cls:Class<Dynamic>, info:BackwardsCompatibilityInfo}> = new Map<String, {cls:Class<Dynamic>, info:BackwardsCompatibilityInfo}>();
 
   /**
    * Provide a class with an array of its static fields to blacklist them.
