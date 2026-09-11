@@ -112,6 +112,7 @@ class PolymodScriptClassMacro
     var typedefEntries:Array<Array<String>> = [];
     var interfaces:Map<String, Array<Dynamic>> = [];
     var classesExtendingInterfaces:Map<String, Array<String>> = [];
+    var interfaceCount:Int = 0;
 
     var startTime:Float = Sys.time();
 
@@ -229,17 +230,6 @@ class PolymodScriptClassMacro
                 }
               }
               classesExtendingInterfaces.set(classPath, extend);
-            }
-
-            if (MacroUtil.implementsInterface(classType, hscriptedClassType))
-            {
-              var superClass:Null<ClassType> = classType.superClass != null ? classType.superClass.t.get() : null;
-
-              if (superClass == null) throw 'No superclass for ' + classPath;
-
-              var superClassPath:String = '${superClass.pack.concat([superClass.name]).join(".")}';
-              var entryData = [superClassPath, classPath];
-              hscriptedClassEntries.push(entryData);
             }
           }
 
