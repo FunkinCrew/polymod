@@ -5,6 +5,7 @@ import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Type;
 import haxe.macro.Type.ClassType;
+import polymod.util.MacroUtil;
 #end
 
 using StringTools;
