@@ -302,7 +302,16 @@ class Interp
     }
     #end
 
-    else if (Std.isOfType(o, PolymodStaticAbstractReference))
+    // Check for script class blacklisted fields.
+    var oScriptCls:Null<String> = Util.getScriptClassName(o);
+    if (oScriptCls != null && ((PolymodScriptClass.blacklistedScriptClassStaticFields.get(oScriptCls)?.contains(f) ?? false)
+      || (PolymodScriptClass.blacklistedScriptClassInstanceFields.get(oScriptCls)?.contains(f) ?? false)))
+    {
+      error(EBlacklistedField(f));
+      return null;
+    }
+
+    if (Std.isOfType(o, PolymodStaticAbstractReference))
     {
       var ref:PolymodStaticAbstractReference = cast(o, PolymodStaticAbstractReference);
       return ref.callFunction(f, args);
@@ -556,6 +565,31 @@ class Interp
       return null;
     }
   }
+
+
+  /**
+   * Given a class declaration, fetches all fields with the `@:unreflective` metadata and adds it to the script class blacklist.
+   * @param cls The class declaration.
+   */
+  static function registerScriptClassBlacklist(cls:ClassDecl):Void
+  {
+    var clsName:String = Util.getFullClassName(cls);
+    if (cls.meta.length > 0 && cls.meta.findIndex((m) -> return m.name == ':unreflective') != -1)
+    {
+      Polymod.blacklistScriptClassImport(clsName);
+    }
+
+    // Filter fields to see which have the `@:unreflective` metadata.
+    var staticFields:Array<String> = [for (field in cls.staticFields.filter((f) -> f.meta.length > 0 && f.meta.findIndex((m) -> return m.name == ':unreflective') != -1)) field.name];
+    var instanceFields:Array<String> = [for (field in cls.fields.filter((f) -> f.meta.length > 0 && f.meta.findIndex((m) -> return m.name == ':unreflective') != -1)) field.name];
+
+    if (staticFields.length > 0)
+      Polymod.blacklistScriptClassStaticFields(clsName, staticFields);
+
+    if (instanceFields.length > 0)
+      Polymod.blacklistScriptClassInstanceFields(clsName, instanceFields);
+  }
+
 
   static function registerScriptClass(c:ClassDecl)
   {
@@ -2716,6 +2750,15 @@ class Interp
       return null;
     }
 
+    // Check for script class blacklisted fields.
+    var oScriptCls:Null<String> = Util.getScriptClassName(o);
+    if (oScriptCls != null && ((PolymodScriptClass.blacklistedScriptClassStaticFields.get(oScriptCls)?.contains(f) ?? false)
+      || (PolymodScriptClass.blacklistedScriptClassInstanceFields.get(oScriptCls)?.contains(f) ?? false)))
+    {
+      error(EBlacklistedField(f));
+      return null;
+    }
+
     // If not, check if it is a blacklisted instance field.
     if (oCls.length > 0 && oCls != 'Object')
     {
@@ -2848,6 +2891,15 @@ class Interp
         Polymod.error(SCRIPTED_CLASS_BLACKLISTED_FIELD, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
         return null;
       }
+    }
+
+    // Check for script class blacklisted.
+    var oScriptCls:Null<String> = Util.getScriptClassName(o);
+    if (oScriptCls != null && ((PolymodScriptClass.blacklistedScriptClassStaticFields.get(oScriptCls)?.contains(f) ?? false)
+      || (PolymodScriptClass.blacklistedScriptClassInstanceFields.get(oScriptCls)?.contains(f) ?? false)))
+    {
+      error(EBlacklistedField(f));
+      return null;
     }
 
     // Otherwise, we assume the field is fine to use.
@@ -3128,6 +3180,7 @@ class Interp
             isExtern: c.isExtern,
             staticFields: staticFields,
           };
+          registerScriptClassBlacklist(classDecl);
           registerScriptClass(classDecl);
         case DInterface(i):
           if (isImportFile) continue;
@@ -3341,6 +3394,19 @@ class Interp
 
   public static function validateImports():Void
   {
+    function tryImport(cls:ClassDecl, clsImport:ClassImport):Void
+    {
+      if (PolymodScriptClass.blacklistedScriptClasses.contains(clsImport.fullPath))
+      {
+        // Set as `null` so it's registered as blacklisted.
+        cls.imports.set(clsImport.name, null);
+      }
+      else
+      {
+        cls.imports.set(clsImport.name, clsImport);
+      }
+    }
+
     for (cls in _scriptClassDescriptors)
     {
       var clsPath = Util.getFullClassName(cls);
@@ -3360,7 +3426,7 @@ class Interp
 
         if ((imp.pkg?.length ?? 0) == 0)
         {
-          cls.imports.set(imp.name, classImport);
+          tryImport(cls, classImport);
           continue;
         }
 
@@ -3368,7 +3434,7 @@ class Interp
         var fullPackage:String = hasPackage ? cls.pkg.join(".") + "." : "";
         if (hasPackage && clsPath.indexOf(fullPackage) == 0)
         {
-          cls.imports.set(imp.name, classImport);
+          tryImport(cls, classImport);
         }
       }
 
@@ -3417,7 +3483,7 @@ class Interp
             }
           }
           else
-            cls.imports.set(imp.name, imp);
+            tryImport(cls, imp);
         }
       }
 
@@ -3443,7 +3509,7 @@ class Interp
         if (PolymodScriptClass.interfaceImpls.exists(imp.fullPath) || _scriptInterfaceDescriptors.exists(imp.fullPath) ||
           _scriptClassDescriptors.exists(imp.fullPath) || _scriptEnumDescriptors.exists(imp.fullPath))
         {
-          cls.imports.set(key, imp);
+          tryImport(cls, imp);
           continue;
         }
 
@@ -3559,6 +3625,11 @@ class Interp
         // Check if this is a scripted class.
         if (_scriptClassDescriptors.exists(classImport.fullPath) || _scriptEnumDescriptors.exists(classImport.fullPath))
         {
+          if (PolymodScriptClass.blacklistedScriptClasses.contains(classImport.fullPath) && !_scriptEnumDescriptors.exists(classImport.fullPath))
+          {
+            validImports.set(classImport.name, null);
+            continue;
+          }
           validImports.set(classImport.name, classImport);
           continue;
         }

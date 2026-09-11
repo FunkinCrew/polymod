@@ -7,6 +7,9 @@ import polymod.format.BaseParseFormat;
 import polymod.format.ParseRules;
 import polymod.fs.PolymodFileSystem.IFileSystem;
 import polymod.hscript._internal.Expr;
+import polymod.hscript._internal.Interp;
+import polymod.hscript._internal.PolymodScriptClass;
+import polymod.hscript._internal.PolymodStaticClassReference;
 #if unifill
 import unifill.Unifill;
 #end
@@ -778,6 +781,24 @@ class Util
       default:
         Std.string(type);
     }
+  }
+
+  public static function getScriptClassName(cls:Dynamic):Null<String>
+  {
+    var clsName:Null<String> = null;
+    if (Std.isOfType(cls, PolymodStaticClassReference))
+    {
+      clsName = cast(cls, PolymodStaticClassReference).getFullyQualifiedName();
+    }
+    else if (Std.isOfType(cls, PolymodScriptClass))
+    {
+      clsName = cast(cls, PolymodScriptClass).fullyQualifiedName;
+    }
+    else if (Std.isOfType(cls, String))
+    {
+      clsName = getFullClassName(Interp.findScriptClassDescriptor(cast cls));
+    }
+    return clsName;
   }
 
   /**
