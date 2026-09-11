@@ -568,20 +568,20 @@ class Interp
 
 
   /**
-   * Given a class declaration, fetches all fields with the `@:blacklisted` metadata and adds it to the script class blacklist.
+   * Given a class declaration, fetches all fields with the `@:unreflective` metadata and adds it to the script class blacklist.
    * @param cls The class declaration.
    */
   static function registerScriptClassBlacklist(cls:ClassDecl):Void
   {
     var clsName:String = Util.getFullClassName(cls);
-    if (cls.meta.length > 0 && cls.meta.findIndex((m) -> return m.name == ':blacklisted') != -1)
+    if (cls.meta.length > 0 && cls.meta.findIndex((m) -> return m.name == ':unreflective') != -1)
     {
       Polymod.blacklistScriptClassImport(clsName);
     }
 
-    // Filter fields to see which have the `@:blacklisted` metadata.
-    var staticFields:Array<String> = [for (field in cls.staticFields.filter((f) -> f.meta.length > 0 && f.meta.findIndex((m) -> return m.name == ':blacklisted') != -1)) field.name];
-    var instanceFields:Array<String> = [for (field in cls.fields.filter((f) -> f.meta.length > 0 && f.meta.findIndex((m) -> return m.name == ':blacklisted') != -1)) field.name];
+    // Filter fields to see which have the `@:unreflective` metadata.
+    var staticFields:Array<String> = [for (field in cls.staticFields.filter((f) -> f.meta.length > 0 && f.meta.findIndex((m) -> return m.name == ':unreflective') != -1)) field.name];
+    var instanceFields:Array<String> = [for (field in cls.fields.filter((f) -> f.meta.length > 0 && f.meta.findIndex((m) -> return m.name == ':unreflective') != -1)) field.name];
 
     if (staticFields.length > 0)
       Polymod.blacklistScriptClassStaticFields(clsName, staticFields);
