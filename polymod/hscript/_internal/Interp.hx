@@ -849,7 +849,26 @@ class Interp
                   case "set":
                     // Allow assigning to "null" only for local fields.
                     final setName = 'set_$id';
-                    if (!_propTrack.exists(setName))
+                    if (_propTrack.exists(setName))
+                    {
+                      switch (decl.get)
+                      {
+                        case 'get':
+                          var field = _proxy.findField(id);
+                          var hasIsVar = false;
+                          for (m in field?.meta ?? [])
+                          {
+                            if (m.name == ':isVar')
+                            {
+                              hasIsVar = true;
+                              break;
+                            }
+                          }
+                          if (!hasIsVar) return error(EPropVarNotReal(id));
+                        default:
+                      }
+                    }
+                    else
                     {
                       _propTrack.set(setName, true);
                       var out = _proxy.callFunction(setName, [v]);
@@ -1008,7 +1027,26 @@ class Interp
               {
                 case "set":
                   final setName = 'set_$id';
-                  if (!_propTrack.exists(setName))
+                  if (_propTrack.exists(setName))
+                  {
+                    switch (decl.get)
+                    {
+                      case 'get':
+                        var field = _proxy.findField(id);
+                        var hasIsVar = false;
+                        for (m in field?.meta ?? [])
+                        {
+                          if (m.name == ':isVar')
+                          {
+                            hasIsVar = true;
+                            break;
+                          }
+                        }
+                        if (!hasIsVar) return error(EPropVarNotReal(id));
+                      default:
+                    }
+                  }
+                  else
                   {
                     _propTrack.set(setName, true);
                     var r = _proxy.callFunction(setName, [v]);
@@ -1087,7 +1125,26 @@ class Interp
               {
                 case "set":
                   final setName = 'set_$id';
-                  if (!_propTrack.exists(setName))
+                  if (_propTrack.exists(setName))
+                  {
+                    switch (decl.get)
+                    {
+                      case 'get':
+                        var field = _proxy.findField(id);
+                        var hasIsVar = false;
+                        for (m in field?.meta ?? [])
+                        {
+                          if (m.name == ':isVar')
+                          {
+                            hasIsVar = true;
+                            break;
+                          }
+                        }
+                        if (!hasIsVar) return error(EPropVarNotReal(id));
+                      default:
+                    }
+                  }
+                  else
                   {
                     _propTrack.set(setName, true);
                     var r = _proxy.callFunction(setName, [prefix ? v : (v + delta)]);
@@ -1505,12 +1562,16 @@ class Interp
                     case 'set', 'never':
                       var field = _proxy.findField(id);
                       var hasIsVar = false;
-                      for (m in field?.meta ?? []) if (m.name == ':isVar')
+                      for (m in field?.meta ?? [])
                       {
-                        hasIsVar = true;
-                        break;
+                        if (m.name == ':isVar')
+                        {
+                          hasIsVar = true;
+                          break;
+                        }
                       }
-                      if (!hasIsVar) return error(EPropVarNotReal(id));
+                      if (!hasIsVar)
+                        return error(EPropVarNotReal(id));
                     default:
                   }
                 }
