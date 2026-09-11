@@ -1243,6 +1243,27 @@ class Polymod
   }
 
   /**
+   * Adds an import alias to the given class while also noting that this is an import for backwards compatibility.
+   * @param importAlias The full import path to use as an alias, as a string.
+   * @param importClass The class type to import instead.
+   * @param version The version in which this backwards compatibility change was introduced, to notify the user.
+   * @param message A custom message to provide for more information on the change.
+   */
+  public static function addBackwardsCompatImport(importAlias:String, importClass:Class<Dynamic>, version:Version, ?message:String):Void
+  {
+    var information:BackwardsCompatibilityInfo = {
+      version: version,
+      message: message ?? null,
+    }
+
+    PolymodScriptClass.backwardsCompatibilityImports.set(importAlias, {
+      cls: importClass,
+      info: information,
+    });
+    addImportAlias(importAlias, importClass);
+  }
+
+  /**
    * When a scripted class defines an import, you can define another class which should be imported instead.
    * @param importAlias The full import path to use as an alias, as a string.
    * @param importClass The class type to import instead.
@@ -1314,6 +1335,19 @@ class Polymod
 
     PolymodScriptClass.bumpBlacklistGeneration();
   }
+}
+
+typedef BackwardsCompatibilityInfo =
+{
+  /**
+   * The version in which the backwards compatibility change happened.
+   */
+  var version:Version;
+
+  /**
+   * A custom message to provide for more information on the change. If none is given, Polymod will assume that you should move to the given `importClass`
+   */
+  var ?message:String;
 }
 
 /**
@@ -2039,6 +2073,13 @@ enum abstract PolymodErrorCode(String) from String to String
    * - Check the syntax of the import statement, and check for any typos.
    */
   public var SCRIPTED_CLASS_UNRESOLVED_IMPORT:String = 'scripted_class_unresolved_import';
+
+  /**
+   * Your script file has an import that is aliased to a different class for backwards compatibility.
+   * - Check the version of the warning given to help with moving your script forward.
+   * - Check the message received to know which class you should move to instead for when the backwards compatibility is removed.
+   */
+  public var SCRIPTED_CLASS_BACKWARDS_COMPATIBILITY_IMPORT:String = 'scripted_class_backwards_compatibility_import';
 
   //
   // Scripted Class Runtime Errors
