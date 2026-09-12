@@ -1481,7 +1481,11 @@ class LimeCoreLibrary extends LimeAssetLibrary
     var redirectId:String = buildRedirectId(id);
     if (polymodLibrary.fileSystem.exists(redirectId))
     {
+      #if html5
+      return polymodLibrary.fileSystem.loadFileBytes(redirectId);
+      #else
       return Bytes.loadFromFile(redirectId);
+      #end
     }
 
     return fallback.loadBytes(id);
