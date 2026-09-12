@@ -410,7 +410,7 @@ class PolymodScriptClass
           var interfaceName:String = decl.imports.get(extendName)?.fullPath ?? extendName;
 
           // Retrieve the interface reference first. A cache will be used if found.
-          var ref:PolymodStaticInterfaceReference = PolymodStaticInterfaceReference.tryBuild(extendName);
+          var ref:PolymodStaticInterfaceReference = PolymodStaticInterfaceReference.tryBuild(interfaceName);
           if (ref != null)
           {
             if (!interfaceExtends.contains(ref.id))
@@ -1450,7 +1450,7 @@ class PolymodScriptClass
         for (fld in fields)
         {
           if(blacklistedStaticFields.exists(u.cls) && blacklistedStaticFields.get(u.cls).contains(fld)) continue;
-          
+
           var field:Dynamic = Reflect.getProperty(u.cls, fld);
           if (!Reflect.isFunction(field)) continue;
 
