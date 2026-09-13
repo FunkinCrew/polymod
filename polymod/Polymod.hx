@@ -969,9 +969,9 @@ class Polymod
     #end
   }
 
+  #if (POLYMOD_CPPIA && lime)
   static function registerAllCppiaClassesAsync():Array<lime.app.Future<Bool>>
   {
-    #if POLYMOD_CPPIA
     @:privateAccess {
       var libraryIds:Array<String> = Polymod.assetLibrary.listLibraries();
       var allBytes:Array<String> = Polymod.assetLibrary.list(BYTES);
@@ -1046,10 +1046,14 @@ class Polymod
       }
       return futures;
     }
-    #else
-    return [];
-    #end
   }
+  #else
+  static function registerAllCppiaClassesAsync():Array<Dynamic>
+  {
+    Polymod.error(SCRIPT_PARSE_FAILED, 'Asynchronous script loading is not supported on this platform!');
+    return [];
+  }
+  #end
 
   /**
    * Loads all script classes (`.hxc` files) and registers any classes they provide.
@@ -1120,8 +1124,10 @@ class Polymod
 
     var futures:Array<lime.app.Future<Bool>> = [];
 
+    #if POLYMOD_CPPIA
     // Load CPPIA scripts first asynchronously
     futures = futures.concat(registerAllCppiaClassesAsync());
+    #end
 
     // Go through each script and parse any classes in them.
     var potentialScripts:Array<String> = Polymod.assetLibrary.list(TEXT);
