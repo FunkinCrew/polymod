@@ -11,7 +11,7 @@ using haxe.macro.Tools;
 using StringTools;
 
 /**
- * `PolymodBaseClassMacro` is responsible for adding fields to all classes to make the extendable.
+ * `PolymodBaseClassMacro` is responsible for adding fields to all classes to make them extendable.
  * Additionally, it makes the base functions named differently and creates new functions in their stead
  * to make them first pass through abstract script class, if it exists.
  */
