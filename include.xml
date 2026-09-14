@@ -3,6 +3,8 @@
   <!-- These values are added to the project XML when you include this library. -->
   <haxelib name="thx.semver" />
 
-  <haxeflag name="--macro" value="polymod.hscript._internal.PolymodFinalMacro.locateAllFinals()" />
-  <haxeflag name="--macro" value="addGlobalMetadata('', '@:build(polymod.hscript._internal.PolymodBaseClassMacro.buildBaseClass())')"/>
+  <!--
+    Macro flags should go into the "extraParams.hxml" file instead of this one.
+    This is because 'include.xml' is exclusive to the OpenFL enviroment.
+  -->
 </project>
