@@ -796,7 +796,15 @@ class Util
     }
     else if (Std.isOfType(cls, String))
     {
-      clsName = getFullClassName(Interp.findScriptClassDescriptor(cast cls));
+      clsName = cast cls;
+      if (Interp.findScriptInterfaceDescriptor(clsName) != null)
+      {
+        return clsName;
+      }
+      else if (Interp.findScriptClassDescriptor(clsName) != null)
+      {
+        return clsName;
+      }
     }
     return clsName;
   }

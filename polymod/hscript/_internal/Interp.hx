@@ -56,12 +56,15 @@ class Interp
   private static var _scriptEnumDescriptors:Map<String, EnumDecl> = new Map<String, EnumDecl>();
   private static var _scriptInterfaceDescriptors:Map<String, InterfaceDecl> = new Map<String, InterfaceDecl>();
 
+  static var allowMetadataControlList:Map<String, ClassAccessControl> = [];
+  static var accessMetadataControlList:Map<String, ClassAccessControl> = [];
+
   var _propTrack:Map<String, Bool> = [];
 
   static var defaultVariables:Map<String, Dynamic>;
 
   public var variables:Map<String, Dynamic>;
-
+  var currentFunction:Null<String> = null;
   var locals:Map<String,
     {r:Dynamic, ?isfinal:Bool}>;
   var binops:Map<String, Expr->Expr->Dynamic>;
@@ -1287,6 +1290,7 @@ class Interp
     }
     catch (err:Expr.Error)
     {
+      this.currentFunction = null;
       PolymodScriptClass.reportError(err, getClassFullyQualifiedName());
       return null;
     }
@@ -1294,6 +1298,7 @@ class Interp
     {
       throw err;
     }
+    this.currentFunction = null;
   }
 
   public function executeEx(expr:Expr):Dynamic
@@ -1310,10 +1315,12 @@ class Interp
     var oldDepth:Int = this.depth;
     var oldLocals = this.duplicate(locals);
     var oldDeclared = this.declared;
+    var oldCurrentFunction = this.currentFunction;
 
     this.locals = [];
     this.declared = [];
     this.depth++;
+    this.currentFunction = fnName;
 
     setFunctionValues(fn, args, fnName, false);
 
@@ -1331,6 +1338,7 @@ class Interp
     this.depth = oldDepth;
     this.locals = oldLocals;
     this.declared = oldDeclared;
+    this.currentFunction = oldCurrentFunction;
 
     // Assuming this error will be handled higher.
     if (exception != null)
@@ -2411,6 +2419,12 @@ class Interp
     if (PolymodScriptClass.abstractClassImpls.exists(path)) return PolymodScriptClass.abstractClassImpls.get(path);
     if (PolymodScriptClass.typedefs.exists(path)) return PolymodScriptClass.typedefs.get(path);
 
+    var enumResult:Null<String> = PolymodEnum.tryResolve(path);
+    if (enumResult != null) return enumResult;
+
+    var scriptedInterface = PolymodStaticInterfaceReference.tryBuild(path);
+    if (scriptedInterface != null) return scriptedInterface;
+
     var scripted = PolymodStaticClassReference.tryBuild(path);
     if (scripted != null) return scripted;
 
@@ -2628,6 +2642,9 @@ class Interp
     if (inPrivateAccess)
       return true;
 
+    if (checkAccessControl(o, f))
+      return true;
+
     // First, script classes.
     if (Std.isOfType(o, PolymodStaticClassReference))
     {
@@ -2718,6 +2735,119 @@ class Interp
     }
 
     return true;
+  }
+
+  function checkAccessControl(o:Dynamic, f:String):Bool
+  {
+    var objClsName:Null<String> = Util.getScriptClassName(o) ?? Util.getTypeNameOf(o);
+    var objPack:String = (objClsName.split('.').slice(0, -1).join('.')) ?? '';
+    var clsName:String = getClassFullyQualifiedName();
+    var clsPack:String = getClassDecl()?.pkg?.join('.') ?? '';
+
+    // Let's go through the @:allow & @:access list and see if this class has access to this class.
+    // A field will be allowed of use if the class is allowed, or the field itself from the class is allowed (If the value is `null`).
+    var accessList:Null<ClassAccessControl> = accessMetadataControlList.get(clsName);
+
+    if (accessList != null)
+    {
+      // First, class metadata for `@:access`.
+      if (accessList.cls != null)
+      {
+        // Check for if this class has access to a package from its @:access metadata list.
+        for (pkg in accessList.cls.pkg ?? [])
+        {
+          if (pkg == objPack) return true;
+        }
+
+        // Check if the general class metadata is allowing for this field to be accessed.
+        var clsAccessList = accessList.cls.access ?? [];
+        if (clsAccessList.exists(objClsName) && clsAccessList.get(objClsName) == null || clsAccessList.get(objClsName).contains(f))
+          return true;
+      }
+
+      // Next, check for field metadata for `@:access`.
+      if ((accessList.fields?.exists(this.currentFunction) != null) ?? false)
+      {
+        var funcAccessControl:AccessControl = accessList.fields.get(this.currentFunction);
+
+        for (pkg in funcAccessControl.pkg ?? [])
+        {
+          if (pkg == objPack) return true;
+        }
+
+        var fieldsAccessList = funcAccessControl.access ?? [];
+        if (fieldsAccessList.exists(objClsName))
+        {
+          // Check if the general class metadata is allowing for this field to be accessed.
+          if (fieldsAccessList.get(objClsName) == null || fieldsAccessList.get(objClsName).contains(f))
+            return true;
+        }
+      }
+    }
+
+    // Check the @:allow metadata list now.
+    // We check through the object class as that's the one that'll have the data for us.
+    var allowList:Null<ClassAccessControl> = allowMetadataControlList.get(objClsName);
+    if (allowList != null)
+    {
+      // Check class metadata for `@:allow` first.
+      if (allowList.cls != null)
+      {
+        // If this class implements one of the interfaces here, it's allowed.
+        if (allowList.cls.interfacePackage != null)
+        {
+          var implementedInterfaces:Array<String> = PolymodScriptClass.classesExtendingInterfaces.get(clsName) ?? [];
+          for (interfacePack in allowList.cls.interfacePackage)
+          {
+            if (implementedInterfaces.contains(interfacePack))
+              return true;
+          }
+        }
+
+        // Check for same parent packages.
+        for (pkg in allowList.cls.pkg ?? [])
+        {
+          if (pkg == clsPack) return true;
+        }
+
+        // Check if the following class we're trying to access has allowed our function or class to be accessed.
+        if (allowList.cls.access?.exists(clsName) ?? false)
+        {
+          var allowList = allowList.cls.access.get(clsName);
+          if (allowList == null || allowList.contains(this.currentFunction))
+            return true;
+        }
+      }
+
+      // Check the allow list for the field itself we're accessing.
+      if (allowList.fields?.exists(f) ?? false)
+      {
+        var fieldAccessControl:AccessControl = allowList.fields.get(f);
+
+        // Likewise, check to see if we're dealing with an access control interface, package, or general class/field access.
+        if (fieldAccessControl.interfacePackage != null)
+        {
+          var implementedInterfaces:Array<String> = PolymodScriptClass.classesExtendingInterfaces.get(clsName) ?? [];
+          for (interfacePack in fieldAccessControl.interfacePackage)
+          {
+            if (implementedInterfaces.contains(interfacePack))
+              return true;
+          }
+        }
+
+        for (pkg in fieldAccessControl.pkg ?? [])
+        {
+          if (pkg == clsPack) return true;
+        }
+
+        var fieldAllowList:Map<String, String> = fieldAccessControl.access ?? [];
+        if (fieldAllowList.exists(clsName) && (fieldAllowList.get(clsName) == null || fieldAllowList.get(clsName).contains(this.currentFunction)))
+        {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   function get(o:Dynamic, f:String):Null<Dynamic>
@@ -3248,6 +3378,208 @@ class Interp
     var parser = new Parser();
     var decls = parser.parseModule(moduleContents, origin);
     registerModules(decls, origin);
+  }
+
+  public function validateClassMetadata():Void
+  {
+    var clsDecl:ClassDecl = getClassDecl();
+    var clsName:String = getClassFullyQualifiedName();
+
+    var clsMeta = clsDecl.meta ?? [];
+    for (meta in clsMeta)
+    {
+      switch (meta.name)
+      {
+        case ':allow', ':access':
+          // These metadata will control class private field access without an error being thrown.
+          var listToUse:Map<String, ClassAccessControl> = meta.name == ':allow' ? allowMetadataControlList : accessMetadataControlList;
+
+          var accessData:ClassAccessControl = listToUse.get(clsName) ?? {cls: {access: [], interfacePackage: [], pkg: []}, fields: []};
+          var accessControl:AccessControl = parseAccessMetadata(clsDecl, meta);
+
+          if (accessData.cls != null)
+          {
+            // Append any interface packs.
+            if (accessControl.interfacePackage != null)
+            {
+              for (pack in accessControl.interfacePackage)
+                accessData.cls.interfacePackage.push(pack);
+            }
+
+            // Append any general packages.
+            if (accessControl.pkg != null)
+            {
+              for (pack in accessControl.pkg)
+                accessData.cls.pkg.push(pack);
+            }
+
+            if (accessControl.access != null)
+            {
+              // Append the access control to the main one.
+              for (clsName => fields in accessControl.access)
+              {
+                var fieldsList:Array<String> = accessData.cls.access?.get(clsName) ?? [];
+                if (fields != null)
+                {
+                  for (f in fields)
+                  {
+                    if (!fieldsList.contains(f))
+                      fieldsList.push(f);
+                  }
+                  accessData.cls.access.set(clsName, fieldsList);
+                }
+                else
+                {
+                  accessData.cls.access.set(clsName, null);
+                }
+              }
+            }
+          }
+          else
+          {
+            accessData.cls = accessControl;
+          }
+          listToUse.set(clsName, accessData);
+      }
+    }
+
+    // Handle metadata for fields.
+    var clsFields:Array<FieldDecl> = clsDecl.fields.concat(clsDecl.staticFields).filter((f) -> f.meta.length > 0);
+    for (field in clsFields)
+    {
+      var fieldMeta = field.meta ?? [];
+      for (meta in fieldMeta)
+      {
+        switch (meta.name)
+        {
+          case ':allow', ':access':
+            switch (field.kind)
+            {
+              case KVar(v):
+                // @:access metadata is invalid for class variables.
+                if (meta.name == ':access') continue;
+              default:
+            }
+            var listToUse:Map<String, ClassAccessControl> = meta.name == ':allow' ? allowMetadataControlList : accessMetadataControlList;
+
+            var accessData:ClassAccessControl = listToUse.get(clsName) ?? {cls: null, fields: null};
+            var accessControl:AccessControl = parseAccessMetadata(clsDecl, meta);
+            if (accessData.fields != null)
+            {
+              // Append the access control to this fields access control data.
+              if (accessControl.access != null)
+              {
+                var fieldAccessControl = accessData.fields.get(field.name).access;
+                for (cls => fields in accessControl.access)
+                {
+                  var fieldsList:Array<String> = fieldAccessControl.get(cls) ?? [];
+                  if (fields != null)
+                  {
+                    for (f in fields)
+                    {
+                      if (!fieldsList.contains(f)) fieldsList.push(f);
+                    }
+                    fieldAccessControl.set(cls, fieldsList);
+                  }
+                  else
+                  {
+                    fieldAccessControl.set(cls, null);
+                  }
+                }
+              }
+            }
+            else
+            {
+              accessData.fields = [field.name => accessControl];
+            }
+            listToUse.set(clsName, accessData);
+        }
+      }
+    }
+  }
+
+  public function parseAccessMetadata(clsDecl:ClassDecl, meta:{name:String, params:Array<Expr>}):AccessControl
+  {
+    var accessControl:AccessControl = {};
+
+    var expr = meta.params[0];
+    var classPackageExpr:String = new Printer().exprToString(expr);
+    var path:Array<String> = classPackageExpr.split('.');
+    if (path.length == 1)
+    {
+      // We're dealing with an imported class.
+      // Classes with no package are auto-imported so this should be fine to check.
+      var clsPack:String = clsDecl.imports.get(classPackageExpr)?.fullPath ?? classPackageExpr;
+
+      if (PolymodStaticInterfaceReference.tryBuild(clsPack) != null)
+      {
+        // We're dealing with an interface package.
+        accessControl = {interfacePackage: [clsPack]}
+      }
+      else
+      {
+        // Attempt to resolve the class, and if it fails, this access control is for a package.
+        var cls:Null<Dynamic> = resolveDottedPath(classPackageExpr);
+        if (cls != null)
+        {
+          accessControl = {access: [clsPack => null]};
+        }
+        else
+        {
+          accessControl = {pkg: [clsPack]};
+        }
+      }
+    }
+    else
+    {
+      // We're dealing with a multi-dotted package that could potentially also be a field.
+      // Class metadata don't have very strict syntax in regular Haxe.
+
+      var cls:Null<Dynamic> = null;
+
+      // Try to see if we can resolve the class first.
+      cls = resolveDottedPath(classPackageExpr);
+      if (cls != null)
+      {
+        if (cls is PolymodStaticInterfaceReference)
+        {
+          // We're dealing with an interface package.
+          accessControl = {
+            interfacePackage: [classPackageExpr]
+          }
+        }
+        else
+        {
+          // Regular class path.
+          accessControl = {
+            access: [classPackageExpr => null]
+          };
+        }
+      }
+      else
+      {
+        var clsField:String = path[path.length - 1];
+        var clsPack:String = path.slice(0, -1).join('.');
+
+        // Check for imports just in case the resolved class isn't dotted anymore.
+        clsPack = clsDecl.imports.get(clsPack)?.fullPath ?? clsPack;
+
+        cls = resolveDottedPath(clsPack);
+        if (cls != null)
+        {
+          // Regular class path.
+          accessControl = {
+            access: [clsPack => [clsField]]
+          }
+        }
+        else
+        {
+          // We're most likely dealing with a regular package.
+          accessControl = {pkg: [classPackageExpr]};
+        }
+      }
+    }
+    return accessControl;
   }
 
   public static function validateInterfaceImports():Void
