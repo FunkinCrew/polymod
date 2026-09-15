@@ -2,6 +2,7 @@ package polymod.util;
 
 #if macro
 import haxe.macro.Context;
+import StringTools;
 #end
 
 class DefineUtil
@@ -17,6 +18,12 @@ class DefineUtil
   {
     if (defaultValue == null) defaultValue = new Array<String>();
     var value = Context.definedValue(key);
+    if (value != null)
+    {
+      var str:String = cast value;
+      value = StringTools.replace(str, "[", "");
+      value = StringTools.replace(value, "]", "");
+    }
     return value == null ? defaultValue : value.split(',');
   }
 
