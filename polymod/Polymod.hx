@@ -279,7 +279,6 @@ class Polymod
     params.dirs ??= [];
     params.ignoredFiles ??= [];
 
-    var shouldLoadMods:Bool = params.modIds.length == 0 && params.dirs.length == 0;
     if (params.fileSystemParams == null) params.fileSystemParams = {modRoot: modRoot};
     if (params.fileSystemParams.modRoot == null) params.fileSystemParams.modRoot = modRoot;
     if (params.apiVersionRule == null) params.apiVersionRule = VersionUtil.DEFAULT_VERSION_RULE;
@@ -891,7 +890,7 @@ class Polymod
     #if hscript_typer
     polymod.hscript._internal.PolymodTyperEx.clearAllModules();
     #end
-    polymod.hscript.HScriptable.ScriptRunner.clearScripts();
+    polymod.hscript.ScriptRunner.clearScripts();
   }
 
   static function prepareRegisterScriptedClasses():Void
@@ -970,9 +969,9 @@ class Polymod
     #end
   }
 
+  #if (POLYMOD_CPPIA && lime)
   static function registerAllCppiaClassesAsync():Array<lime.app.Future<Bool>>
   {
-    #if POLYMOD_CPPIA
     @:privateAccess {
       var libraryIds:Array<String> = Polymod.assetLibrary.listLibraries();
       var allBytes:Array<String> = Polymod.assetLibrary.list(BYTES);
@@ -1047,10 +1046,14 @@ class Polymod
       }
       return futures;
     }
-    #else
-    return [];
-    #end
   }
+  #else
+  static function registerAllCppiaClassesAsync():Array<Dynamic>
+  {
+    Polymod.error(SCRIPT_PARSE_FAILED, 'Asynchronous script loading is not supported on this platform!');
+    return [];
+  }
+  #end
 
   /**
    * Loads all script classes (`.hxc` files) and registers any classes they provide.
@@ -1121,8 +1124,10 @@ class Polymod
 
     var futures:Array<lime.app.Future<Bool>> = [];
 
+    #if POLYMOD_CPPIA
     // Load CPPIA scripts first asynchronously
     futures = futures.concat(registerAllCppiaClassesAsync());
+    #end
 
     // Go through each script and parse any classes in them.
     var potentialScripts:Array<String> = Polymod.assetLibrary.list(TEXT);
@@ -1162,6 +1167,12 @@ class Polymod
 
       return lime.app.Future.withValue(results);
     });
+  }
+  #else
+  public static function registerAllScriptClassesAsync():Array<Bool>
+  {
+    Polymod.error(SCRIPT_PARSE_FAILED, 'Asynchronous script loading is not supported on this platform!');
+    return [];
   }
   #end
 

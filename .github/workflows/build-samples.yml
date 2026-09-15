@@ -1,0 +1,91 @@
+# Builds the sample projects on multiple targets to check for compiler errors.
+
+name: Build Samples
+
+on:
+  #push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        target: [cpp, html5, hl]
+      fail-fast: false
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Setup Haxe
+        uses: FunkinCrew/ci-haxe@v3
+        with:
+          haxe-version: 4.3.7
+
+      - name: Setup hmm.json for Samples
+        working-directory: ./samples
+        run: haxe run.hxml
+
+      - name: Cache Haxelibs
+        uses: actions/cache@v6
+        with:
+          path: ./samples/.haxelib
+          key: haxelib-${{ hashFiles('samples/hmm.json') }}
+          enableCrossOsArchive: true
+          restore-keys: |
+            haxelib-
+
+      - name: Setup HMM
+        run: |
+          haxelib --global --quiet --never update haxelib
+          haxelib --global fixrepo
+          haxelib --global --quiet install hmm
+          haxelib --global run hmm setup
+
+      - name: Install sample dependencies
+        working-directory: ./samples
+        run: |
+          hmm install --quiet
+          haxelib fixrepo
+
+      - name: Build Flixel Sample
+        working-directory: ./samples/flixel
+        run: haxelib run lime build ${{ matrix.target }} --no-output
+
+      - name: Build ZIP Flixel Sample
+        working-directory: ./samples/flixel_zip
+        run: haxelib run lime build ${{ matrix.target }} --no-output
+
+      - name: Build Heaps Sample
+        if: matrix.target == 'hl'
+        working-directory: ./samples/heaps
+        run: haxe hl.hxml
+
+      # The NME target seems to be in a pretty unusable state, so we will ignore errors for now.
+      - name: Build NME Sample
+        continue-on-error: true
+        if: matrix.target != 'hl' && matrix.target != 'html5'
+        working-directory: ./samples/nme
+        run: echo y | haxelib run nme build ${{ matrix.target }} --no-output
+
+      - name: Build OpenFL Sample
+        working-directory: ./samples/openfl
+        run: haxelib run openfl build ${{ matrix.target }} --no-output
+
+      - name: Build OpenFL (Firetongue) Sample
+        working-directory: ./samples/openfl_firetongue
+        run: haxelib run openfl build ${{ matrix.target }} --no-output
+
+      - name: Build OpenFL (HScript) Sample
+        working-directory: ./samples/openfl_hscript
+        run: haxelib run openfl build ${{ matrix.target }} --no-output
+
+      - name: Build OpenFL (HScript with Classes) Sample
+        working-directory: ./samples/openfl_hscript_class
+        run: haxelib run openfl build ${{ matrix.target }} --no-output
+
+
