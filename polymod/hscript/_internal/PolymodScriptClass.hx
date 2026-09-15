@@ -898,8 +898,10 @@ class PolymodScriptClass
     }
     _interp = new Interp(targetClass, this);
     _c = c;
+
     validateInterfaces();
     buildCaches();
+    _interp.validateClassMetadata();
 
     var ctorField = findField("new");
     if (ctorField != null)

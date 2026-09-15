@@ -199,6 +199,8 @@ class HScriptableMacro
                       });
                     }
 
+                    @:privateAccess
+                    script.interp.currentFunction = func.name;
                     var output = script.execute();
                     script_result = output.script_result;
                     script_variables = output.script_variables;

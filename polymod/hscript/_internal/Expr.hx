@@ -409,3 +409,45 @@ typedef VarDecl =
   var type:Null<CType>;
   var isfinal:Null<Bool>;
 }
+
+
+/**
+ * Defines the properties when it comes to access control (@:allow, @:access)
+ * `String` => The class that we're accessing
+ * `Null<Array<String>>` => The fields that are accessibly through this class. If null, all fields are accessible.
+ */
+typedef AccessControl =
+{
+  /**
+   * The regular list of packages able to be accured
+   */
+  var ?access:Map<String, Null<Array<String>>>;
+
+  /**
+   * The full package to an interact to use.
+   */
+  var ?interfacePackage:Array<String>;
+
+  /**
+   * The regular full path of a package to use for access control.
+   */
+  var ?pkg:Array<String>;
+}
+
+/**
+ * Defines the access control properties of a singular class.
+ */
+typedef ClassAccessControl =
+{
+  /**
+   * The baseline access control classes defined from the metadata of the class itself.
+   */
+  var cls:AccessControl;
+
+  /**
+   * The access control metadata from the fields itself.
+   * `String` => The field name
+   * `AccessControl` => The access control data of this field.
+   */
+  var fields:Map<String, AccessControl>;
+}
