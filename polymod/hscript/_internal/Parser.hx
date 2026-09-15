@@ -1472,8 +1472,16 @@ class Parser
           error(ECustom("Unknown identifier: package"), currentPos, currentPos); // Throw an error if there was a package already set.
         #end
 
-        var path = parsePath();
-        ensure(TSemicolon);
+        var path:Array<String> = [];
+        try
+        {
+          path = parsePath();
+          ensure(TSemicolon);
+        }
+        catch (e)
+        {
+          path = [];
+        }
         return DPackage(path);
       case "import":
         var path = [getIdent()];
