@@ -385,6 +385,7 @@ enum FieldAccess
   AInline;
   AOverride;
   AStatic;
+  ADynamic;
   AMacro;
 }
 
@@ -399,6 +400,7 @@ typedef FunctionDecl =
   var args:Array<Argument>;
   var expr:Expr;
   var ret:Null<CType>;
+  var isdynamic:Null<Bool>;
 }
 
 typedef VarDecl =

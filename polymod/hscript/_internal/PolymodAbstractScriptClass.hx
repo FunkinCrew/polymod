@@ -206,6 +206,25 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
       this._interp.variables.set(name, value);
       return value;
     }
+    else if (this.findFunction(name) != null)
+    {
+      var fnDecl = this.findFunction(name, true);
+      
+      if (fnDecl.isdynamic)
+      {
+        if (!Reflect.isFunction(value))
+        {
+          return this._interp.error(EInvalidAccess(name));
+        }
+
+        this._interp.functions.set(name, value);
+        return value;
+      }
+      else
+      {
+        return this._interp.error(EInvalidAccess(name));
+      }
+    }
     else if (this.superClass != null && Std.isOfType(this.superClass, PolymodScriptClass))
     {
       var superScriptClass:PolymodAbstractScriptClass = cast(this.superClass, PolymodScriptClass);

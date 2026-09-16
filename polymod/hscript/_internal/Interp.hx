@@ -64,6 +64,7 @@ class Interp
   static var defaultVariables:Map<String, Dynamic>;
 
   public var variables:Map<String, Dynamic>;
+  public var functions:Map<String, Dynamic>;
   var currentFunction:Null<String> = null;
   var locals:Map<String,
     {r:Dynamic, ?isfinal:Bool}>;
@@ -118,6 +119,7 @@ class Interp
     depth = 0;
     inTry = false;
     resetVariables();
+    functions = new Map<String, Dynamic>();
     initOps();
     _proxy = proxy;
     this.targetCls = targetCls;
@@ -543,7 +545,22 @@ class Interp
       var result:Dynamic = null;
       try
       {
-        result = this.executeFunction(fn, fnName, args);
+        if(fn.isdynamic)
+        {
+          var prefixedName = '$clsName#$fnName';
+          if(this.functions.exists(prefixedName))
+          {
+            result = Reflect.callMethod(this, this.functions.get(prefixedName), args);
+          }
+          else
+          {
+            result = this.executeFunction(fn, fnName, args);
+          }
+        }
+        else
+        {
+          result = this.executeFunction(fn, fnName, args);
+        }
       }
       catch (err:Expr.Error)
       {
@@ -950,6 +967,29 @@ class Interp
                 {
                   error(EInvalidFinalSet(id));
                   return null;
+                }
+              }
+              else
+              {
+                var fnDecl = _proxy.findFunction(id);
+                if (fnDecl != null)
+                {
+                  if (fnDecl.isdynamic)
+                  {
+                    if (!Reflect.isFunction(v))
+                    {
+                      error(EInvalidAccess(id));
+                      return null;
+                    }
+
+                    this.functions.set(id, v);
+                    return v;
+                  }
+                  else
+                  {
+                    error(EInvalidAccess(id));
+                    return null;
+                  }
                 }
               }
             }
@@ -4184,8 +4224,23 @@ class Interp
     {
       switch (fieldDecl.kind)
       {
-        case KFunction(_fn):
-          throw 'Cannot override function ${prefixedName}';
+        case KFunction(fn):
+          if(fn.isdynamic)
+          {
+            if(Reflect.isFunction(value))
+            {
+              this.functions.set(prefixedName, value);
+              return value;
+            }
+            else
+            {
+              throw 'Cannot assign non-function value to dynamic function "${fieldName}"';
+            }
+          }
+          else
+          {
+            throw 'Cannot override non-dynamic function "${fieldName}"';
+          }
         case KVar(v):
           if (v.isfinal)
           {

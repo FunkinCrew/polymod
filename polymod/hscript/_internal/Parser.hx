@@ -1710,6 +1710,8 @@ class Parser
           access.push(AInline);
         case "static":
           access.push(AStatic);
+        case "dynamic":
+          access.push(ADynamic);
         case "macro":
           access.push(AMacro);
         case "function":
@@ -1735,6 +1737,7 @@ class Parser
                 args: inf.args,
                 expr: inf.body,
                 ret: inf.ret,
+                isdynamic: access.contains(ADynamic),
               }),
           };
         case "var", "final":
@@ -1817,6 +1820,9 @@ class Parser
         case "static":
           if (!access.contains(AStatic))
             access.push(AStatic);
+        case "dynamic":
+          if (!access.contains(ADynamic))
+            access.push(ADynamic);
 
         case "function":
           var name = getIdent();
@@ -1840,6 +1846,7 @@ class Parser
                 args: args,
                 expr: null,
                 ret: ret,
+                isdynamic: access.contains(ADynamic),
               }),
           };
         case "var", "final":
