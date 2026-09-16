@@ -1686,7 +1686,7 @@ class Parser
   function parseField():Null<FieldDecl>
   {
     var meta = parseMetadata();
-    var access = [APrivate];
+    var access = [];
     while (true)
     {
       var id = getIdent();
@@ -1718,9 +1718,14 @@ class Parser
             error(EInvalidAccessorCombination(['override', 'static']), currentPos, currentPos);
           }
 
+          // Default private if there is none specified.
+          if (!access.contains(APrivate) || !access.contains(APublic))
+            access.push(APrivate);
+
           var name = getIdent();
           var inf = parseFunctionDecl();
           maybe(TSemicolon);
+
           return {
             name: name,
             meta: meta,
@@ -1764,6 +1769,10 @@ class Parser
             error(ECustom('Invalid modifier: inline on non-static variable'), currentPos, currentPos);
           }
           #end
+
+          // Default private if there is none specified.
+          if (!access.contains(APrivate) || !access.contains(APublic))
+            access.push(APrivate);
 
           return {
             name: name,
