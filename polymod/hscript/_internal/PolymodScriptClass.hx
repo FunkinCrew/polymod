@@ -417,13 +417,20 @@ class PolymodScriptClass
       @:privateAccess
       for (key => decl in Interp._scriptClassDescriptors)
       {
-        if (decl.implement.length == 0)
-          continue;
+        var interfaceExtends:Array<String> = [];
+
+        // Append any interfaces from within superclasses.
+        if (decl.extend != null)
+        {
+          var extendClsName:String = new Printer().typeToString(decl.extend);
+          var fullClsName:String = decl.imports.get(extendClsName)?.fullPath ?? extendClsName;
+
+          var clsInterfaces:Array<String> = _classesExtendingInterfaces.get(fullClsName) ?? [];
+          interfaceExtends = interfaceExtends.concat(clsInterfaces);
+        }
 
         for (extend in decl.implement)
         {
-          var interfaceExtends:Array<String> = [];
-
           var extendName:String = new Printer().typeToString(extend);
           var interfaceName:String = decl.imports.get(extendName)?.fullPath ?? extendName;
 
@@ -440,8 +447,8 @@ class PolymodScriptClass
                 interfaceExtends.push(int);
             }
           }
-          _classesExtendingInterfaces.set(key, interfaceExtends);
         }
+        _classesExtendingInterfaces.set(key, interfaceExtends);
       }
     }
 
