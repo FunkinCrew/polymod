@@ -2840,7 +2840,7 @@ class Interp
           if (pkg == clsPack) return true;
         }
 
-        var fieldAllowList:Map<String, String> = fieldAccessControl.access ?? [];
+        var fieldAllowList:Map<String, Array<String>> = fieldAccessControl.access ?? [];
         if (fieldAllowList.exists(clsName) && (fieldAllowList.get(clsName) == null || fieldAllowList.get(clsName).contains(this.currentFunction)))
         {
           return true;
@@ -3394,7 +3394,7 @@ class Interp
           // These metadata will control class private field access without an error being thrown.
           var listToUse:Map<String, ClassAccessControl> = meta.name == ':allow' ? allowMetadataControlList : accessMetadataControlList;
 
-          var accessData:ClassAccessControl = listToUse.get(clsName) ?? {cls: {access: [], interfacePackage: [], pkg: []}, fields: []};
+          var accessData:ClassAccessControl = listToUse.get(clsName) ?? {cls: null, fields: null};
           var accessControl:AccessControl = parseAccessMetadata(clsDecl, meta);
 
           if (accessData.cls != null)
@@ -3402,15 +3402,21 @@ class Interp
             // Append any interface packs.
             if (accessControl.interfacePackage != null)
             {
+              accessData.cls.interfacePackage ??= [];
               for (pack in accessControl.interfacePackage)
+              {
                 accessData.cls.interfacePackage.push(pack);
+              }
             }
 
             // Append any general packages.
             if (accessControl.pkg != null)
             {
+              accessData.cls.pkg ??= [];
               for (pack in accessControl.pkg)
+              {
                 accessData.cls.pkg.push(pack);
+              }
             }
 
             if (accessControl.access != null)
@@ -3418,6 +3424,7 @@ class Interp
               // Append the access control to the main one.
               for (clsName => fields in accessControl.access)
               {
+                accessData.cls.access ??= [];
                 var fieldsList:Array<String> = accessData.cls.access?.get(clsName) ?? [];
                 if (fields != null)
                 {
@@ -3500,8 +3507,6 @@ class Interp
 
   public function parseAccessMetadata(clsDecl:ClassDecl, meta:{name:String, params:Array<Expr>}):AccessControl
   {
-    var accessControl:AccessControl = {};
-
     var expr = meta.params[0];
     var classPackageExpr:String = new Printer().exprToString(expr);
     var path:Array<String> = classPackageExpr.split('.');
@@ -3510,11 +3515,10 @@ class Interp
       // We're dealing with an imported class.
       // Classes with no package are auto-imported so this should be fine to check.
       var clsPack:String = clsDecl.imports.get(classPackageExpr)?.fullPath ?? classPackageExpr;
-
       if (PolymodStaticInterfaceReference.tryBuild(clsPack) != null)
       {
         // We're dealing with an interface package.
-        accessControl = {interfacePackage: [clsPack]}
+        return {interfacePackage: [clsPack]};
       }
       else
       {
@@ -3522,11 +3526,11 @@ class Interp
         var cls:Null<Dynamic> = resolveDottedPath(classPackageExpr);
         if (cls != null)
         {
-          accessControl = {access: [clsPack => null]};
+          return {access: [clsPack => null]};
         }
         else
         {
-          accessControl = {pkg: [clsPack]};
+          return {pkg: [clsPack]};
         }
       }
     }
@@ -3535,25 +3539,19 @@ class Interp
       // We're dealing with a multi-dotted package that could potentially also be a field.
       // Class metadata don't have very strict syntax in regular Haxe.
 
-      var cls:Null<Dynamic> = null;
-
       // Try to see if we can resolve the class first.
-      cls = resolveDottedPath(classPackageExpr);
+      var cls:Null<Dynamic> = resolveDottedPath(classPackageExpr);
       if (cls != null)
       {
         if (cls is PolymodStaticInterfaceReference)
         {
           // We're dealing with an interface package.
-          accessControl = {
-            interfacePackage: [classPackageExpr]
-          }
+          return {interfacePackage: [classPackageExpr]};
         }
         else
         {
           // Regular class path.
-          accessControl = {
-            access: [classPackageExpr => null]
-          };
+          return {access: [classPackageExpr => null]};
         }
       }
       else
@@ -3568,18 +3566,16 @@ class Interp
         if (cls != null)
         {
           // Regular class path.
-          accessControl = {
-            access: [clsPack => [clsField]]
-          }
+          return {access: [clsPack => [clsField]]};
         }
         else
         {
           // We're most likely dealing with a regular package.
-          accessControl = {pkg: [classPackageExpr]};
+          return {pkg: [classPackageExpr]};
         }
       }
     }
-    return accessControl;
+    return null;
   }
 
   public static function validateInterfaceImports():Void
