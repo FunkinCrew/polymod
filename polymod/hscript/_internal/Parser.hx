@@ -1686,7 +1686,7 @@ class Parser
   function parseField():Null<FieldDecl>
   {
     var meta = parseMetadata();
-    var access = [];
+    var access = [APrivate];
     while (true)
     {
       var id = getIdent();
