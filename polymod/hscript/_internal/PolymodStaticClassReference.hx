@@ -19,7 +19,10 @@ class PolymodStaticClassReference
 
   public function get_canInstantiate():Bool
   {
+    if (cls == null) return true;
+
     var ctorField = cls.fields.find((f) -> f.name == 'new');
+    if (ctorField == null || ctorField.access == null) return true;
     return !ctorField.access.contains(APrivate);
   }
 

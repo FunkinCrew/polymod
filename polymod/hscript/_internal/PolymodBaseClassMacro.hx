@@ -232,7 +232,8 @@ class PolymodBaseClassMacro
           var oldPos:haxe.macro.Expr.Position = f.expr.pos;
           f.expr = useBridge() ? (macro
             {
-              if (_asc != null && !_skipAscFrom.contains($v{fields[i].name}))
+              var skipAscFrom:Null<Array<String>> = _skipAscFrom;
+              if (_asc != null && (skipAscFrom == null || !skipAscFrom.contains($v{fields[i].name})))
               {
                 var scriptCls:Dynamic = polymod.hscript.PolymodScriptBridge.findScript(_asc, $v{fields[i].name});
                 if (scriptCls != null) $
@@ -249,7 +250,8 @@ class PolymodBaseClassMacro
               ${f.expr}
             }) : (macro
             {
-              if (_asc != null && !_skipAscFrom.contains($v{fields[i].name}))
+              var skipAscFrom:Null<Array<String>> = _skipAscFrom;
+              if (_asc != null && (skipAscFrom == null || !skipAscFrom.contains($v{fields[i].name})))
               {
                 var cls:Dynamic = _asc;
                 while (cls != null && cls is polymod.hscript._internal.PolymodScriptClass)
@@ -343,7 +345,7 @@ class PolymodBaseClassMacro
           pos: buildPos
         }
       ],
-      kind: FieldType.FVar(macro :Array<String>, macro []),
+      kind: FieldType.FVar(macro :Null<Array<String>>),
       pos: buildPos,
     };
 
@@ -470,10 +472,16 @@ class PolymodBaseClassMacro
         ret: macro :Dynamic,
         expr: macro
         {
-          _skipAscFrom.push(funcName);
+          var skipAscFrom:Null<Array<String>> = _skipAscFrom;
+          if (skipAscFrom == null)
+          {
+            skipAscFrom = [];
+            _skipAscFrom = skipAscFrom;
+          }
+          skipAscFrom.push(funcName);
 
           var output:Dynamic = Reflect.callMethod(this, Reflect.field(this, funcName), funcArgs ?? []);
-          _skipAscFrom.remove(funcName);
+          skipAscFrom.remove(funcName);
 
           return output;
         },

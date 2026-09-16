@@ -1719,7 +1719,7 @@ class Parser
           }
 
           // Default private if there is none specified.
-          if (!access.contains(APrivate) || !access.contains(APublic))
+          if (!access.contains(APrivate) && !access.contains(APublic))
             access.push(APrivate);
 
           var name = getIdent();
@@ -1771,7 +1771,7 @@ class Parser
           #end
 
           // Default private if there is none specified.
-          if (!access.contains(APrivate) || !access.contains(APublic))
+          if (!access.contains(APrivate) && !access.contains(APublic))
             access.push(APrivate);
 
           return {
