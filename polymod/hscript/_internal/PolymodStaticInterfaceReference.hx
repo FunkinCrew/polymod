@@ -161,6 +161,10 @@ class PolymodStaticInterfaceReference
               case AStatic:
                 if (!foundField.access.contains(AStatic))
                   errorList.push('Field "${foundField.name}" should be static as requested by "$interfaceId"');
+                
+              case ADynamic:
+                if (!foundField.access.contains(ADynamic))
+                  errorList.push('Field "${foundField.name}" should be dynamic as requested by "$interfaceId"');
               default:
             }
           }
@@ -364,6 +368,8 @@ class PolymodStaticInterfaceReference
             fieldAccess.push(APrivate);
           case 'static':
             fieldAccess.push(AStatic);
+          case 'dynamic':
+            fieldAccess.push(ADynamic);
         }
       }
 
@@ -388,6 +394,7 @@ class PolymodStaticInterfaceReference
             }],
             expr: null,
             ret: null,
+            isdynamic: fieldAccess.contains(ADynamic),
           });
         default:
           null;

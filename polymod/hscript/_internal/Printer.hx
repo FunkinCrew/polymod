@@ -629,6 +629,8 @@ class Printer
             output += "override ";
           case AStatic:
             output += "static ";
+          case ADynamic:
+            output += "dynamic ";
           case AMacro:
             output += "macro ";
         }
