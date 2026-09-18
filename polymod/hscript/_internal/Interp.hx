@@ -861,6 +861,22 @@ class Interp
   {
     if (fn == null) return;
 
+    if (fn.args[fn.args.length - 1]?.rest)
+    {
+      var restArgs = [];
+      for (i in fn.args.length - 1...args.length)
+      {
+        var restArg = args[i];
+
+        // Add the list for if the user used an array as their rest arg.
+        if (restArg is Array) restArgs = restArgs.concat(cast restArg);
+        else
+          restArgs.push(cast restArg);
+      }
+      for (i in fn.args.length - 1...args.length) args.pop();
+      args.push(restArgs);
+    }
+
     validateArgumentCount(fn.args, args, name);
 
     var i = 0;
@@ -1812,6 +1828,8 @@ class Interp
             return increment(e, prefix, -1);
           case "~":
             return ~expr(e);
+          case "...":
+            @:privateAccess return new haxe.Rest(expr(e));
           default:
             error(EInvalidOp(op));
         }

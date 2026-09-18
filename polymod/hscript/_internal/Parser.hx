@@ -584,6 +584,7 @@ class Parser
           }
         }
         if (opPriority.get(op) < 0) return makeUnop(op, parseExpr());
+        if (op == "...") return makeUnop(op, parseExpr());
         return unexpected(tk);
       case TBkOpen:
         var a = new Array();
@@ -1094,11 +1095,14 @@ class Parser
       var done = false;
       while (!done)
       {
-        var name = null, opt = false;
+        var name = null, opt = false, rest = false;
         switch (tk)
         {
           case TQuestion:
             opt = true;
+            tk = token();
+          case TOp("..."):
+            rest = true;
             tk = token();
           default:
         }
@@ -1113,6 +1117,7 @@ class Parser
         var arg:Argument = {name: name};
         args.push(arg);
         if (opt) arg.opt = true;
+        if (rest) arg.rest = true;
         if (allowTypes)
         {
           if (maybe(TDoubleDot)) arg.t = parseType();

@@ -83,6 +83,7 @@ typedef Argument =
   name:String,
   ?t:CType,
   ?opt:Bool,
+  ?rest:Bool,
   ?value:Expr
 };
 
