@@ -226,6 +226,8 @@ class Interp
 
     // Don't try to resolve classes without a valid import.
     error(EInvalidModule(cl));
+
+    return null;
   }
 
   private var _nextCallObject:Dynamic = null;
@@ -545,10 +547,10 @@ class Interp
       var result:Dynamic = null;
       try
       {
-        if(fn.isdynamic)
+        if (fn.isdynamic)
         {
           var prefixedName = '$clsName#$fnName';
-          if(this.functions.exists(prefixedName))
+          if (this.functions.exists(prefixedName))
           {
             result = Reflect.callMethod(this, this.functions.get(prefixedName), args);
           }
@@ -4258,9 +4260,9 @@ class Interp
       switch (fieldDecl.kind)
       {
         case KFunction(fn):
-          if(fn.isdynamic)
+          if (fn.isdynamic)
           {
-            if(Reflect.isFunction(value))
+            if (Reflect.isFunction(value))
             {
               this.functions.set(prefixedName, value);
               return value;

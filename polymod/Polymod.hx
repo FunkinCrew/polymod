@@ -279,7 +279,6 @@ class Polymod
     params.dirs ??= [];
     params.ignoredFiles ??= [];
 
-    var shouldLoadMods:Bool = params.modIds.length == 0 && params.dirs.length == 0;
     if (params.fileSystemParams == null) params.fileSystemParams = {modRoot: modRoot};
     if (params.fileSystemParams.modRoot == null) params.fileSystemParams.modRoot = modRoot;
     if (params.apiVersionRule == null) params.apiVersionRule = VersionUtil.DEFAULT_VERSION_RULE;
@@ -411,7 +410,8 @@ class Polymod
     return sortedModsToLoad;
   }
 
-  static function cleanupAssetLibrary():Void {
+  static function cleanupAssetLibrary():Void
+  {
     if (assetLibrary == null) return;
 
     var fileSystem = assetLibrary.fileSystem;
@@ -891,7 +891,7 @@ class Polymod
     #if hscript_typer
     polymod.hscript._internal.PolymodTyperEx.clearAllModules();
     #end
-    polymod.hscript.HScriptable.ScriptRunner.clearScripts();
+    polymod.hscript.ScriptRunner.clearScripts();
   }
 
   static function prepareRegisterScriptedClasses():Void
@@ -970,9 +970,9 @@ class Polymod
     #end
   }
 
+  #if (POLYMOD_CPPIA && lime)
   static function registerAllCppiaClassesAsync():Array<lime.app.Future<Bool>>
   {
-    #if POLYMOD_CPPIA
     @:privateAccess {
       var libraryIds:Array<String> = Polymod.assetLibrary.listLibraries();
       var allBytes:Array<String> = Polymod.assetLibrary.list(BYTES);
@@ -1047,10 +1047,17 @@ class Polymod
       }
       return futures;
     }
-    #else
-    return [];
-    #end
   }
+  #else
+  static function registerAllCppiaClassesAsync()
+  {
+    // Only error if we're not using Lime
+    #if POLYMOD_CPPIA
+    Polymod.error(SCRIPT_PARSE_FAILED, 'Asynchronous script loading with CPPIA is not supported on this platform!');
+    #end
+    return [];
+  }
+  #end
 
   /**
    * Loads all script classes (`.hxc` files) and registers any classes they provide.
@@ -1082,7 +1089,8 @@ class Polymod
                 break;
               }
             }
-            if (!Polymod.assetLibrary.exists(path)) {
+            if (!Polymod.assetLibrary.exists(path))
+            {
               Polymod.error(SCRIPT_NOT_FOUND, 'Could not find file "$textPath"');
               results.set(path, false);
             }
@@ -1150,7 +1158,8 @@ class Polymod
       }
     }
 
-    return lime.app.Promise.allSettled(futures).then((results) -> {
+    return lime.app.Promise.allSettled(futures).then((results) ->
+    {
       #if POLYMOD_CPPIA
       polymod.hscript._internal.PolymodCppiaClassReference.unloadInactiveModules();
       #end
@@ -1162,6 +1171,12 @@ class Polymod
 
       return lime.app.Future.withValue(results);
     });
+  }
+  #else
+  public static function registerAllScriptClassesAsync():Array<Bool>
+  {
+    Polymod.error(SCRIPT_PARSE_FAILED, 'Asynchronous script loading is not supported on this platform!');
+    return [];
   }
   #end
 
