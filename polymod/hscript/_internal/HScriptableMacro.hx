@@ -177,7 +177,7 @@ class HScriptableMacro
                     }
                     else
                     {
-                      polymod.Polymod.debug('The scripted function ' + $v{pathName} + ' could not be found, but that is fine because it is optional.', SCRIPT_RUNTIME);
+                      polymod.Polymod.debug('The scripted function ' + $v{pathName} + ' could not be found, but that is fine because it is optional.');
 
                       // Prevent the script from running but do not prevent the function body from executing.
                       // wasCancelled = true;
@@ -200,7 +200,7 @@ class HScriptableMacro
                     }
 
                     @:privateAccess
-                    script.interp.currentFunction = func.name;
+                    script.interp.currentFunction = $v{field.name};
                     var output = script.execute();
                     script_result = output.script_result;
                     script_variables = output.script_variables;
@@ -224,7 +224,7 @@ class HScriptableMacro
             // to load this script:
             if (constructor_setup == null)
             {
-              constructor_setup = [macro _polymod_scripts = new polymod.hscript.HScriptable.ScriptRunner()];
+              constructor_setup = [macro _polymod_scripts = new polymod.hscript.ScriptRunner()];
             }
             if (!hscriptDynamicPath)
             {
@@ -244,11 +244,10 @@ class HScriptableMacro
     // No @:hscript fields found? Just return now...
     if (constructor_setup == null) return fields;
     // Inject _polymod_scripts var
-    for (new_field in (macro class Ignore
+    fields = fields.concat((macro class Ignore
       {
-        public var _polymod_scripts:polymod.hscript.HScriptable.ScriptRunner;
-      }).fields)
-      fields.push(new_field);
+        public var _polymod_scripts:polymod.hscript.ScriptRunner;
+      }).fields);
     // Find constructor, and inject script setup...
     var constructor = fields.find(function(field) return field.name == 'new');
     if (constructor == null) Context.error("Error: @:hscript requires a constructor", Context.currentPos());

@@ -16,7 +16,7 @@ import polymod.fs.PolymodFileSystem.PolymodFileSystemParams;
 @SuppressWarnings('checkstyle:FieldDocComment')
 class StubFileSystem implements IFileSystem
 {
-  public final modRoot:String;
+  public final modRoot:String = '';
   public function new(params:PolymodFileSystemParams) {}
 
   public inline function exists(path:String):Bool
@@ -57,6 +57,18 @@ class StubFileSystem implements IFileSystem
   {
     return null;
   }
+
+  #if lime
+  public inline function loadFileBytes(path:String):lime.app.Future<haxe.io.Bytes>
+  {
+    return cast lime.app.Future.withError('Cannot load file bytes from stub file system');
+  }
+
+  public inline function loadFileBytesByModId(path:String, modId:String):lime.app.Future<haxe.io.Bytes>
+  {
+    return cast lime.app.Future.withError('Cannot load file bytes from stub file system');
+  }
+  #end
 
   public inline function readDirectoryRecursive(path:String):Array<String>
   {
