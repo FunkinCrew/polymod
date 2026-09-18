@@ -30,6 +30,11 @@ class PolymodBaseClassMacro
    */
   public static final CPPIA_EXTENDABLE_META:String = ':hscriptExtendable';
 
+  /**
+   * A list of package name prefixes for which this macro should not be executed.
+   */
+  public static final PACKAGE_FILTERS:Array<String> = ['polymod.', 'hxd.', 'hl.'];
+
   static function useBridge():Bool
   {
     return Context.defined('cppia');
@@ -93,7 +98,11 @@ class PolymodBaseClassMacro
     if (cls.meta.has(':nativeGen')) return fields;
 
     var fullClsName:String = formatClassString(cls);
-    if (fullClsName.indexOf('polymod.') == 0) return fields; // Disallow extending polymod classes.
+    // Disallow extending certain classes.
+    for (filter in PACKAGE_FILTERS)
+    {
+      if (fullClsName.indexOf(filter) == 0) return fields;
+    }
 
     if (Context.defined('cppia') && !isHostClass(fullClsName) && !cls.meta.has(CPPIA_EXTENDABLE_META)) return fields;
 
