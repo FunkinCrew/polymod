@@ -882,6 +882,12 @@ class Polymod
    */
   public static function clearScripts():Void
   {
+    // Don't clear scripts several times.
+    if (!polymod.hscript._internal.PolymodScriptClass.scriptsInitialized)
+      return;
+
+    polymod.hscript._internal.PolymodScriptClass.scriptsInitialized = false;
+
     @:privateAccess
     polymod.hscript._internal.PolymodScriptClass.clearScriptedClasses();
     #if POLYMOD_CPPIA
@@ -1101,6 +1107,7 @@ class Polymod
       var _ = polymod.hscript._internal.PolymodTyperEx.typeAllModules();
       #end
       polymod.hscript._internal.Interp.validateImports();
+      polymod.hscript._internal.PolymodScriptClass.scriptsInitialized = true;
 
       if (Polymod.onScriptsLoaded != null) Polymod.onScriptsLoaded();
       return results;
@@ -1157,6 +1164,7 @@ class Polymod
 
       // Once all scripts have been registered, THEN validate the imports.
       polymod.hscript._internal.Interp.validateImports();
+      polymod.hscript._internal.PolymodScriptClass.scriptsInitialized = true;
 
       if (Polymod.onScriptsLoaded != null) Polymod.onScriptsLoaded();
 

@@ -59,6 +59,8 @@ class Interp
   static var allowMetadataControlList:Map<String, ClassAccessControl> = [];
   static var accessMetadataControlList:Map<String, ClassAccessControl> = [];
 
+  static var _scriptPersistentFields:Map<String, Map<String, Dynamic>> = [];
+
   var _propTrack:Map<String, Bool> = [];
 
   static var defaultVariables:Map<String, Dynamic>;
@@ -83,6 +85,7 @@ class Interp
   #end
 
   var inPrivateAccess:Bool = false;
+  var inNoPrivateAccess:Bool = false;
 
   function getClassDecl():Null<ClassDecl>
   {
@@ -732,6 +735,37 @@ class Interp
 
   public function clearScriptClassDescriptors():Void
   {
+    // Save all static fields with the @:persistent metadata.
+    _scriptPersistentFields.clear();
+
+    for (key => decl in _scriptClassDescriptors)
+    {
+      var persistentFields:Map<String, Dynamic> = null;
+      for (field in decl.staticFields)
+      {
+        switch (field.kind)
+        {
+          case KVar(v):
+            var isPersistent:Bool = field.meta.findIndex((m) -> m.name == ':persistent') != -1;
+            if (isPersistent)
+            {
+              var v:Dynamic = PolymodScriptClass.getScriptClassStaticField(key, field.name);
+              if (v != null)
+              {
+                if (persistentFields == null)
+                  persistentFields = [field.name => v];
+                else
+                  persistentFields.set(field.name, v);
+              }
+            }
+          default:
+        }
+      }
+
+      if (persistentFields != null)
+        _scriptPersistentFields.set(key, persistentFields);
+    }
+
     // Clear the script class descriptors.
     _scriptClassDescriptors.clear();
 
@@ -779,6 +813,26 @@ class Interp
       fileName: "hscript",
       lineNumber: 0
     };
+  }
+
+  public function reloadPersistentStaticFields():Void
+  {
+    for (cls => fieldValues in _scriptPersistentFields)
+    {
+      if (_scriptClassDescriptors.exists(cls))
+      {
+        var decl:ClassDecl = _scriptClassDescriptors.get(cls);
+        for (field => v in fieldValues)
+        {
+          // Verify that we still have a static field here.
+          if (decl.staticFields.findIndex((f) -> f.name == field) != -1)
+          {
+            // We set the value directly to bypass any accessors the field might have.
+            this.variables.set('$cls#$field', v);
+          }
+        }
+      }
+    }
   }
 
   function initOps()
@@ -919,6 +973,7 @@ class Interp
             @:privateAccess
             {
               var decl = _proxy.findVar(id);
+
               if (decl != null)
               {
                 switch (decl.set)
@@ -2249,6 +2304,16 @@ class Interp
               return obj;
             }
             return expr(e);
+          case ':noPrivateAccess':
+            // Side note: I really do not see the point of this metadata field, I guess maybe for if you're inside a private access block, but still.
+            if (!inNoPrivateAccess)
+            {
+              inNoPrivateAccess = true;
+              var obj = expr(e);
+              inNoPrivateAccess = false;
+              return obj;
+            }
+            return expr(e);
           default:
             return expr(e);
         }
@@ -2690,7 +2755,7 @@ class Interp
   function checkPrivateAccess(o:Dynamic, f:String):Bool
   {
     // If we're in a private access block, automatically allow it.
-    if (inPrivateAccess)
+    if (inPrivateAccess && !inNoPrivateAccess)
       return true;
 
     if (checkAccessControl(o, f))
