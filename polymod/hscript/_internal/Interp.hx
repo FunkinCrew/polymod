@@ -1894,10 +1894,11 @@ class Interp
         var capturedLocals = duplicate(this.locals);
         var capturedCallObject = this._nextCallObject;
         var capturedClassDeclOverride = this._classDeclOverride;
+        var capturedFunctionName = this.currentFunction;
         var me = this;
 
         // This CREATES a new function in memory, that we call later.
-        var newFun:Dynamic = function(args:Array<Dynamic>)
+        var newFun:Dynamic = Reflect.makeVarArgs((args:Array<Dynamic>)->
         {
           if (args == null) args = [];
 
@@ -1935,13 +1936,15 @@ class Interp
           args = args2;
 
           var old = me.locals;
-          var depth = me.depth;
+          var oldDepth = me.depth;
           var oldCallObject = me._nextCallObject;
           var oldClsDeclOverride = me._classDeclOverride;
           me.depth++;
           me.locals = duplicate(capturedLocals);
           me._nextCallObject = capturedCallObject;
           me._classDeclOverride = capturedClassDeclOverride;
+
+          name ??= capturedFunctionName;
 
           for (i in 0...params.length)
           {
@@ -1956,7 +1959,7 @@ class Interp
           {
             restore(oldDecl);
             me.locals = old;
-            me.depth = depth;
+            me.depth = oldDepth;
             me._nextCallObject = oldCallObject;
             me._classDeclOverride = oldClsDeclOverride;
           }
@@ -1999,9 +2002,8 @@ class Interp
 
           restoreContext();
           return r;
-        };
+        });
 
-        newFun = Reflect.makeVarArgs(newFun);
         if (name != null)
         {
           // function-in-function is a local function
