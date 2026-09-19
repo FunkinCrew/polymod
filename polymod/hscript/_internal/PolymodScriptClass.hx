@@ -1051,10 +1051,12 @@ class PolymodScriptClass
           if (f.access.contains(AOverride) && !superHasField(f.name))
           {
             // Throw an error if a function is declared overwritten but isn't overriding anything.
-            throw "Field " + f.name + " is declared 'override' but doesn't override any field.";
+            throw 'Field ' + '"${f.name}"' + 'is declared "override"' + "but doesn't override any field.";
           }
           else if (!f.access.contains(AOverride) && superHasField(f.name))
           {
+            if (f.name == 'new') return;
+
             var superClassPackage:String = '';
             if (superClass is PolymodScriptClass)
             {
@@ -1062,17 +1064,16 @@ class PolymodScriptClass
             }
             else
             {
-              // TODO: Fetch entire package name?
               superClassPackage = Util.getTypeNameOf(superClass);
             }
 
             // Throw an error if a function is overriden but doesn't have the override accessor.
-            throw "Field " + f.name + " should be declared with 'override' since it is inherited from superclass " + superClassPackage + '.';
+            throw 'Field "' + f.name + '" should be declared with "override" since it is inherited from superclass "$superClassPackage".';
           }
           else if (f.access.contains(AOverride) && superClass == null)
           {
             // Throw an error if the override accessor is used with no super class.
-            throw "Invalid modifier: override on field" + f.name + " of class that has no parent.";
+            throw 'Invalid modifier: override on field "${f.name}" of class that has no parent.';
           }
           #end
         default:
