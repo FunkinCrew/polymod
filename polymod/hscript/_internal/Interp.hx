@@ -294,9 +294,47 @@ class Interp
       return PolymodScriptClass.isOfType(args[0], args[1]);
     }
 
+    var tryUsingFallback = function():Dynamic
+    {
+      @:privateAccess
+      if (_proxy != null && _proxy._cachedUsingFunctions.exists(f))
+      {
+        return _proxy._cachedUsingFunctions[f]([o].concat(args));
+      }
+      else if (_classDeclOverride != null)
+      {
+        var usingFuncs:Map<String, Array<Dynamic>->Dynamic> = [];
+        PolymodScriptClass.buildExtensionFunctionCache(_classDeclOverride, usingFuncs);
+
+        if (usingFuncs.exists(f))
+        {
+          return usingFuncs[f]([o].concat(args));
+        }
+      }
+      return null;
+    };
+
+    var hasUsingFallback = function():Bool
+    {
+      @:privateAccess
+      if (_proxy != null && _proxy._cachedUsingFunctions.exists(f)) return true;
+      if (_classDeclOverride != null)
+      {
+        var usingFuncs:Map<String, Array<Dynamic>->Dynamic> = [];
+        PolymodScriptClass.buildExtensionFunctionCache(_classDeclOverride, usingFuncs);
+        return usingFuncs.exists(f);
+      }
+      return false;
+    };
+
     // OVERRIDE CHANGE: Custom logic to handle super calls to prevent infinite recursion
     if (_proxy != null && o == _proxy.superClass && !Std.isOfType(o, PolymodScriptClass))
     {
+      if (_proxy.findSuperFunction(f) == null && hasUsingFallback())
+      {
+        return tryUsingFallback();
+      }
+
       // Force call super function.
       return o.scriptCallSuper(f, args);
     }
@@ -321,42 +359,48 @@ class Interp
     if (Std.isOfType(o, PolymodStaticAbstractReference))
     {
       var ref:PolymodStaticAbstractReference = cast(o, PolymodStaticAbstractReference);
+      try
+      {
+        ref.getField(f);
+      }
+      catch (e:Dynamic)
+      {
+        if (hasUsingFallback()) return tryUsingFallback();
+      }
       return ref.callFunction(f, args);
     }
     else if (Std.isOfType(o, PolymodStaticClassReference))
     {
       var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
-
+      if (!PolymodScriptClass.hasScriptClassStaticFunction(ref.getFullyQualifiedName(), f))
+      {
+        if (hasUsingFallback()) return tryUsingFallback();
+      }
       return ref.callFunction(f, args);
     }
     else if (Std.isOfType(o, PolymodScriptClass))
     {
       _nextCallObject = null;
       var proxy:PolymodScriptClass = cast(o, PolymodScriptClass);
+      if (!proxy.hasFunction(f) && hasUsingFallback()) return tryUsingFallback();
       return proxy.callFunction(f, args);
     }
 
-    var func = get(o, f);
+    var func:Null<Dynamic> = null;
+    try
+    {
+      func = get(o, f);
+    }
+    catch (e:Dynamic)
+    {
+      func = null;
+    }
     if (func != null)
     {
       return call(o, func, args);
     }
-    @:privateAccess
-    if (_proxy != null && _proxy._cachedUsingFunctions.exists(f))
-    {
-      return _proxy._cachedUsingFunctions[f]([o].concat(args));
-    }
-    else if (_classDeclOverride != null)
-    {
-      // TODO: Optimize with a cache
-      var usingFuncs:Map<String, Array<Dynamic>->Dynamic> = [];
-      PolymodScriptClass.buildExtensionFunctionCache(_classDeclOverride, usingFuncs);
 
-      if (usingFuncs.exists(f))
-      {
-        return usingFuncs[f]([o].concat(args));
-      }
-    }
+    if (hasUsingFallback()) return tryUsingFallback();
 
     #if html5
     // Workaround for an HTML5-specific issue.
