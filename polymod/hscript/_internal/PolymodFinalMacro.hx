@@ -19,6 +19,7 @@ class PolymodFinalMacro
   private static var _allFinals:Null<Map<String, Array<String>>> = null;
   private static var _allPrivateProperties:Null<Map<String, Array<String>>> = null;
   private static var _allPrivatesFields:Null<Map<String, Array<String>>> = null;
+  private static var _allNoUsingFields:Null<Map<String, Array<String>>> = null;
 
   public static function getAllFinals():Map<String, Array<String>>
   {
@@ -42,6 +43,12 @@ class PolymodFinalMacro
     #end
 
     return _allPrivatesFields;
+  }
+
+  public static function getAllNoUsingFields():Map<String, Array<String>>
+  {
+    if (_allNoUsingFields == null) _allNoUsingFields = PolymodFinalMacro.fetchNoUsingFields();
+    return _allNoUsingFields;
   }
 
   public static inline function getFinals(fullPath:String):Array<String> {
@@ -79,6 +86,18 @@ class PolymodFinalMacro
     var result = getPrivateFields(typeName);
     return result;
   }
+
+  public static inline function getNoUsingFields(fullPath:String):Array<String> {
+    return getAllNoUsingFields().get(fullPath) ?? [];
+  }
+
+  public static inline function getNoUsingFieldsOf(obj:Dynamic):Array<String> {
+    while (Std.isOfType(obj, PolymodScriptClass)) obj = obj.superClass;
+
+    var typeName:String = polymod.util.Util.getTypeNameOf(obj);
+    var result = getNoUsingFields(typeName);
+    return result;
+  }
   #end
 
   static var calledBefore:Bool = false;
@@ -93,6 +112,7 @@ class PolymodFinalMacro
       var allFinals:Array<Dynamic> = [];
       var allPrivateProperties:Array<Dynamic> = [];
       var allPrivateFields:Array<Dynamic> = [];
+      var allNoUsingFields:Array<Dynamic> = [];
 
       for (type in types)
       {
@@ -119,6 +139,13 @@ class PolymodFinalMacro
               allPrivateProperties.push(entryData);
             }
 
+            var noUsingFields:Array<String> = listNoUsingFields(fields);
+            if (noUsingFields.length > 0)
+            {
+              var entryData:Array<Dynamic> = [classPath, noUsingFields];
+              allNoUsingFields.push(entryData);
+            }
+
             #if POLYMOD_STRICT_SYNTAX
             var privateFields:Array<String> = listPrivateFields(fields);
             if (privateFields.length > 0)
@@ -136,6 +163,7 @@ class PolymodFinalMacro
         finals: allFinals,
         privateProperties: allPrivateProperties,
         privateFields: allPrivateFields,
+        noUsingFields: allNoUsingFields,
       });
       Context.addResource(METADATA_RESOURCE_NAME, haxe.io.Bytes.ofString(metadataHXSF));
 
@@ -231,6 +259,24 @@ class PolymodFinalMacro
     }
     return result;
   }
+
+  static function listNoUsingFields(fields:Array<ClassField>):Array<String>
+  {
+    var result:Array<String> = [];
+
+    for (field in fields)
+    {
+      switch (field.kind)
+      {
+        case FMethod(_):
+          if (field.meta.has(':noUsing'))
+            result.push(field.name);
+        default:
+      }
+    }
+
+    return result;
+  }
   #end
 
   public static function fetchAllFinals():Map<String, Array<String>>
@@ -310,6 +356,31 @@ class PolymodFinalMacro
     else
     {
       throw 'No private fields found in PolymodFinalMacro';
+    }
+  }
+
+
+  public static function fetchNoUsingFields():Map<String, Array<String>>
+  {
+    var metaData = fetchMetadata();
+    var noUsingFields:Array<Dynamic> = cast metaData.noUsingFields;
+
+    if (noUsingFields != null)
+    {
+      var result:Map<String, Array<String>> = [];
+
+      for (element in noUsingFields)
+      {
+        var classPath:String = element[0];
+        var fields:Array<String> = element[1];
+
+        result.set(classPath, fields);
+      }
+      return result;
+    }
+    else
+    {
+      throw 'No fields with the metadata @:noUsing found in PolymodFinalMacro';
     }
   }
 

@@ -12,6 +12,7 @@ import polymod.hscript._internal.Expr.VarDecl;
 import polymod.hscript._internal.Printer;
 import polymod.util.Util;
 
+using Lambda;
 using StringTools;
 
 /**
@@ -26,7 +27,13 @@ class PolymodScriptClass
   /*
    * STATIC VARIABLES
    */
+
   private static final scriptInterp:Interp = new Interp(null, null);
+
+  /**
+   * Whether scripts have been fully initalized and are ready to be used.
+   */
+  public static var scriptsInitialized:Bool = false;
 
   /**
    * Provide a class name along with a corresponding class to override imports.
@@ -741,6 +748,11 @@ class PolymodScriptClass
     return scriptInterp.setScriptClassStaticField(clsName, fieldName, fieldValue);
   }
 
+  public static function reloadPersistentStaticFields():Void
+  {
+    scriptInterp.reloadPersistentStaticFields();
+  }
+
   // Override version of Std.isOfType so we're able to test for scripted classes.
   public static function isOfType(v:Dynamic, t:Dynamic):Bool
   {
@@ -914,8 +926,8 @@ class PolymodScriptClass
     _c = c;
 
     validateInterfaces();
-    buildCaches();
     _interp.validateClassMetadata();
+    buildCaches();
 
     var ctorField = findField("new");
     if (ctorField != null)
@@ -1500,11 +1512,12 @@ class PolymodScriptClass
         var fields = Type.getClassFields(u.cls);
         if (fields.length == 0) continue;
 
-        for (fld in fields)
+        var noUsingFields:Array<String> = PolymodFinalMacro.getNoUsingFieldsOf(Type.getClassName(u.cls));
+        for (field in fields)
         {
-          if(blacklistedStaticFields.exists(u.cls) && blacklistedStaticFields.get(u.cls).contains(fld)) continue;
+          if (blacklistedStaticFields.exists(u.cls) && blacklistedStaticFields.get(u.cls).contains(field) || noUsingFields.contains(field)) continue;
 
-          var field:Dynamic = Reflect.getProperty(u.cls, fld);
+          var field:Dynamic = Reflect.getProperty(u.cls, field);
           if (!Reflect.isFunction(field)) continue;
 
           var func:Dynamic = function(params:Array<Dynamic>)
@@ -1512,7 +1525,7 @@ class PolymodScriptClass
             return Reflect.callMethod(u.cls, field, params);
           };
 
-          usingCache.set(fld, func);
+          usingCache.set(field, func);
         }
       }
       else if (Interp._scriptClassDescriptors.exists(u.fullPath))
@@ -1521,7 +1534,8 @@ class PolymodScriptClass
 
         for (fld in scriptDecl.staticFields)
         {
-          if (!fld.access.contains(AStatic)) continue;
+          // Disallow this field from being used if it has `@:noUsing` metadata
+          if (!fld.access.contains(AStatic) || fld.meta.findIndex((m) -> m.name == ':noUsing') != -1) continue;
 
           switch (fld.kind)
           {
