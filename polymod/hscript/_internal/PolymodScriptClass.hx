@@ -1192,6 +1192,42 @@ class PolymodScriptClass
   }
 
   /**
+   * Checks if the class has a function with the given name.
+   * This checks the current script, scripted superclasses, native superclasses, or special functions.
+   * @param fnName The name of the function to check.
+   * @return `true` if the class has a function with the given name, `false` otherwise.
+   */
+  public function hasFunction(fnName:String):Bool
+  {
+    if (hasScriptFunction(fnName))
+    {
+      return true;
+    }
+
+    if (fnName == 'toString')
+    {
+      return true;
+    }
+
+    var _super:Dynamic = superClass;
+    while (Std.isOfType(_super, PolymodScriptClass))
+    {
+      if (_super.hasScriptFunction(fnName))
+      {
+        return true;
+      }
+      _super = _super.superClass;
+    }
+
+    if (findSuperFunction(fnName) != null)
+    {
+      return true;
+    }
+
+    return false;
+  }
+  
+  /**
    * Checks if the class has a script function with the given name,
    * which has been purged due to an uncaught exception when it was previously called.
    * @param name
