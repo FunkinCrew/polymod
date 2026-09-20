@@ -59,7 +59,7 @@ class PolymodStaticClassReference
   /**
    * Return an instance of this scripted class.
    * @param args The arguments to pass to the constructor
-   * @param constructor Whether this should immediately call the constructor after being instantiated.
+   * @param constructor Whether to immediately call the constructor after being instantiated.
    * @return The resulting instance
    */
   public function instantiate(?args:Array<Dynamic>, constructor:Bool = true):Null<Dynamic>
@@ -75,31 +75,36 @@ class PolymodStaticClassReference
     var scriptedObj:Null<Dynamic> = asc.superClass;
     if (constructor)
     {
+      // Any native superclasses should be instantiated by this time so we check for them.
       asc.callConstructor(args);
 
-      // Any native superclasses should be instantiated by this time so we check for them.
       scriptedObj = asc.superClass;
       while (Std.isOfType(scriptedObj, PolymodScriptClass))
       {
         scriptedObj = scriptedObj.superClass;
       }
-    }
 
-    @:privateAccess
-    if (scriptedObj == null && !asc._superConstructorCalled)
+      if (scriptedObj == null)
+      {
+        // We've hit a class that does not extend anything
+        // The ASC will act like a scripted class for us instead.
+        return asc;
+      }
+      else
+      {
+        return scriptedObj;
+      }
+    }
+    else
     {
-      // Since superclasses can be instantiated before the constructor is called.
-      // We've hit a class that does not extend anything
-      // The ASC will act like a scripted class for us instead.
+      if (scriptedObj != null && !Std.isOfType(scriptedObj, PolymodScriptClass))
+      {
+        return scriptedObj;
+      }
+
+      // Since this is being called to initialize a superclass, we can just return the asc.
       return asc;
     }
-    else if (!Std.isOfType(scriptedObj, PolymodScriptClass))
-    {
-      // The superclass is a native class, so we make sure to set the scripted class field here.
-      Reflect.setField(scriptedObj, '_asc', asc);
-      return scriptedObj;
-    }
-    return asc;
   }
 
   /**
