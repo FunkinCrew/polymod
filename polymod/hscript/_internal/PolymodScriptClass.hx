@@ -917,24 +917,40 @@ class PolymodScriptClass
     buildCaches();
     _interp.validateClassMetadata();
 
+    // Instantiate the super class first.
+    // Calling the constructor will be handled later.
+    if (_c.extend != null)
+    {
+      createSuperClass();
+    }
+  }
+
+  public function callConstructor(?args:Array<Dynamic>):Void
+  {
     var ctorField = findField("new");
     if (ctorField != null)
     {
+      // The superclass constructor will be called inside of here.
       callFunction("new", args);
-      if (superClass == null && _c.extend != null)
+      if (_c.extend != null && !_superConstructorCalled)
       {
         _interp.error(EClassSuperNotCalled);
       }
     }
     else if (_c.extend != null)
     {
-      createSuperClass(args);
+      _superConstructorCalled = true;
+
+      // This class doesn't have a custom constructor, so we the superclasses constructor.
+      if (superClass != null && Std.isOfType(superClass, PolymodScriptClass))
+      {
+        superClass.callConstructor(args);
+      }
     }
     _constructorArgs = args;
-
-    validateClassFields();
   }
 
+  var _superConstructorCalled:Bool = false;
   var __superClassFieldList:Array<String> = null;
 
   public function superHasField(name:String):Bool
@@ -972,15 +988,7 @@ class PolymodScriptClass
 
   private function createSuperClass(args:Array<Dynamic> = null)
   {
-    if (_c.extend == null)
-    {
-      _interp.error(EClassInvalidSuper);
-    }
-
-    if (args == null)
-    {
-      args = [];
-    }
+    args ??= [];
 
     var fullExtendString = new Printer().typeToString(_c.extend);
 
@@ -991,17 +999,31 @@ class PolymodScriptClass
     }
 
     // Build an unqualified path too.
+    var fullExtendPath:String = _c.imports.get(fullExtendString)?.fullPath ?? fullExtendString;
     var fullExtendStringParts = fullExtendString.split('.');
     var extendString = fullExtendStringParts[fullExtendStringParts.length - 1];
 
-    var classDescriptor = Interp.findScriptClassDescriptor(fullExtendString);
+    var classDescriptor = Interp.findScriptClassDescriptor(fullExtendPath);
     if (classDescriptor != null)
     {
-      var abstractSuperClass:PolymodAbstractScriptClass = new PolymodScriptClass(classDescriptor, args);
-      superClass = abstractSuperClass;
+      var ref:PolymodStaticClassReference = PolymodStaticClassReference.tryBuild(fullExtendPath);
+
+      var clsInstance = ref.instantiate(args, false);
+      if (Std.isOfType(clsInstance, PolymodScriptClass))
+      {
+        superClass = clsInstance;
+
+        // Set the top ASC to this class.
+        // This'll be recursive to other classes for if the superclass extends something else.
+        superClass.topASC = this;
+      }
+      validateClassFields();
     }
     else
     {
+      if (!_superConstructorCalled)
+        return;
+
       var clsToCreate:Class<Dynamic> = null;
 
       #if POLYMOD_CPPIA
@@ -1027,10 +1049,12 @@ class PolymodScriptClass
       }
       else
       {
-        _interp.error(EClassUnresolvedSuperclass(extendString, 'missing import'));
+        clsToCreate = _interp.resolveDottedPath(fullExtendPath);
       }
 
       superClass = Type.createInstance(clsToCreate, args);
+
+      validateClassFields();
     }
   }
 
@@ -1456,7 +1480,7 @@ class PolymodScriptClass
     return _cachedFunctionDecls;
   }
 
-  private final _constructorArgs:Array<Dynamic>;
+  private var _constructorArgs(default, null):Array<Dynamic>;
 
   private var _cachedFieldDecls:Map<String, FieldDecl> = [];
   private var _cachedSuperFunctionDecls:Map<String, Dynamic> = [];

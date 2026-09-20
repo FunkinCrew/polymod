@@ -1534,10 +1534,16 @@ class Interp
       {
         error(EInvalidInStaticContext("super"));
       }
-      else if (_proxy.superClass == null)
+      else if (!_proxy._superConstructorCalled)
       {
-        if (_proxy._c.extend == null) error(EClassInvalidSuper);
-        return Reflect.makeVarArgs(_proxy.createSuperClass);
+        if (_proxy._c.extend == null)
+          error(EClassInvalidSuper);
+
+        _proxy._superConstructorCalled = true;
+        if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
+          return Reflect.makeVarArgs(_proxy.superClass.callConstructor); // We will be calling the superclass constructor.
+        else
+          return Reflect.makeVarArgs(_proxy.createSuperClass); // We can't get a native class constructor at runtime right now unfortunately, so we just return the class itself to instantiate it.
       }
       else
       {
@@ -1634,10 +1640,18 @@ class Interp
 
     // We are calling a LOCAL function from the same module.
     // We first check if any of the child classes has overridden the scripted function
-    if (_proxy != null && _proxy.topASC?.hasScriptFunction(id) ?? false)
+    if (_proxy != null)
     {
-      _nextCallObject = _proxy.topASC;
-      return _proxy.topASC.resolveField(id);
+      var topScriptClass = _proxy.topASC;
+      while (Std.isOfType(topScriptClass, PolymodScriptClass))
+      {
+        if (topScriptClass.hasScriptFunction(id) ?? false)
+        {
+          _nextCallObject = topScriptClass;
+          return topScriptClass.resolveField(id);
+        }
+        topScriptClass = topScriptClass.topASC;
+      }
     }
     if (_proxy != null && _proxy.findFunction(id, true) != null)
     {
