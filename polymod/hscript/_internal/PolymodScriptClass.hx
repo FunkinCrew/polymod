@@ -921,7 +921,7 @@ class PolymodScriptClass
     // Calling the constructor will be handled later.
     if (_c.extend != null)
     {
-      createSuperClass();
+      createSuperClass(args);
     }
   }
 
@@ -942,12 +942,19 @@ class PolymodScriptClass
       _superConstructorCalled = true;
 
       // This class doesn't have a custom constructor, so we the superclasses constructor.
-      if (superClass != null && Std.isOfType(superClass, PolymodScriptClass))
+      if (Std.isOfType(superClass, PolymodScriptClass))
       {
         superClass.callConstructor(args);
       }
+      else
+      {
+        // Create the native super class since we don't have a custom constructor
+        createSuperClass(args);
+      }
     }
     _constructorArgs = args;
+
+    validateClassFields();
   }
 
   var _superConstructorCalled:Bool = false;
@@ -1009,20 +1016,29 @@ class PolymodScriptClass
       var ref:PolymodStaticClassReference = PolymodStaticClassReference.tryBuild(fullExtendPath);
 
       var clsInstance = ref.instantiate(args, false);
-      if (Std.isOfType(clsInstance, PolymodScriptClass))
+      if (clsInstance != null)
       {
-        superClass = clsInstance;
+        if (Std.isOfType(clsInstance, PolymodScriptClass))
+          superClass = clsInstance;
+        else
+          superClass = clsInstance._asc;
 
         // Set the top ASC to this class.
         // This'll be recursive to other classes for if the superclass extends something else.
         superClass.topASC = this;
       }
-      validateClassFields();
+      else
+      {
+        superClass = null;
+      }
     }
     else
     {
-      if (!_superConstructorCalled)
+      // We'll wait for the super constructor for it to be called.
+      if (findFunction('new') != null && !_superConstructorCalled)
         return;
+
+      _superConstructorCalled = true;
 
       var clsToCreate:Class<Dynamic> = null;
 
@@ -1051,10 +1067,10 @@ class PolymodScriptClass
       {
         clsToCreate = _interp.resolveDottedPath(fullExtendPath);
       }
-
       superClass = Type.createInstance(clsToCreate, args);
 
-      validateClassFields();
+      // Set the asc field.
+      Reflect.setField(superClass, '_asc', this);
     }
   }
 
@@ -1075,7 +1091,7 @@ class PolymodScriptClass
           if (f.access.contains(AOverride) && !superHasField(f.name))
           {
             // Throw an error if a function is declared overwritten but isn't overriding anything.
-            throw 'Field ' + '"${f.name}"' + 'is declared "override"' + "but doesn't override any field.";
+            throw 'Field ' + '"${f.name}"' + ' is declared "override"' + " but doesn't override any field.";
           }
           else if (!f.access.contains(AOverride) && superHasField(f.name))
           {
@@ -1250,7 +1266,7 @@ class PolymodScriptClass
 
     return false;
   }
-  
+
   /**
    * Checks if the class has a script function with the given name,
    * which has been purged due to an uncaught exception when it was previously called.
