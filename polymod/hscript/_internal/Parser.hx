@@ -686,6 +686,22 @@ class Parser
     return args;
   }
 
+  function checkRequireMeta(meta:Metadata, name:String, type:String):Void
+  {
+    for (m in meta)
+    {
+      if (m.name == ':require')
+      {
+        var e = m.params[0];
+        var valid:Bool = evalPreproCond(e);
+        if (!valid)
+        {
+          error(ECustom('$type $name requires ${Printer.preprocessErrorToString(e)} to be used.'), currentPos, currentPos);
+        }
+      }
+    }
+  }
+
   function mapCompr(tmp:String, e:Expr)
   {
     if (e == null) return null;
@@ -1639,6 +1655,9 @@ class Parser
           }
         }
 
+        // Ensure this class is allowed to be used.
+        checkRequireMeta(meta, name, 'Class');
+
         var fields = [];
         ensure(TBrOpen);
         while (!maybe(TBrClose))
@@ -1806,6 +1825,8 @@ class Parser
           var inf = parseFunctionDecl();
           maybe(TSemicolon);
 
+          checkRequireMeta(meta, name, 'Function');
+
           return {
             name: name,
             meta: meta,
@@ -1854,6 +1875,8 @@ class Parser
           // Default private if there is none specified.
           if (!access.contains(APrivate) && !access.contains(APublic))
             access.push(APrivate);
+
+          checkRequireMeta(meta, name, 'Field');
 
           return {
             name: name,
@@ -1915,6 +1938,9 @@ class Parser
               ret = parseType();
           }
           ensure(TSemicolon);
+
+          checkRequireMeta(meta, name, 'Interface function');
+
           return {
             name: name,
             meta: meta,
@@ -1945,6 +1971,8 @@ class Parser
           }
           else
             ensure(TSemicolon);
+
+          checkRequireMeta(meta, name, 'Field');
 
           return {
             name: name,
@@ -2586,7 +2614,19 @@ class Parser
     return result;
   }
 
-  function evalPreproCond(e:Expr)
+  public inline function evalPreproValue(e:Expr)
+  {
+    return switch (expr(e))
+    {
+      case EIdent(id): id;
+      case EConst(CString(str, _)): str;
+      case EConst(CInt(num)): Std.string(num);
+      case EConst(CFloat(num)): Std.string(num);
+      default: null;
+    }
+  }
+
+  public function evalPreproCond(e:Expr)
   {
     switch (expr(e))
     {
@@ -2597,18 +2637,6 @@ class Parser
       case EParent(e):
         return evalPreproCond(e);
       case EBinop(op, e1, e2):
-        inline function evalPreproValue(e:Expr)
-        {
-          return switch (expr(e))
-          {
-            case EIdent(id): id;
-            case EConst(CString(str, _)): str;
-            case EConst(CInt(num)): Std.string(num);
-            case EConst(CFloat(num)): Std.string(num);
-            default: null;
-          }
-        }
-
         var value1 = evalPreproValue(e1);
         var value2 = evalPreproValue(e2);
 
