@@ -1,0 +1,2 @@
+# Enforce consistent line-endings when checking out JSON files
+*.json eol=lf

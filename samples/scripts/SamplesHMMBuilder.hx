@@ -77,6 +77,7 @@ class SamplesHMMBuilder
 
       result.dependencies.push(dependency);
     }
+    result.dependencies.sort((a, b) -> Reflect.compare(a.name, b.name));
 
     File.saveContent(Path.join([workPath, 'hmm.json']), Json.stringify(result, '  '));
   }
