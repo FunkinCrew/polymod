@@ -59,9 +59,10 @@ class PolymodStaticClassReference
   /**
    * Return an instance of this scripted class.
    * @param args The arguments to pass to the constructor
+   * @param constructor Whether this should immediately call the constructor after being instantiated.
    * @return The resulting instance
    */
-  public function instantiate(?args:Array<Dynamic>):Null<Dynamic>
+  public function instantiate(?args:Array<Dynamic>, constructor:Bool = true):Null<Dynamic>
   {
     var asc:PolymodAbstractScriptClass = buildASC(args);
 
@@ -72,21 +73,33 @@ class PolymodStaticClassReference
     }
 
     var scriptedObj:Null<Dynamic> = asc.superClass;
-    while (Std.isOfType(scriptedObj, PolymodScriptClass))
+    if (constructor)
     {
-      scriptedObj.topASC = asc;
-      scriptedObj = scriptedObj.superClass;
+      asc.callConstructor(args);
+
+      // Any native superclasses should be instantiated by this time so we check for them.
+      scriptedObj = asc.superClass;
+      while (Std.isOfType(scriptedObj, PolymodScriptClass))
+      {
+        scriptedObj = scriptedObj.superClass;
+      }
     }
 
-    if (scriptedObj == null)
+    @:privateAccess
+    if (scriptedObj == null && !asc._superConstructorCalled)
     {
+      // Since superclasses can be instantiated before the constructor is called.
       // We've hit a class that does not extend anything
       // The ASC will act like a scripted class for us instead.
       return asc;
     }
-
-    Reflect.setField(scriptedObj, '_asc', asc);
-    return scriptedObj;
+    else if (!Std.isOfType(scriptedObj, PolymodScriptClass))
+    {
+      // The superclass is a native class, so we make sure to set the scripted class field here.
+      Reflect.setField(scriptedObj, '_asc', asc);
+      return scriptedObj;
+    }
+    return asc;
   }
 
   /**

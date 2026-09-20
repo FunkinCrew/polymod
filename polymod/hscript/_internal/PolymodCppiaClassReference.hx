@@ -711,7 +711,7 @@ class PolymodCppiaClassReference extends PolymodStaticClassReference
     this.cppiaClass = cppiaClass;
   }
 
-  override public function instantiate(?args:Array<Dynamic>):Null<Dynamic>
+  override public function instantiate(?args:Array<Dynamic>, constructor:Bool = true):Null<Dynamic>
   {
     if (cppiaClass == null)
     {
