@@ -26,6 +26,16 @@
       "type": "dev"
     },
     {
+      "name": "jsonpath",
+      "type": "haxelib",
+      "version": null
+    },
+    {
+      "name": "jsonpatch",
+      "type": "haxelib",
+      "version": null
+    },
+    {
       "name": "thx.core",
       "type": "git",
       "dir": null,

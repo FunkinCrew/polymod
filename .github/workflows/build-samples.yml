@@ -3,9 +3,11 @@
 name: Build Samples
 
 on:
-  #push:
   pull_request:
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -26,31 +28,35 @@ jobs:
         with:
           haxe-version: 4.3.7
 
-      - name: Setup hmm.json for Samples
-        working-directory: ./samples
-        run: haxe run.hxml
-
       - name: Cache Haxelibs
+        id: haxelibs-cache
         uses: actions/cache@v6
         with:
           path: ./samples/.haxelib
-          key: haxelib-${{ hashFiles('samples/hmm.json') }}
+          key: haxelib-${{ hashFiles('samples/*/hmm.json') }}
           enableCrossOsArchive: true
           restore-keys: |
             haxelib-
 
+      - name: Setup hmm.json for Samples
+        working-directory: ./samples
+        run: haxe run.hxml
+
       - name: Setup HMM
         run: |
-          haxelib --global --quiet --never update haxelib
-          haxelib --global fixrepo
           haxelib --global --quiet install hmm
-          haxelib --global run hmm setup
+          haxelib --global --quiet run hmm setup
 
       - name: Install sample dependencies
+        if: steps.haxelibs-cache.outputs.cache-hit != 'true'
         working-directory: ./samples
         run: |
           hmm install --quiet
-          haxelib fixrepo
+
+      - name: Set up Polymod as dev haxelib
+        if: steps.haxelibs-cache.outputs.cache-hit == 'true'
+        working-directory: ./samples
+        run: haxelib dev polymod ..
 
       - name: Build Flixel Sample
         working-directory: ./samples/flixel
