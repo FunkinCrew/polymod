@@ -1643,18 +1643,19 @@ class PolymodScriptClass
 
       var usingMap:Map<String, Array<Dynamic>->Dynamic> = [];
 
-      for (fld in fields)
+      var noUsingFields:Array<String> = PolymodFinalMacro.getNoUsingFieldsOf(clsName);
+      for (clsField in fields)
       {
-        if (blacklistedStaticFields.exists(cls) && blacklistedStaticFields.get(cls).contains(fld)) continue;
+        if (blacklistedStaticFields.exists(cls) && blacklistedStaticFields.get(cls).contains(clsField) || noUsingFields.contains(clsField)) continue;
 
-        var field:Dynamic = Reflect.getProperty(cls, fld);
+        var field:Dynamic = Reflect.getProperty(cls, clsField);
         if (!Reflect.isFunction(field)) continue;
 
         var func:Dynamic = function(params:Array<Dynamic>)
         {
           return Reflect.callMethod(cls, field, params);
         }
-        usingMap.set(fld, func);
+        usingMap.set(field, func);
       }
       return usingMap;
     }
@@ -1671,6 +1672,9 @@ class PolymodScriptClass
         switch (fld.kind)
         {
           case KFunction(f):
+            if (fld.meta.findIndex((m) -> m.name == ':noUsing') != -1)
+              continue;
+
             var fldName = fld.name;
 
             var func:Dynamic = function(params:Array<Dynamic>)
