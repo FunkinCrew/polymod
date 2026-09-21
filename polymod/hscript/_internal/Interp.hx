@@ -386,13 +386,15 @@ class Interp
       return proxy.callFunction(f, args);
     }
 
+    var er:Null<Error> = null;
     var func:Null<Dynamic> = null;
     try
     {
       func = get(o, f);
     }
-    catch (e:Dynamic)
+    catch (e:Error)
     {
+      er = e;
       func = null;
     }
     if (func != null)
@@ -440,6 +442,12 @@ class Interp
     }
     else
     {
+      // Re-throw the original error captured during `get()`.
+      if (er != null)
+      {
+        throw er;
+      }
+
       // Throw an error for a missing function.
       return error(EInvalidAccess(f));
     }
