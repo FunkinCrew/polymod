@@ -42,16 +42,18 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
                 this._interp._propTrack.set(getName, true);
                 var r:Dynamic = null;
                 // Children may override it
-                if (this.topASC != null && this.topASC.findFunction(getName) != null)
+                // Go from top to bottom when field searching.
+                var topASC = this.getMostTopASC();
+                while (topASC != null)
                 {
-                  r = this.topASC.callFunction(getName);
+                  if (topASC.findFunction(getName) != null)
+                  {
+                    r = topASC.callFunction(getName);
+                    this._interp._propTrack.remove(getName);
+                    return r;
+                  }
+                  topASC = topASC.superClass;
                 }
-                else
-                {
-                  r = this.callFunction(getName);
-                }
-                this._interp._propTrack.remove(getName);
-                return r;
               }
               else
               {
@@ -187,16 +189,18 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
             this._interp._propTrack.set(setName, true);
             var r:Dynamic = null;
             // Children may override it
-            if (this.topASC != null && this.topASC.findFunction(setName) != null)
+            // Go from top to bottom when field searching.
+            var topASC = this.getMostTopASC();
+            while (topASC != null)
             {
-              r = this.topASC.callFunction(setName, [value]);
+              if (topASC.findFunction(setName) != null)
+              {
+                r = topASC.callFunction(setName);
+                this._interp._propTrack.remove(setName);
+                return r;
+              }
+              topASC = topASC.superClass;
             }
-            else
-            {
-              r = this.callFunction(setName, [value]);
-            }
-            this._interp._propTrack.remove(setName);
-            return r;
           }
 
         case "never" | "null":
@@ -209,7 +213,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
     else if (this.findFunction(name) != null)
     {
       var fnDecl = this.findFunction(name, true);
-      
+
       if (fnDecl.isdynamic)
       {
         if (!Reflect.isFunction(value))
