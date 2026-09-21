@@ -1069,8 +1069,9 @@ class PolymodScriptClass
       }
       superClass = Type.createInstance(clsToCreate, args);
 
-      // Set the asc field.
-      Reflect.setField(superClass, '_asc', this);
+      // Set the asc field to be the most topASC class.
+      // This is because native class functions call asc script functions from top to bottom.
+      Reflect.setField(superClass, '_asc', getMostTopASC());
     }
   }
 
@@ -1361,6 +1362,26 @@ class PolymodScriptClass
       }
       satisfiedList.push(interfaceRef);
     }
+  }
+
+  /**
+   * Retrieves the most top abstract script class of this instance.
+   * @return Null<PolymodAbstractScriptClass
+   */
+  public function getMostTopASC():Null<PolymodAbstractScriptClass>
+  {
+    if (topASC == null)
+      return this;
+
+    var mostTopASC = this.topASC;
+    while (mostTopASC != null)
+    {
+      if (mostTopASC.topASC == null)
+        return mostTopASC;
+
+      mostTopASC = mostTopASC.topASC;
+    }
+    return null;
   }
 
   /**

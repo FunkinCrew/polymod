@@ -1638,53 +1638,58 @@ class Interp
       if (result != null) return result;
     }
 
-    // We are calling a LOCAL function from the same module.
-    // We first check if any of the child classes has overridden the scripted function
     if (_proxy != null)
     {
-      var topScriptClass = _proxy.topASC;
-      while (Std.isOfType(topScriptClass, PolymodScriptClass))
+      // We are calling a LOCAL function from the same module.
+      // We first check if any of the child classes has overridden the scripted function
+      var topScriptClass = _proxy.getMostTopASC();
+      if (topScriptClass != _proxy)
       {
-        if (topScriptClass.hasScriptFunction(id) ?? false)
+        while (Std.isOfType(topScriptClass, PolymodScriptClass))
         {
-          _nextCallObject = topScriptClass;
-          return topScriptClass.resolveField(id);
+          if (topScriptClass.hasScriptFunction(id) ?? false)
+          {
+            _nextCallObject = topScriptClass;
+            return topScriptClass.resolveField(id);
+          }
+          topScriptClass = topScriptClass.superClass;
         }
-        topScriptClass = topScriptClass.topASC;
-      }
-    }
-    if (_proxy != null && _proxy.findFunction(id, true) != null)
-    {
-      _nextCallObject = _proxy;
-      return _proxy.resolveField(id);
-    }
-    else if (_proxy != null && _proxy.superHasField(id))
-    {
-      _nextCallObject = _proxy.superClass;
-
-      if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
-      {
-        var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
-        return superClass.fieldRead(id);
       }
 
-      return Reflect.getProperty(_proxy.superClass, id);
-    }
-    else if (_proxy != null && _proxy.hasPurgedScriptFunction(id))
-    {
-      error(EPurgedFunction(id));
-    }
-    else if (_proxy != null)
-    {
-      try
+      // Try to find the function within the scripted class itself.
+      if (_proxy.findFunction(id, true) != null)
       {
-        var r = _proxy.resolveField(id);
         _nextCallObject = _proxy;
-        return r;
+        return _proxy.resolveField(id);
       }
-      catch (e:Dynamic)
+      else if (_proxy.superHasField(id))
       {
-        // Skip and fall through to the next case.
+        _nextCallObject = _proxy.superClass;
+
+        if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
+        {
+          var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
+          return superClass.fieldRead(id);
+        }
+
+        return Reflect.getProperty(_proxy.superClass, id);
+      }
+      else if (_proxy.hasPurgedScriptFunction(id))
+      {
+        error(EPurgedFunction(id));
+      }
+      else
+      {
+        try
+        {
+          var r = _proxy.resolveField(id);
+          _nextCallObject = _proxy;
+          return r;
+        }
+        catch (e:Dynamic)
+        {
+          // Skip and fall through to the next case.
+        }
       }
     }
 
