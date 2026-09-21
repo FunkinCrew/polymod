@@ -64,6 +64,9 @@ class Interp
   static var _deprecatedTypes:Map<String, String> = [];
   static var _deprecatedFields:Map<String, Map<String, String>> = [];
 
+  var _cachedDeprecatedClasses:Array<String> = [];
+  var _cachedDeprecatedFields:Map<String, Array<String>> = [];
+
   var _propTrack:Map<String, Bool> = [];
 
   static var defaultVariables:Map<String, Dynamic>;
@@ -142,6 +145,7 @@ class Interp
 
     function tryBuildClass(clsRef:PolymodStaticClassReference, args:Array<Dynamic>):Null<Dynamic>
     {
+      checkTypeForDeprecation(clsRef.getFullyQualifiedName());
       if (clsRef.cls != getClassDecl() && !clsRef.canInstantiate)
       {
         error(ECustom('Cannot access private constructor of "${clsRef.cls.name}"'));
@@ -382,6 +386,7 @@ class Interp
       return null;
     }
 
+    checkTypeForDeprecation(oScriptCls);
     checkFieldForDeprecation(oScriptCls, f);
 
     if (Std.isOfType(o, PolymodStaticAbstractReference))
@@ -2042,6 +2047,7 @@ class Interp
         name = getClassDecl().imports.get(name)?.fullPath ?? name;
         if (name != null && _scriptEnumDescriptors.exists(name))
         {
+          checkTypeForDeprecation(name);
           return new PolymodEnum(_scriptEnumDescriptors.get(name), f, []);
         }
         return get(fieldTarget(e), f);
@@ -3270,6 +3276,7 @@ class Interp
       return null;
     }
 
+    checkTypeForDeprecation(oScriptCls);
     checkFieldForDeprecation(oScriptCls, f);
 
     // If not, check if it is a blacklisted instance field.
@@ -3421,8 +3428,6 @@ class Interp
       error(EBlacklistedField(f));
       return null;
     }
-
-    checkFieldForDeprecation(oScriptCls, f);
 
     // Otherwise, we assume the field is fine to use.
     if (Std.isOfType(o, PolymodStaticAbstractReference))
@@ -4422,14 +4427,16 @@ class Interp
    * Checks to see if the given class is deprecated and warns the user if so.
    * @param cls The class to check. If this is deprecated as well it'll thrown an error.
    */
-  public static function checkTypeForDeprecation(cls:String):Void
+  public function checkTypeForDeprecation(cls:String):Void
   {
-    if (!_deprecatedTypes.exists(cls))
+    if (!_deprecatedTypes.exists(cls) || _cachedDeprecatedClasses.contains(cls))
       return;
 
     var message:String = _deprecatedTypes.get(cls);
 
     Polymod.warning(SCRIPTED_CLASS_FIELD_DEPRECATED, 'Type $cls is deprecated\n$message', SCRIPT_RUNTIME);
+
+    _cachedDeprecatedClasses.push(cls);
   }
 
   /**
@@ -4442,9 +4449,18 @@ class Interp
     if (!_deprecatedFields.get(cls)?.exists(f) ?? false)
       return;
 
+    // If we've already warned the user the field has been deprecated, don't warn them again.
+    if (_cachedDeprecatedFields.get(cls).contains(f))
+      return;
+
     var message:String = _deprecatedFields.get(cls).get(f);
 
     Polymod.warning(SCRIPTED_CLASS_FIELD_DEPRECATED, 'Field $f is deprecated\n$message', SCRIPT_RUNTIME);
+
+    var fields = _cachedDeprecatedFields.get(cls) ?? [];
+    fields.push(f);
+
+    _cachedDeprecatedFields.set(cls, fields);
   }
 
   /**
