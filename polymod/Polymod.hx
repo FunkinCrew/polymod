@@ -2150,4 +2150,10 @@ enum abstract PolymodErrorCode(String) from String to String
    * - Remove the field access to remove the error.
    */
   public var SCRIPTED_CLASS_BLACKLISTED_FIELD:String = 'scripted_class_blacklisted_field';
+
+  /**
+   * Your script file attempted to access a field that is deprecated.
+   * - Check the class for more information on how to replace this field.
+   */
+  public var SCRIPTED_CLASS_FIELD_DEPRECATED:String = 'scripted_class_field_deprecated';
 }

@@ -1595,60 +1595,105 @@ class PolymodScriptClass
   }
 
   /**
-   * Populates a string map with functions from a 'using' class.
-   * @param clsDecl The class to retrieve functions from.
-   * @param usingCache The map to populate.
+   * Populates the given class decl with a list of using functions
+   * @param clsDecl The class to populate the list from.
+   * @param usingCache The cache to add to.
    */
-  public static function buildExtensionFunctionCache(clsDecl:ClassDecl, usingCache:Map<String, Array<Dynamic>->Dynamic>):Void
+  public static function buildExtensionFunctionCache(clsDecl:ClassDecl, usingCache):Void
   {
-    for (_ => u in clsDecl.usings)
+    // Append using cache for any `using` keywords.
+    for (u in clsDecl.usings)
     {
-      if (u.cls != null)
+      for (field => func in buildUsingListCache(u.fullPath) ?? [])
       {
-        var fields = Type.getClassFields(u.cls);
-        if (fields.length == 0) continue;
+        usingCache.set(field, func);
+      }
+    }
 
-        var noUsingFields:Array<String> = PolymodFinalMacro.getNoUsingFieldsOf(Type.getClassName(u.cls));
-        for (field in fields)
+    // Append using cache for any metadata.
+    for (m in clsDecl.meta)
+    {
+      if (m.name == ':using')
+      {
+        var clsMetaName:String = new Printer().exprToString(m.params[0]);
+        var cls:String = clsDecl.imports.get(clsMetaName)?.fullPath ?? clsMetaName;
+
+        for (field => func in buildUsingListCache(cls) ?? [])
         {
-          if (blacklistedStaticFields.exists(u.cls) && blacklistedStaticFields.get(u.cls).contains(field) || noUsingFields.contains(field)) continue;
-
-          var field:Dynamic = Reflect.getProperty(u.cls, field);
-          if (!Reflect.isFunction(field)) continue;
-
-          var func:Dynamic = function(params:Array<Dynamic>)
-          {
-            return Reflect.callMethod(u.cls, field, params);
-          };
-
           usingCache.set(field, func);
         }
       }
-      else if (Interp._scriptClassDescriptors.exists(u.fullPath))
+    }
+  }
+
+  /**
+   * Populates a string map with functions from a 'using' class.
+   * @param cls The path to the class
+   * @return A list of using functions available.
+   */
+  public static function buildUsingListCache(clsName:String):Map<String, Array<Dynamic>->Dynamic>
+  {
+    var createUsingFromNative = (cls:Class<Dynamic>) ->
+    {
+      if (cls == null)
+        return null;
+
+      var fields = Type.getClassFields(cls);
+      if (fields.length == 0) return null;
+
+      var usingMap:Map<String, Array<Dynamic>->Dynamic> = [];
+
+      for (fld in fields)
       {
-        var scriptDecl = Interp._scriptClassDescriptors.get(u.fullPath);
+        if (blacklistedStaticFields.exists(cls) && blacklistedStaticFields.get(cls).contains(fld)) continue;
 
-        for (fld in scriptDecl.staticFields)
+        var field:Dynamic = Reflect.getProperty(cls, fld);
+        if (!Reflect.isFunction(field)) continue;
+
+        var func:Dynamic = function(params:Array<Dynamic>)
         {
-          // Disallow this field from being used if it has `@:noUsing` metadata
-          if (!fld.access.contains(AStatic) || fld.meta.findIndex((m) -> m.name == ':noUsing') != -1) continue;
+          return Reflect.callMethod(cls, field, params);
+        }
+        usingMap.set(fld, func);
+      }
+      return usingMap;
+    }
 
-          switch (fld.kind)
-          {
-            case KFunction(f):
-              var fldName = fld.name;
+    var createUsingFromScriptClass = (path:String) ->
+    {
+      var scriptDecl:ClassDecl = Interp._scriptClassDescriptors.get(path);
+      var fields:Array<FieldDecl> = scriptDecl.staticFields;
+      if (fields.length == 0) return null;
 
-              var func:Dynamic = function(params:Array<Dynamic>) {
-                return callScriptClassStaticFunction(u.fullPath, fldName, params);
-              };
+      var usingMap:Map<String, Array<Dynamic>->Dynamic> = [];
+      for (fld in fields)
+      {
+        switch (fld.kind)
+        {
+          case KFunction(f):
+            var fldName = fld.name;
 
-              usingCache.set(fldName, func);
+            var func:Dynamic = function(params:Array<Dynamic>)
+            {
+              return callScriptClassStaticFunction(path, fldName, params);
+            };
+            usingMap.set(fldName, func);
 
-            default:
-              //do nothing
-          }
+          default:
+            // do nothing
         }
       }
+      return usingMap;
+    }
+
+    if (Interp._scriptClassDescriptors.exists(clsName))
+    {
+      return createUsingFromScriptClass(clsName);
+    }
+    else
+    {
+      var cls:Class<Dynamic> = Type.resolveClass(clsName);
+      return createUsingFromNative(cls);
     }
   }
 }
