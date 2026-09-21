@@ -1115,6 +1115,7 @@ class Polymod
       var _ = polymod.hscript._internal.PolymodTyperEx.typeAllModules();
       #end
       polymod.hscript._internal.Interp.validateImports();
+      polymod.hscript._internal.PolymodScriptClass.reloadPersistentStaticFields();
       polymod.hscript._internal.PolymodScriptClass.scriptsInitialized = true;
 
       if (Polymod.onScriptsLoaded != null) Polymod.onScriptsLoaded();
@@ -1173,6 +1174,7 @@ class Polymod
 
       // Once all scripts have been registered, THEN validate the imports.
       polymod.hscript._internal.Interp.validateImports();
+      polymod.hscript._internal.PolymodScriptClass.reloadPersistentStaticFields();
       polymod.hscript._internal.PolymodScriptClass.scriptsInitialized = true;
 
       if (Polymod.onScriptsLoaded != null) Polymod.onScriptsLoaded();
