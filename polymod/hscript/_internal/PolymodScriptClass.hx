@@ -921,7 +921,7 @@ class PolymodScriptClass
     // Calling the constructor will be handled later.
     if (_c.extend != null)
     {
-      createSuperClass(args);
+      createSuperClass();
     }
   }
 
@@ -941,7 +941,7 @@ class PolymodScriptClass
     {
       _superConstructorCalled = true;
 
-      // This class doesn't have a custom constructor, so we the superclasses constructor.
+      // This class doesn't have a custom constructor, so we use the superclasses constructor.
       if (Std.isOfType(superClass, PolymodScriptClass))
       {
         superClass.callConstructor(args);
@@ -1020,8 +1020,6 @@ class PolymodScriptClass
       {
         if (Std.isOfType(clsInstance, PolymodScriptClass))
           superClass = clsInstance;
-        else
-          superClass = clsInstance._asc;
 
         // Set the top ASC to this class.
         // This'll be recursive to other classes for if the superclass extends something else.
@@ -1035,10 +1033,8 @@ class PolymodScriptClass
     else
     {
       // We'll wait for the super constructor for it to be called.
-      if (findFunction('new') != null && !_superConstructorCalled)
+      if (!_superConstructorCalled)
         return;
-
-      _superConstructorCalled = true;
 
       var clsToCreate:Class<Dynamic> = null;
 
