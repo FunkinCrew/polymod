@@ -1050,6 +1050,9 @@ class PolymodScriptClass
           #if POLYMOD_STRICT_SYNTAX
           if (f.access.contains(AOverride) && !superHasField(f.name))
           {
+            // Native class constructors can not be retrieved at runtime so `superHasField` does not account for them so we ignore them.
+            if (f.name == 'new' && !Std.isOfType(superClass, PolymodScriptClass)) return;
+
             // Throw an error if a function is declared overwritten but isn't overriding anything.
             throw 'Field ' + '"${f.name}"' + 'is declared "override"' + "but doesn't override any field.";
           }
@@ -1226,7 +1229,7 @@ class PolymodScriptClass
 
     return false;
   }
-  
+
   /**
    * Checks if the class has a script function with the given name,
    * which has been purged due to an uncaught exception when it was previously called.
