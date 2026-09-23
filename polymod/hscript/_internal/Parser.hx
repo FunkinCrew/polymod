@@ -1033,9 +1033,9 @@ class Parser
             switch (c.caseMatch)
             {
               case true:
-                hasMatch = casesToValidate.findIndex((validateCase) -> Tools.exprEquals(expr(validateCase.expr), expr(c.expr)) && !validateCase.caseMatch) != -1;
+                hasMatch = casesToValidate.findIndex((validateCase) -> Tools.exprEquals(validateCase.expr, c.expr) && !validateCase.caseMatch) != -1;
               case false:
-                hasMatch = casesToValidate.findIndex((validateCase) -> Tools.exprEquals(expr(validateCase.expr), expr(c.expr)) && validateCase.caseMatch) != -1;
+                hasMatch = casesToValidate.findIndex((validateCase) -> Tools.exprEquals(validateCase.expr, c.expr) && validateCase.caseMatch) != -1;
             }
             if (!hasMatch)
             {
