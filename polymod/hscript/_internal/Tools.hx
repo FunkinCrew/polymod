@@ -139,11 +139,59 @@ class Tools
       case ETry(e, v, t, c): ETry(f(e), v, t, f(c));
       case EObject(fl): EObject([for (fi in fl) {name: fi.name, e: f(fi.e)}]);
       case ETernary(c, e1, e2): ETernary(f(c), f(e1), f(e2));
-      case ESwitch(e, cases, def): ESwitch(f(e), [for (c in cases) {values: [for (v in c.values) f(v)], expr: f(c.expr)}], def == null ? null : f(def));
+      case ESwitch(e, cases, def): ESwitch(f(e), [for (c in cases) {values: [for (v in c.values) f(v)], guard: (c.guard == null ? null : f(c.guard)), expr: f(c.expr)}], def == null ? null : f(def));
       case EMeta(name, args, e): EMeta(name, args == null ? null : [for (a in args) f(a)], f(e));
       case ECheckType(e, t): ECheckType(f(e), t);
     }
     return mk(edef, e);
+  }
+
+  public static function exprEquals(e1:ExprDef, e2:ExprDef):Bool
+  {
+    switch (e1)
+    {
+      case EConst(c):
+        switch (e2)
+        {
+          case EConst(c2):
+            return Type.enumEq(c, c2);
+          default:
+            return false;
+        }
+      case EIdent(v1):
+        switch (e2)
+        {
+          case EIdent(v2):
+            return v1 == v2;
+          default:
+            return false;
+        }
+      case EVar(n, t, e):
+        switch (e2)
+        {
+          case EVar(n2, t2, e2):
+            return n == n2 && Type.enumEq(t, t2) && exprEquals(expr(e), expr(e2));
+          default:
+            return false;
+        }
+      case EFinal(n, t, e):
+        switch (e2)
+        {
+          case EFinal(n2, t2, e2):
+            return n == n2 && Type.enumEq(t, t2) && exprEquals(expr(e), expr(e2));
+          default: return false;
+        }
+      case EParent(e):
+        switch (e2)
+        {
+          case EParent(e2):
+            return exprEquals(expr(e), expr(e2));
+          default:
+            return false;
+        }
+      default:
+        return false;
+    }
   }
 
   public static inline function expr(e:Expr):ExprDef

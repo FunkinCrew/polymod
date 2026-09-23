@@ -81,6 +81,8 @@ class Interp
   #if hscriptPos
   var curExpr:Expr;
   #end
+  var inSwitchCase:Bool = false;
+  var curSwitchValue:Null<Dynamic>;
 
   var inPrivateAccess:Bool = false;
 
@@ -1792,6 +1794,10 @@ class Interp
             return s;
         }
       case EIdent(id):
+        // Switch case wildcards are the switch value itself.
+        if (id == '_' && inSwitchCase)
+        return curSwitchValue;
+
         // When resolving a variable, check if it is a property with a getter, and call it if necessary.
         @:privateAccess
         {
@@ -2209,12 +2215,22 @@ class Interp
       case ESwitch(e, cases, def):
         var val:Dynamic = expr(e);
 
+        var oldSwitchVal = curSwitchValue;
+        curSwitchValue = val;
+
         if (Std.isOfType(val, PolymodEnum))
         {
+          curSwitchValue = val._value;
+
           var old:Int = declared.length;
           var match = false;
           for (c in cases)
           {
+            // Continue to the next case if the guard for this one isn't met.
+            if (c.guard != null && !expr(c.guard))
+              continue;
+
+            inSwitchCase = true;
             for (v in c.values)
             {
               switch (Tools.expr(v))
@@ -2253,6 +2269,9 @@ class Interp
                     match = true;
                     break;
                   }
+                case EIdent('_'):
+                  match = true;
+                  break;
                 default:
               }
             }
@@ -2267,6 +2286,9 @@ class Interp
             val = def == null ? null : expr(def);
           }
           restore(old);
+
+          inSwitchCase = false;
+          curSwitchValue = oldSwitchVal;
           return val;
         }
         else
@@ -2275,6 +2297,11 @@ class Interp
           var match = false;
           for (c in cases)
           {
+            // Continue to the next case if the guard for this one isn't met.
+            if (c.guard != null && !expr(c.guard))
+              continue;
+
+            inSwitchCase = true;
             for (v in c.values)
             {
               switch (Tools.expr(v))
@@ -2311,7 +2338,8 @@ class Interp
                     default:
                   }
                 default:
-                  if (expr(v) == val)
+                  var caseVal = expr(v);
+                  if ((caseVal is Bool && caseVal) || caseVal == val)
                   {
                     match = true;
                     break;
@@ -2324,8 +2352,12 @@ class Interp
               break;
             }
           }
+
           if (!match) val = def == null ? null : expr(def);
           restore(old);
+
+          inSwitchCase = false;
+          curSwitchValue = oldSwitchVal;
           return val;
         }
       case EMeta(name, args, e):
