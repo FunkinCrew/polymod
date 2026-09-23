@@ -25,6 +25,8 @@ package polymod.hscript._internal;
 import polymod.hscript._internal.Expr;
 import polymod.util.DefineUtil;
 
+using Lambda;
+
 enum Token
 {
   TEof;
@@ -899,6 +901,8 @@ class Parser
       case "switch":
         var e = parseExpr();
         var def = null, cases = [];
+        var casesToValidate = [];
+        var wildcard:Bool = false;
         ensure(TBrOpen);
         while (true)
         {
@@ -907,12 +911,57 @@ class Parser
           {
             case TId("case"):
               inSwitchCase = true;
-              var c = {values: [], expr: null};
+              var c = {values: [], guard: null, expr: null};
               cases.push(c);
               while (true)
               {
+                inline function parsePatternMatch(op, e1, e2)
+                {
+
+                }
+
                 var e = parseExpr();
                 c.values.push(e);
+
+                // Check for case pattern matching.
+                switch (expr(e))
+                {
+                  case EBinop(op, e1, e2):
+                    if (op == '=>')
+                    {
+                      // Pattern matching operator, 2nd expression is the case match.
+                      switch (expr(e2))
+                      {
+                        case EIdent(v):
+                          if (!['true', 'false'].contains(v))
+                          {
+                            unexpected(TId(v));
+                          }
+                          var match = v == 'true' ? true : false;
+                          casesToValidate.push({expr: expr(e1), caseMatch: match, min: pmin(e1), max: pmax(e2)});
+                        default:
+                      }
+                    }
+                    else
+                    {
+                      // The user didn't specify the case matching, so it's automatically true.
+                      casesToValidate.push({expr: expr(e), caseMatch: true, min: pmin(e), max: pmax(e)});
+                    }
+                  case EParent(e2):
+                    switch (expr(e2))
+                    {
+                      case EBinop(_, _, _):
+                        // The user didn't specify the case matching, so it's automatically true.
+                        casesToValidate.push({expr: expr(e2), caseMatch: true, min: pmin(e), max: pmax(e)});
+                      case EIdent('_'):
+                        wildcard = true;
+                      default:
+                    }
+                  case EIdent('_'):
+                    wildcard = true;
+                  default:
+                }
+
                 tk = token();
                 switch (tk)
                 {
@@ -920,6 +969,12 @@ class Parser
                     // next expr
                   case TDoubleDot:
                     inSwitchCase = false;
+                    break;
+                  case TId("if"):
+                    ensure(TPOpen);
+                    c.guard = parseExpr();
+                    ensure(TPClose);
+                    ensure(TDoubleDot);
                     break;
                   default:
                     unexpected(tk);
@@ -968,6 +1023,24 @@ class Parser
             default:
               unexpected(tk);
               break;
+          }
+        }
+        if (def == null && !wildcard)
+        {
+          for (c in casesToValidate)
+          {
+            var hasMatch = false;
+            switch (c.caseMatch)
+            {
+              case true:
+                hasMatch = casesToValidate.findIndex((validateCase) -> Tools.exprEquals(expr(validateCase.expr), expr(c.expr)) && !validateCase.caseMatch) != -1;
+              case false:
+                hasMatch = casesToValidate.findIndex((validateCase) -> Tools.exprEquals(expr(validateCase.expr), expr(c.expr)) && validateCase.caseMatch) != -1;
+            }
+            if (!hasMatch)
+            {
+              error(ECustom('Unmatched pattern: ${!c.caseMatch}'), c.min, c.max);
+            }
           }
         }
         mk(ESwitch(e, cases, def), p1, tokenMax);
