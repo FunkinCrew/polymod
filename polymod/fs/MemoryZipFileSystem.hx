@@ -73,12 +73,16 @@ class MemoryZipFileSystem extends MemoryFileSystem
     var bytesInput = new BytesInput(zipBytes);
     var reader = new haxe.zip.Reader(bytesInput);
 
-    var modId = Path.withoutExtension(zipName);
+    var defaultModId = Path.withoutExtension(zipName);
 
     // Read the zip file entries.
     var entries:List<haxe.zip.Entry> = reader.read();
+    var zipTree = Util.getZipFileTree(entries);
+    var isNested = !zipTree.exists(PolymodConfig.modMetadataFile);
+
     for (zipEntry in entries)
     {
+      var modId = defaultModId;
       var entryData = zipEntry.data; // we'll store the data in compressed form and decompress it when getFileBytes is called
       if (zipEntry.fileName.substring(zipEntry.fileName.lastIndexOf('/') + 1) == '' && zipEntry.data.toString() == '')
       {
@@ -87,7 +91,15 @@ class MemoryZipFileSystem extends MemoryFileSystem
       else
       {
         // This is a file entry! Register it in the MemoryFileSystem.
-        var filePath = haxe.io.Path.join([this.modRoot, modId, zipEntry.fileName]);
+        var fileName = zipEntry.fileName;
+        if (isNested)
+        {
+          var splitted = fileName.split('/');
+          modId = splitted[0];
+          fileName = fileName.substr(modId.length + 1);
+          modId = '${defaultModId}_$modId'; // just a nice visual indicator this was nested from the zip
+        }
+        var filePath = haxe.io.Path.join([this.modRoot, modId, fileName]);
         addFileBytes(filePath, entryData);
         pathIsCompressed.set(filePath, zipEntry.compressed);
       }

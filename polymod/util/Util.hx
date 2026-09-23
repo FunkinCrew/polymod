@@ -417,6 +417,33 @@ class Util
     return c;
   }
 
+  public static function getZipFileTree(zipEntries:List<haxe.zip.Entry>):Map<String, Dynamic>
+  {
+    var tree:Map<String, Dynamic> = new Map<String, Dynamic>();
+
+    for (entry in zipEntries) {
+      var path = entry.fileName;
+
+      if (path == "" || path.endsWith("/")) continue;
+      var parts = path.split("/").filter(p -> p != "");
+      if (parts.length == 0) continue;
+
+      var current = tree;
+      for (dirName in parts) {
+        if (!current.exists(dirName)) {
+          current.set(dirName, new Map<String, Dynamic>());
+        }
+
+        current = cast current.get(dirName);
+      }
+
+      var fileName = parts[parts.length - 1];
+      current.set(fileName, fileName);
+    }
+
+    return tree;
+  }
+
   /**
    * Runs the 'Inflate' decompression algorithm on the raw compressed bytes
    * and returns the uncompressed data.
