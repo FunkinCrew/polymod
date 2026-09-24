@@ -3588,16 +3588,31 @@ class Interp
 
             var accessData:ClassAccessControl = listToUse.get(clsName) ?? {cls: null, fields: null};
             var accessControl:AccessControl = parseAccessMetadata(clsDecl, meta);
+
             if (accessData.fields != null)
             {
+              // Append any general packages.
+              if (accessControl.pkg != null)
+              {
+                var fieldAccessData = accessData.fields.get(field.name) ?? {access: null, pkg: null, interfacePackage: null};
+                var fieldPkgControl = fieldAccessData.pkg ?? new Array<String>();
+
+                for (pack in accessControl.pkg)
+                {
+                  fieldPkgControl.push(pack);
+                }
+                fieldAccessData.pkg = fieldPkgControl;
+                accessData.fields.set(field.name, fieldAccessData);
+              }
+
               // Append the access control to this fields access control data.
               if (accessControl.access != null)
               {
-                var fieldAccessData = accessData.fields.get(field.name) ?? {access: null};
+                var fieldAccessData = accessData.fields.get(field.name) ?? {access: null, pkg: null, interfacePackage: null};
                 var fieldAccessControl = fieldAccessData.access ?? new Map<String, Array<String>>();
                 for (cls => fields in accessControl.access)
                 {
-                  var fieldsList:Array<String> = fieldAccessControl.get(cls) ?? [];
+                  var fieldsList:Array<String> = fieldAccessControl.get(cls) ?? new Array<String>();
                   if (fields != null)
                   {
                     for (f in fields)
@@ -3618,11 +3633,10 @@ class Interp
             }
             else
             {
-              accessData.fields = [field.name => accessControl];
+              accessData.fields = new Map<String, AccessControl>();
+              accessData.fields.set(field.name, accessControl);
             }
             listToUse.set(clsName, accessData);
-
-            trace(listToUse);
         }
       }
     }
