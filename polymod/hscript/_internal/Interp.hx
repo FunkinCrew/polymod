@@ -3542,7 +3542,7 @@ class Interp
               for (clsName => fields in accessControl.access)
               {
                 accessData.cls.access ??= [];
-                var fieldsList:Array<String> = accessData.cls.access?.get(clsName) ?? [];
+                var fieldsList:Array<String> = accessData.cls.access.get(clsName) ?? [];
                 if (fields != null)
                 {
                   for (f in fields)
@@ -3593,7 +3593,8 @@ class Interp
               // Append the access control to this fields access control data.
               if (accessControl.access != null)
               {
-                var fieldAccessControl = accessData.fields.get(field.name).access;
+                var fieldAccessData = accessData.fields.get(field.name) ?? {access: null};
+                var fieldAccessControl = fieldAccessData.access ?? new Map<String, Array<String>>();
                 for (cls => fields in accessControl.access)
                 {
                   var fieldsList:Array<String> = fieldAccessControl.get(cls) ?? [];
@@ -3601,7 +3602,8 @@ class Interp
                   {
                     for (f in fields)
                     {
-                      if (!fieldsList.contains(f)) fieldsList.push(f);
+                      if (!fieldsList.contains(f))
+                        fieldsList.push(f);
                     }
                     fieldAccessControl.set(cls, fieldsList);
                   }
@@ -3609,6 +3611,8 @@ class Interp
                   {
                     fieldAccessControl.set(cls, null);
                   }
+                  fieldAccessData.access = fieldAccessControl;
+                  accessData.fields.set(field.name, fieldAccessData);
                 }
               }
             }
@@ -3617,6 +3621,8 @@ class Interp
               accessData.fields = [field.name => accessControl];
             }
             listToUse.set(clsName, accessData);
+
+            trace(listToUse);
         }
       }
     }
