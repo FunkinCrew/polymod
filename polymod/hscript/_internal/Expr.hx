@@ -154,6 +154,7 @@ enum Error
 {
   EInvalidChar(c:Int);
   EUnexpected(s:String);
+  EUnmatchedPattern(c:Bool);
   EUnterminatedString;
   EUnterminatedComment;
   EInvalidPreprocessor(msg:String);

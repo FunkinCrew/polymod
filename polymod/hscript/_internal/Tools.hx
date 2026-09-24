@@ -111,6 +111,172 @@ class Tools
     }
   }
 
+  /**
+   * `EnumValueTools.equals` doesn't work with `Expr` so we have to manually do it.
+   * Thankfully not every Expr is used in a case so we don't have to check for everything.
+   * @param e1 The first expression to check
+   * @param e2 The second expression to check
+   * @return Whether the expressions are recursively equal.
+   */
+  public static function switchExprEquals(e1:ExprDef, e2:ExprDef):Bool
+  {
+    switch (e1)
+    {
+      case EConst(c):
+        switch (e2)
+        {
+          case EConst(c2):
+            return c.equals(c2);
+          default:
+            return false;
+        }
+      case EIdent(v1):
+        switch (e2)
+        {
+          case EIdent(v2): return v1 == v2;
+          default: return false;
+        }
+      case EVar(n, t, e):
+        switch (e2)
+        {
+          case EVar(n2, t2, e2):
+            return n == n2 && t.equals(t2) && switchExprEquals(expr(e), expr(e2));
+          default: return false;
+        }
+      case EFinal(n, t, e):
+        switch (e2)
+        {
+          case EFinal(n2, t2, e2):
+            return n == n2 && Type.enumEq(t, t2) && switchExprEquals(expr(e), expr(e2));
+          default: return false;
+        }
+      case EParent(e):
+        switch (e2)
+        {
+          case EParent(e2):
+            return switchExprEquals(expr(e), expr(e2));
+          default: return false;
+        }
+      case EBlock(e):
+        switch (e2)
+        {
+          case EBlock(e2):
+            if (e.length != e2.length)
+              return false;
+
+            for (i in 0...e.length)
+            {
+              if (!switchExprEquals(expr(e[i]), expr(e2[i])))
+                return false;
+            }
+            return true;
+          default:
+            return false;
+        }
+      case EField(e, f):
+        switch (e2)
+        {
+          case EField(e2, f2):
+            if (!switchExprEquals(expr(e), expr(e2))) return false;
+            if (f != f2) return false;
+            return true;
+          default:
+            return false;
+        }
+      case EBinop(op, expr1, expr2):
+        switch (e2)
+        {
+          case EBinop(op2, e2_1, e2_2):
+            if (!switchExprEquals(expr(expr1), expr(e2_1))) return false;
+            if (!switchExprEquals(expr(expr2), expr(e2_2))) return false;
+            if (op != op2) return false;
+
+            return true;
+          default:
+            return false;
+        }
+      case EUnop(op, prefix, e):
+        switch (e2)
+        {
+          case EUnop(op2, prefix2, e2):
+            if (op != op2) return false;
+            if (prefix != prefix2) return false;
+            if (!switchExprEquals(expr(e), expr(e2))) return false;
+
+            return true;
+          default:
+            return false;
+        }
+      case ECall(e, params):
+        switch (e2)
+        {
+          case ECall(e2, params2):
+            if (params.length != params2.length) return false;
+
+            for (i in 0...params2.length)
+            {
+              if (!switchExprEquals(expr(params[i]), expr(params2[i]))) return false;
+            }
+            if (!switchExprEquals(expr(e), expr(e2))) return false;
+            return true;
+          default:
+            return false;
+        }
+      case ECast(e, t):
+        switch (e2)
+        {
+          case ECast(e2, t2):
+            if (!switchExprEquals(expr(e), expr(e2))) return false;
+            if (t != null && t.equals(t2)) return false;
+            return true;
+          default:
+            return false;
+        }
+      case EArray(e, index):
+        switch (e2)
+        {
+          case EArray(e2, index2):
+            if (!switchExprEquals(expr(e), expr(e2))) return false;
+            if (!switchExprEquals(expr(index), expr(index2))) return false;
+
+            return true;
+          default:
+            return false;
+        }
+      case EArrayDecl(e):
+        switch (e2)
+        {
+          case EArrayDecl(e2):
+            if (e.length != e2.length) return false;
+
+            for (i in 0...e.length)
+            {
+              if (!switchExprEquals(expr(e[i]), expr(e2[i]))) return false;
+            }
+            return true;
+          default:
+            return false;
+        }
+      case EObject(fl):
+        switch (e2)
+        {
+          case EObject(fl2):
+            if (fl.length != fl2.length) return false;
+
+            for (i in 0...fl.length)
+            {
+              if (fl[i].name != fl2[i].name) return false;
+              if (!switchExprEquals(expr(fl[i].e), expr(fl2[i].e))) return false;
+            }
+            return true;
+          default:
+            return false;
+        }
+      default:
+        return false;
+    }
+  }
+
   public static function map(e:Expr, f:Expr->Expr)
   {
     var edef = switch (expr(e))
@@ -144,54 +310,6 @@ class Tools
       case ECheckType(e, t): ECheckType(f(e), t);
     }
     return mk(edef, e);
-  }
-
-  public static function exprEquals(e1:ExprDef, e2:ExprDef):Bool
-  {
-    switch (e1)
-    {
-      case EConst(c):
-        switch (e2)
-        {
-          case EConst(c2):
-            return Type.enumEq(c, c2);
-          default:
-            return false;
-        }
-      case EIdent(v1):
-        switch (e2)
-        {
-          case EIdent(v2):
-            return v1 == v2;
-          default:
-            return false;
-        }
-      case EVar(n, t, e):
-        switch (e2)
-        {
-          case EVar(n2, t2, e2):
-            return n == n2 && Type.enumEq(t, t2) && exprEquals(expr(e), expr(e2));
-          default:
-            return false;
-        }
-      case EFinal(n, t, e):
-        switch (e2)
-        {
-          case EFinal(n2, t2, e2):
-            return n == n2 && Type.enumEq(t, t2) && exprEquals(expr(e), expr(e2));
-          default: return false;
-        }
-      case EParent(e):
-        switch (e2)
-        {
-          case EParent(e2):
-            return exprEquals(expr(e), expr(e2));
-          default:
-            return false;
-        }
-      default:
-        return false;
-    }
   }
 
   public static inline function expr(e:Expr):ExprDef

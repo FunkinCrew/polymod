@@ -915,11 +915,6 @@ class Parser
               cases.push(c);
               while (true)
               {
-                inline function parsePatternMatch(op, e1, e2)
-                {
-
-                }
-
                 var e = parseExpr();
                 c.values.push(e);
 
@@ -1029,17 +1024,22 @@ class Parser
         {
           for (c in casesToValidate)
           {
-            var hasMatch = false;
-            switch (c.caseMatch)
+            var hasMatch:Bool = casesToValidate.findIndex((v) ->
             {
-              case true:
-                hasMatch = casesToValidate.findIndex((validateCase) -> Tools.exprEquals(validateCase.expr, c.expr) && !validateCase.caseMatch) != -1;
-              case false:
-                hasMatch = casesToValidate.findIndex((validateCase) -> Tools.exprEquals(validateCase.expr, c.expr) && validateCase.caseMatch) != -1;
-            }
+              var isSameExpr:Bool = Tools.switchExprEquals(c.expr, v.expr);
+              if (isSameExpr)
+              {
+                if (c.caseMatch)
+                  return v.caseMatch == false;
+                else
+                  return v.caseMatch == true;
+              }
+              return false;
+            }) != -1;
+
             if (!hasMatch)
             {
-              error(ECustom('Unmatched pattern: ${!c.caseMatch}'), c.min, c.max);
+              error(EUnmatchedPattern(!c.caseMatch), c.min, c.max);
             }
           }
         }
