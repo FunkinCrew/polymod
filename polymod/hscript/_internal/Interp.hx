@@ -887,38 +887,39 @@ class Interp
     }
   }
 
-  public function clearScriptClassDescriptors():Void
+   public function storePersistentStaticFields():Void
   {
-    // Save all static fields with the @:persistent metadata.
-    _scriptPersistentFields.clear();
-
     for (key => decl in _scriptClassDescriptors)
     {
-      var persistentFields:Map<String, Dynamic> = null;
-      for (field in decl.staticFields)
+      var persistentFields:Null<Map<String, Dynamic>> = null;
+
+      var persistentFieldDecls:Array<FieldDecl> = decl.staticFields.filter((f) -> f.meta.length > 0 && (f.meta.findIndex((m) -> m.name == ':persistent') != -1));
+      for (field in persistentFieldDecls)
       {
         switch (field.kind)
         {
           case KVar(v):
-            var isPersistent:Bool = field.meta.findIndex((m) -> m.name == ':persistent') != -1;
-            if (isPersistent)
-            {
-              var v:Dynamic = PolymodScriptClass.getScriptClassStaticField(key, field.name);
-              if (v != null)
-              {
-                if (persistentFields == null)
-                  persistentFields = [field.name => v];
-                else
-                  persistentFields.set(field.name, v);
-              }
-            }
+            if (v.set != null && (v.set == 'never' || v.set == 'set' && v.get != null && v.get == 'get') && field.meta.findIndex((m) -> m.name == ':isVar') == -1)
+              continue;
+
+            var value:Dynamic = PolymodScriptClass.getScriptClassStaticField(key, field.name);
+
+            persistentFields ??= new Map<String, Dynamic>();
+            persistentFields.set(field.name, value);
           default:
+            // Don't save functions.
         }
       }
 
       if (persistentFields != null)
         _scriptPersistentFields.set(key, persistentFields);
     }
+  }
+
+  public function clearScriptClassDescriptors():Void
+  {
+    // Save all static fields with the @:persistent metadata.
+    storePersistentStaticFields();
 
     // Clear the script class descriptors.
     _scriptClassDescriptors.clear();
@@ -974,22 +975,23 @@ class Interp
 
   public function reloadPersistentStaticFields():Void
   {
-    for (cls => fieldValues in _scriptPersistentFields)
+    for (key => fieldVal in _scriptPersistentFields)
     {
-      if (_scriptClassDescriptors.exists(cls))
+      if (!_scriptClassDescriptors.exists(key))
+        continue;
+
+      var decl:ClassDecl = _scriptClassDescriptors.get(key);
+      for (name => v in fieldVal)
       {
-        var decl:ClassDecl = _scriptClassDescriptors.get(cls);
-        for (field => v in fieldValues)
+        var persistentField:Null<FieldDecl> = decl.staticFields.find((f) -> f.name == name && (f.meta.findIndex((m) -> m.name == ':persistent') != -1));
+        if (persistentField != null)
         {
-          // Verify that we still have a static field here.
-          if (decl.staticFields.findIndex((f) -> f.name == field) != -1)
-          {
-            // We set the value directly to bypass any accessors the field might have.
-            this.variables.set('$cls#$field', v);
-          }
+          // Save the field value, we manually set the variables map to avoid calling accessors.
+          this.variables.set('$key#$name', v);
         }
       }
     }
+    _scriptPersistentFields.clear();
   }
 
   function initOps()
