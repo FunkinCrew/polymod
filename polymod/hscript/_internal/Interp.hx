@@ -1882,13 +1882,12 @@ class Interp
         restore(old);
         return v;
       case EField(e, f):
-        var name = getIdent(e);
+        var name = dottedPath(e);
         name = getClassDecl().imports.get(name)?.fullPath ?? name;
         if (name != null && _scriptEnumDescriptors.exists(name))
         {
           return new PolymodEnum(_scriptEnumDescriptors.get(name), f, []);
         }
-
         return get(fieldTarget(e), f);
       case EBinop(op, e1, e2):
         var fop = binops.get(op);
@@ -1917,26 +1916,43 @@ class Interp
         {
           case EField(e, f):
             var name = getIdent(e);
+            var fullPath:Null<String> = null;
+            var abs:Null<PolymodStaticAbstractReference> = null;
             if (name != null)
             {
               var imp = getClassDecl().imports.get(name);
               if (imp != null)
               {
-                if (_scriptEnumDescriptors.exists(imp.fullPath))
+                fullPath = imp.fullPath;
+                abs = imp.abs;
+              }
+            }
+            else
+            {
+              fullPath = dottedPath(e);
+              if (fullPath != null)
+              {
+                var resolvedPath = resolveDottedPath(fullPath);
+                if (resolvedPath is PolymodStaticAbstractReference)
                 {
-                  var args = new Array();
-                  for (p in params) args.push(expr(p));
-
-                  return new PolymodEnum(_scriptEnumDescriptors.get(imp.fullPath), f, args);
-                }
-                else if (imp.abs != null && imp.abs.hasInlineFunction(f))
-                {
-                  var args = new Array();
-                  for (p in params) args.push(expr(p));
-
-                  return imp.abs.callInlineFunction(this, params[0], f, args);
+                  abs = resolvedPath;
                 }
               }
+            }
+
+            if (abs != null && abs.hasInlineFunction(f))
+            {
+              var args = new Array();
+              for (p in params) args.push(expr(p));
+
+              return abs.callInlineFunction(this, params[0], f, args);
+            }
+            else if (_scriptEnumDescriptors.exists(fullPath))
+            {
+              var args = new Array();
+              for (p in params) args.push(expr(p));
+
+              return new PolymodEnum(_scriptEnumDescriptors.get(fullPath), f, args);
             }
           default:
         }
