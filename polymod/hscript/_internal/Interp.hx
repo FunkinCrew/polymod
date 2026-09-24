@@ -2235,6 +2235,16 @@ class Interp
             {
               switch (Tools.expr(v))
               {
+                case EBinop(op, e1, e2):
+                  if (op == '=>')
+                  {
+                    // We're dealing with a pattern matching case.
+                    if (expr(e1) == expr(e2))
+                    {
+                      match = true;
+                      break;
+                    }
+                  }
                 case ECall(e, params):
                   switch (Tools.expr(e))
                   {
@@ -2277,18 +2287,20 @@ class Interp
             }
             if (match)
             {
+              inSwitchCase = false;
               val = expr(c.expr);
               break;
             }
           }
+          inSwitchCase = false;
+          curSwitchValue = oldSwitchVal;
+
           if (!match)
           {
             val = def == null ? null : expr(def);
           }
           restore(old);
 
-          inSwitchCase = false;
-          curSwitchValue = oldSwitchVal;
           return val;
         }
         else
@@ -2306,6 +2318,16 @@ class Interp
             {
               switch (Tools.expr(v))
               {
+                case EBinop(op, e1, e2):
+                  if (op == '=>')
+                  {
+                    // We're dealing with a pattern matching case.
+                    if (expr(e1) == expr(e2))
+                    {
+                      match = true;
+                      break;
+                    }
+                  }
                 case ECall(e, params):
                   switch (Tools.expr(e))
                   {
@@ -2348,16 +2370,17 @@ class Interp
             }
             if (match)
             {
+              inSwitchCase = false;
               val = expr(c.expr);
               break;
             }
           }
+          inSwitchCase = false;
+          curSwitchValue = oldSwitchVal;
 
           if (!match) val = def == null ? null : expr(def);
           restore(old);
 
-          inSwitchCase = false;
-          curSwitchValue = oldSwitchVal;
           return val;
         }
       case EMeta(name, args, e):

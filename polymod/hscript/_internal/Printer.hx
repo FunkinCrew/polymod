@@ -721,6 +721,7 @@ class Printer
     {
       case EInvalidChar(c): 'Invalid character: ${(StringTools.isEof(c) ? "EOF" : String.fromCharCode(c))}';
       case EUnexpected(s): 'Unexpected token "$s".';
+      case EUnmatchedPattern(c): 'Unmatched pattern: "${Std.string(c)}"';
       case EUnterminatedString: 'Unterminated string.';
       case EUnterminatedComment: 'Unterminated comment.';
       case EInvalidPreprocessor(str): 'Invalid preprocessor "$str".';
