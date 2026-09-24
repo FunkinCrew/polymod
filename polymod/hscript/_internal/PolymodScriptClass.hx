@@ -792,11 +792,11 @@ class PolymodScriptClass
     }
 
     // `v` can be a PolymodScriptClass if you call `this` from a scripted class.
-    if (v is HScriptedClass || v is PolymodScriptClass)
+    if (v._asc != null || v is PolymodScriptClass)
     {
       var proxy:PolymodAbstractScriptClass = switch (v)
       {
-        case (_ is HScriptedClass) => true: v._asc;
+        case (_._asc != null) => true: v._asc;
         default: cast v;
       }
       var fullClassName:String = proxy.fullyQualifiedName;
