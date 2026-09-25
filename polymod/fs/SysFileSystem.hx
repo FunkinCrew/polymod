@@ -191,7 +191,7 @@ class SysFileSystem extends BaseFileSystem
       keyParts.insert(0, baseParts.pop());
     }
 
-    return findFile(baseParts.join('/'), keyParts);
+    return (baseParts.length == 0 || keyParts.length == 0) ? null : findFile(baseParts.join('/'), keyParts);
   }
 
   private function findFile(base_path:String, keys:Array<String>):Null<String>
