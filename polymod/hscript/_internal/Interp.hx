@@ -1926,6 +1926,10 @@ class Interp
                 fullPath = imp.fullPath;
                 abs = imp.abs;
               }
+              else
+              {
+                fullPath = name;
+              }
             }
             else
             {
