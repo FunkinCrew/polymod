@@ -273,15 +273,20 @@ abstract class BaseFileSystem implements IFileSystem
         meta.modPath = modPath;
 
         var iconFile = getModIconPath(modPath, origin);
-        var iconBytes:Null<Bytes> = getFileBytes(iconFile);
-        if (iconBytes == null)
+
+        if (exists(iconFile))
         {
-          Polymod.warning(MOD_MISSING_ICON, 'Could not obtain mod icon data from file: $iconFile', origin);
-        }
-        else
-        {
-          meta.icon = iconBytes;
-          meta.iconPath = iconFile;
+          var iconBytes:Null<Bytes> = getFileBytes(iconFile);
+
+          if (iconBytes == null)
+          {
+            Polymod.warning(MOD_MISSING_ICON, 'Could not obtain mod icon data from file: $iconFile', origin);
+          }
+          else
+          {
+            meta.icon = iconBytes;
+            meta.iconPath = iconFile;
+          }
         }
 
         return dir;
@@ -364,15 +369,20 @@ abstract class BaseFileSystem implements IFileSystem
       meta.modPath = modPath;
 
       var iconFile = getModIconPath(modPath, origin);
-      var iconBytes:Null<Bytes> = getFileBytes(iconFile);
-      if (iconBytes == null)
+
+      if (exists(iconFile))
       {
-        Polymod.warning(MOD_MISSING_ICON, 'Could not obtain mod icon data from file: $iconFile', origin);
-      }
-      else
-      {
-        meta.icon = iconBytes;
-        meta.iconPath = iconFile;
+        var iconBytes:Null<Bytes> = getFileBytes(iconFile);
+
+        if (iconBytes == null)
+        {
+          Polymod.warning(MOD_MISSING_ICON, 'Could not obtain mod icon data from file: $iconFile', origin);
+        }
+        else
+        {
+          meta.icon = iconBytes;
+          meta.iconPath = iconFile;
+        }
       }
 
       return meta;
