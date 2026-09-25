@@ -1858,14 +1858,48 @@ class Interp
 
     if (getClassDecl() != null)
     {
-      // We are retrieving an adjacent field from a static context.
-      var cls = getClassDecl();
-      var name = cls.name;
-      if (cls.pkg != null && cls.pkg.length > 0)
+      // Try to resolve enum constructors from imported enums.
+      for (importedClass in getClassDecl().imports)
       {
-        name = cls.pkg.join('.') + "." + name;
+        if (importedClass.enm != null)
+        {
+          var enm = importedClass.enm;
+          if (Type.getEnumConstructs(enm).contains(id))
+          {
+            return get(enm, id);
+          }
+        }
+        else if (_scriptEnumDescriptors.exists(importedClass.fullPath))
+        {
+          var enm = _scriptEnumDescriptors.get(importedClass.fullPath);
+          for (fld in enm.fields)
+          {
+            if (fld.name == id)
+            {
+              checkTypeForDeprecation(importedClass.fullPath);
+              return fld.args.length > 0 ? Reflect.makeVarArgs((args) -> return new PolymodEnum(enm, id, args)) : new PolymodEnum(enm, id, []);
+            }
+          }
+        }
       }
-      return PolymodScriptClass.getScriptClassStaticField(name, id);
+
+      // Local script enums check.
+      for (name => enm in _scriptEnumDescriptors)
+      {
+        if (enm.pkg != getClassDecl().pkg) continue;
+
+        for (fld in enm.fields)
+        {
+          if (fld.name == id)
+          {
+            checkTypeForDeprecation(name);
+            return fld.args.length > 0 ? Reflect.makeVarArgs((args) -> return new PolymodEnum(enm, id, args)) : new PolymodEnum(enm, id, []);
+          }
+        }
+      }
+
+      // We are retrieving an adjacent field from a static context.
+      return PolymodScriptClass.getScriptClassStaticField(getClassFullyQualifiedName(), id);
     }
 
     // If we're here, the field definitely doesn't exist.
@@ -2048,7 +2082,14 @@ class Interp
         if (name != null && _scriptEnumDescriptors.exists(name))
         {
           checkTypeForDeprecation(name);
-          return new PolymodEnum(_scriptEnumDescriptors.get(name), f, []);
+          var enm = _scriptEnumDescriptors.get(name);
+          for (fld in enm.fields)
+          {
+            if (fld.name == f)
+            {
+              return fld.args.length > 0 ? Reflect.makeVarArgs((args) -> return new PolymodEnum(enm, f, args)) : new PolymodEnum(enm, f, []);
+            }
+          }
         }
         return get(fieldTarget(e), f);
       case EBinop(op, e1, e2):
@@ -2396,6 +2437,7 @@ class Interp
         return if (expr(econd) == true) expr(e1) else expr(e2);
       case ESwitch(e, cases, def):
         var val:Dynamic = expr(e);
+        var eVal:Dynamic = null;
 
         var oldSwitchVal = curSwitchValue;
         curSwitchValue = val;
@@ -2428,42 +2470,62 @@ class Interp
                     }
                   }
                 case ECall(e, params):
-                  switch (Tools.expr(e))
+                var constName:String = switch (Tools.expr(e))
+                {
+                  case EField(_, f): f;
+                  case EIdent(id): id;
+                  default: null;
+                };
+
+                if (val._value == constName)
+                {
+                  eVal = Reflect.callMethod(val, expr(e), val._args);
+                  if (eVal is PolymodEnum)
                   {
-                    case EField(_, f):
-                      if (val._value == f)
+                    for (i => p in params)
+                    {
+                      switch (Tools.expr(p))
                       {
-                        for (i => p in params)
-                        {
-                          switch (Tools.expr(p))
-                          {
-                            case EIdent(n):
-                              declared.push({
-                                n: n,
-                                old: {
-                                  r: locals.get(n)
-                                }
-                              });
-                              locals.set(n, {
-                                r: val._args[i]
-                              });
-                            default:
-                          }
-                        }
-                        match = true;
-                        break;
+                        case EIdent(n):
+                          declared.push({
+                            n: n,
+                            old: {
+                              r: locals.get(n)
+                            }
+                          });
+                          locals.set(n, {
+                            r: val._args[i]
+                          });
+                        default:
                       }
-                    default:
+                    }
+                    match = true;
+                    break;
                   }
+                }
                 case EField(_, f):
-                  if (val._value == f)
+
+                  eVal = expr(v);
+
+                  if (eVal is PolymodEnum && val._value == eVal._value)
                   {
                     match = true;
                     break;
                   }
-                case EIdent('_'):
-                  match = true;
-                  break;
+                case EIdent(id):
+                  if (id == "_")
+                  {
+                    match = true;
+                    break;
+                  }
+
+                  eVal = expr(v);
+
+                  if (eVal is PolymodEnum && val._value == eVal._value)
+                  {
+                    match = true;
+                    break;
+                  }
                 default:
               }
             }
@@ -2510,15 +2572,25 @@ class Interp
                       break;
                     }
                   }
-                case ECall(e, params):
-                  switch (Tools.expr(e))
+                case ECall(e, params) if (Reflect.isEnumValue(val)):
+                  var constName:String = switch (Tools.expr(e))
                   {
-                    case EField(_, f):
-                      var valStr:String = cast val;
-                      valStr = valStr.substring(0, valStr.indexOf("("));
-                      if (valStr == f)
+                    case EField(_, f): f;
+                    case EIdent(id): id;
+                    default: null;
+                  };
+
+                  var valConstructor:String = Type.enumConstructor(val);
+
+                  if (valConstructor == constName)
+                  {
+                    var valParams:Array<Dynamic> = Type.enumParameters(val);
+                    eVal = Reflect.callMethod(val, expr(e), valParams);
+
+                    if (Reflect.isEnumValue(eVal) && val == eVal)
+                    {
+                      if (valParams.length == params.length && params.length > 0)
                       {
-                        var valParams = Type.enumParameters(val);
                         for (i => p in params)
                         {
                           switch (Tools.expr(p))
@@ -2539,8 +2611,9 @@ class Interp
                         match = true;
                         break;
                       }
-                    default:
+                    }
                   }
+
                 default:
                   var caseVal = expr(v);
                   if ((caseVal is Bool && caseVal) || caseVal == val)
