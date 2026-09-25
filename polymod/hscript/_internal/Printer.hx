@@ -759,4 +759,67 @@ class Printer
     #end
     return message;
   }
+
+  /**
+   * Converts a preprocessing-related error into a human-readable `String` representation.
+   * @param e The preprocesser to turn into an error.
+   * @return String
+   */
+  public static function preprocessErrorToString(e:Expr):String
+  {
+    var parser = new Parser();
+
+    var msg:String = '';
+    switch (Tools.expr(e))
+    {
+      case EIdent(v):
+        msg += '$v to be enabled';
+      case EParent(e):
+        msg += Printer.preprocessErrorToString(e);
+      case EUnop("!", _, e):
+        var val = parser.evalPreproValue(e);
+        msg += '$val to be disabled';
+      case EBinop(op, e1, e2):
+        msg += switch (op)
+        {
+          case '&&', '||':
+            var error1 = Printer.preprocessErrorToString(e1);
+            var error2 = Printer.preprocessErrorToString(e2);
+
+            switch (op)
+            {
+              case '&&':
+                'both $error1, and $error2';
+              case '||':
+                'either $error1", or $error2';
+              default: '(unknown comparison operator)';
+            }
+          default:
+            var val1 = parser.evalPreproValue(e1);
+            var val2 = parser.evalPreproValue(e2);
+
+            switch (op)
+            {
+              case '>=':
+                '"$val1" to be greater than or equal to "$val2"';
+              case '>':
+                '"$val1" to be greater than "$val2"';
+              case '<=':
+                '"$val1" to be less or equal to than "$val2"';
+              case '<':
+                '"$val1" to be less than "$val2"';
+              case '==':
+                '"$val1" to equal "$val2"';
+              case '!=':
+                '"$val1" to not equal "$val2"';
+              default: '(unknown comparison operator)';
+            }
+        }
+      default:
+        msg += '(unknown preprocessor condition)';
+    }
+    parser = null;
+
+    return msg;
+  }
 }

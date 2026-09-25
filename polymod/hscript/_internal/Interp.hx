@@ -59,6 +59,14 @@ class Interp
   static var allowMetadataControlList:Map<String, ClassAccessControl> = [];
   static var accessMetadataControlList:Map<String, ClassAccessControl> = [];
 
+  static var _scriptPersistentFields:Map<String, Map<String, Dynamic>> = [];
+
+  static var _deprecatedTypes:Map<String, String> = [];
+  static var _deprecatedFields:Map<String, Map<String, String>> = [];
+
+  var _cachedDeprecatedClasses:Array<String> = [];
+  var _cachedDeprecatedFields:Map<String, Array<String>> = [];
+
   var _propTrack:Map<String, Bool> = [];
 
   static var defaultVariables:Map<String, Dynamic>;
@@ -85,6 +93,7 @@ class Interp
   var curSwitchValue:Null<Dynamic>;
 
   var inPrivateAccess:Bool = false;
+  var inNoPrivateAccess:Bool = false;
 
   function getClassDecl():Null<ClassDecl>
   {
@@ -136,6 +145,7 @@ class Interp
 
     function tryBuildClass(clsRef:PolymodStaticClassReference, args:Array<Dynamic>):Null<Dynamic>
     {
+      checkTypeForDeprecation(clsRef.getFullyQualifiedName());
       if (clsRef.cls != getClassDecl() && !clsRef.canInstantiate)
       {
         error(ECustom('Cannot access private constructor of "${clsRef.cls.name}"'));
@@ -298,8 +308,18 @@ class Interp
 
     var tryUsingFallback = function():Dynamic
     {
+      if (o is PolymodEnum)
+      {
+        var e = cast(o, PolymodEnum);
+        if (e.usingFunctionsCache.exists(f))
+        {
+          return e.usingFunctionsCache[f]([o].concat(args));
+        }
+        return null;
+      }
+
       @:privateAccess
-      if (_proxy != null && _proxy._cachedUsingFunctions.exists(f))
+      if (_proxy?._cachedUsingFunctions.exists(f) ?? false)
       {
         return _proxy._cachedUsingFunctions[f]([o].concat(args));
       }
@@ -318,12 +338,20 @@ class Interp
 
     var hasUsingFallback = function():Bool
     {
+      if (o is PolymodEnum)
+      {
+        return cast(o, PolymodEnum).usingFunctionsCache.exists(f);
+      }
+
       @:privateAccess
-      if (_proxy != null && _proxy._cachedUsingFunctions.exists(f)) return true;
+      if (_proxy?._cachedUsingFunctions.exists(f) ?? false)
+        return true;
+
       if (_classDeclOverride != null)
       {
         var usingFuncs:Map<String, Array<Dynamic>->Dynamic> = [];
         PolymodScriptClass.buildExtensionFunctionCache(_classDeclOverride, usingFuncs);
+
         return usingFuncs.exists(f);
       }
       return false;
@@ -358,6 +386,9 @@ class Interp
       return null;
     }
 
+    checkTypeForDeprecation(oScriptCls);
+    checkFieldForDeprecation(oScriptCls, f);
+
     if (Std.isOfType(o, PolymodStaticAbstractReference))
     {
       var ref:PolymodStaticAbstractReference = cast(o, PolymodStaticAbstractReference);
@@ -386,6 +417,11 @@ class Interp
       var proxy:PolymodScriptClass = cast(o, PolymodScriptClass);
       if (!proxy.hasFunction(f) && hasUsingFallback()) return tryUsingFallback();
       return proxy.callFunction(f, args);
+    }
+    else if (Std.isOfType(o, PolymodEnum))
+    {
+      if (hasUsingFallback())
+        return tryUsingFallback();
     }
 
     var er:Null<Error> = null;
@@ -666,7 +702,69 @@ class Interp
       Polymod.blacklistScriptClassInstanceFields(clsName, instanceFields);
   }
 
+  static function registerDeprecatedFields(path:String):Void
+  {
+    var printer = new Printer();
+    if (Interp.findScriptClassDescriptor(path) != null)
+    {
+      var decl:ClassDecl = Interp.findScriptClassDescriptor(path);
 
+      var deprecatedClassMeta = decl.meta.find((m) -> m.name == ':deprecated');
+      if (deprecatedClassMeta != null)
+      {
+        var message:String = printer.exprToString(deprecatedClassMeta.params[0]);
+        _deprecatedTypes.set(path, message);
+      }
+
+      for (field in decl.fields.concat(decl.staticFields))
+      {
+        var deprecatedMeta = field.meta.find((m) -> m.name == ':deprecated');
+        if (deprecatedMeta != null)
+        {
+          var message:String = printer.exprToString(deprecatedMeta.params[0]);
+          var fields:Map<String, String> = _deprecatedFields.get(path) ?? [];
+
+          fields.set(field.name, message);
+          _deprecatedFields.set(path, fields);
+        }
+      }
+    }
+    else if (Interp.findScriptInterfaceDescriptor(path) != null)
+    {
+      var decl:InterfaceDecl = Interp.findScriptInterfaceDescriptor(path);
+
+      var deprecatedClassMeta = decl.meta.find((m) -> m.name == ':deprecated');
+      if (deprecatedClassMeta != null)
+      {
+        var message:String = printer.exprToString(deprecatedClassMeta.params[0]);
+        _deprecatedTypes.set(path, message);
+      }
+
+      for (field in decl.fields)
+      {
+        var deprecatedMeta = field.meta.find((m) -> m.name == ':deprecated');
+        if (deprecatedMeta != null)
+        {
+          var message:String = printer.exprToString(deprecatedMeta.params[0]);
+          var fields:Map<String, String> = _deprecatedFields.get(path) ?? [];
+
+          fields.set(field.name, message);
+          _deprecatedFields.set(path, fields);
+        }
+      }
+    }
+    else if (_scriptEnumDescriptors.exists(path))
+    {
+      var decl:EnumDecl = _scriptEnumDescriptors.get(path);
+
+      var deprecatedClassMeta = decl.meta.find((m) -> m.name == ':deprecated');
+      if (deprecatedClassMeta != null)
+      {
+        var message:String = printer.exprToString(deprecatedClassMeta.params[0]);
+        _deprecatedTypes.set(path, message);
+      }
+    }
+  }
   static function registerScriptClass(c:ClassDecl)
   {
     var name = Util.getFullClassName(c);
@@ -685,6 +783,7 @@ class Interp
       Polymod.debug('Registering scripted class $name');
       _scriptClassDescriptors.set(name, c);
     }
+    registerDeprecatedFields(name);
   }
 
   static function registerScriptInterface(i:InterfaceDecl)
@@ -706,6 +805,7 @@ class Interp
     {
       Polymod.debug('Registering scripted interface $name');
       _scriptInterfaceDescriptors.set(name, i);
+      registerDeprecatedFields(name);
     }
   }
 
@@ -730,6 +830,7 @@ class Interp
     {
       Polymod.debug('Registering scripted enum $name');
       _scriptEnumDescriptors.set(name, e);
+      registerDeprecatedFields(name);
     }
   }
 
@@ -786,10 +887,45 @@ class Interp
     }
   }
 
+   public function storePersistentStaticFields():Void
+  {
+    for (key => decl in _scriptClassDescriptors)
+    {
+      var persistentFields:Null<Map<String, Dynamic>> = null;
+
+      var persistentFieldDecls:Array<FieldDecl> = decl.staticFields.filter((f) -> f.meta.length > 0 && (f.meta.findIndex((m) -> m.name == ':persistent') != -1));
+      for (field in persistentFieldDecls)
+      {
+        switch (field.kind)
+        {
+          case KVar(v):
+            if (v.set != null && (v.set == 'never' || v.set == 'set' && v.get != null && v.get == 'get') && field.meta.findIndex((m) -> m.name == ':isVar') == -1)
+              continue;
+
+            var value:Dynamic = PolymodScriptClass.getScriptClassStaticField(key, field.name);
+
+            persistentFields ??= new Map<String, Dynamic>();
+            persistentFields.set(field.name, value);
+          default:
+            // Don't save functions.
+        }
+      }
+
+      if (persistentFields != null)
+        _scriptPersistentFields.set(key, persistentFields);
+    }
+  }
+
   public function clearScriptClassDescriptors():Void
   {
+    // Save all static fields with the @:persistent metadata.
+    storePersistentStaticFields();
+
     // Clear the script class descriptors.
     _scriptClassDescriptors.clear();
+
+    _deprecatedTypes.clear();
+    _deprecatedFields.clear();
 
     // We clear this field so it later re-generates when validating imports.
     @:privateAccess
@@ -835,6 +971,27 @@ class Interp
       fileName: "hscript",
       lineNumber: 0
     };
+  }
+
+  public function reloadPersistentStaticFields():Void
+  {
+    for (key => fieldVal in _scriptPersistentFields)
+    {
+      if (!_scriptClassDescriptors.exists(key))
+        continue;
+
+      var decl:ClassDecl = _scriptClassDescriptors.get(key);
+      for (name => v in fieldVal)
+      {
+        var persistentField:Null<FieldDecl> = decl.staticFields.find((f) -> f.name == name && (f.meta.findIndex((m) -> m.name == ':persistent') != -1));
+        if (persistentField != null)
+        {
+          // Save the field value, we manually set the variables map to avoid calling accessors.
+          this.variables.set('$key#$name', v);
+        }
+      }
+    }
+    _scriptPersistentFields.clear();
   }
 
   function initOps()
@@ -991,6 +1148,7 @@ class Interp
             @:privateAccess
             {
               var decl = _proxy.findVar(id);
+
               if (decl != null)
               {
                 switch (decl.set)
@@ -1728,6 +1886,11 @@ class Interp
     {
       if (PolymodScriptClass.importOverrides.exists(fullPath))
       {
+        if (_deprecatedTypes.exists(fullPath))
+        {
+          checkTypeForDeprecation(fullPath);
+        }
+
         if (PolymodScriptClass.backwardsCompatibilityImports.exists(fullPath))
         {
           // This import alias is a backwards compatibility import, notify the user that they should change the class to the provided one.
@@ -1886,6 +2049,7 @@ class Interp
         name = getClassDecl().imports.get(name)?.fullPath ?? name;
         if (name != null && _scriptEnumDescriptors.exists(name))
         {
+          checkTypeForDeprecation(name);
           return new PolymodEnum(_scriptEnumDescriptors.get(name), f, []);
         }
         return get(fieldTarget(e), f);
@@ -2413,6 +2577,16 @@ class Interp
               return obj;
             }
             return expr(e);
+          case ':noPrivateAccess':
+            // Side note: I really do not see the point of this metadata field, I guess maybe for if you're inside a private access block, but still.
+            if (!inNoPrivateAccess)
+            {
+              inNoPrivateAccess = true;
+              var obj = expr(e);
+              inNoPrivateAccess = false;
+              return obj;
+            }
+            return expr(e);
           default:
             return expr(e);
         }
@@ -2854,7 +3028,7 @@ class Interp
   function checkPrivateAccess(o:Dynamic, f:String):Bool
   {
     // If we're in a private access block, automatically allow it.
-    if (inPrivateAccess)
+    if (inPrivateAccess && !inNoPrivateAccess)
       return true;
 
     if (checkAccessControl(o, f))
@@ -3103,6 +3277,9 @@ class Interp
       error(EBlacklistedField(f));
       return null;
     }
+
+    checkTypeForDeprecation(oScriptCls);
+    checkFieldForDeprecation(oScriptCls, f);
 
     // If not, check if it is a blacklisted instance field.
     if (oCls.length > 0 && oCls != 'Object')
@@ -3662,6 +3839,9 @@ class Interp
             accessData.cls = accessControl;
           }
           listToUse.set(clsName, accessData);
+        case ':deprecation':
+          var message:String = new Printer().exprToString(meta.params[0]);
+          _deprecatedTypes.set(clsName, message);
       }
     }
 
@@ -3735,6 +3915,12 @@ class Interp
               accessData.fields.set(field.name, accessControl);
             }
             listToUse.set(clsName, accessData);
+        case ':deprecation':
+          var message:String = new Printer().exprToString(meta.params[0]);
+          var fields:Map<String, String> = _deprecatedFields.get(clsName) ?? [];
+
+          fields.set(field.name, message);
+          _deprecatedFields.set(clsName, fields);
         }
       }
     }
@@ -4233,10 +4419,50 @@ class Interp
     {
       var newClassName:String = Type.getClassName(backwardsCompatInfo.cls);
       var infoMessage:String = backwardsCompatInfo.info.message ?? 'Please import and adjust your script to use $newClassName instead.';
-      var message:String = 'Scripted class ${path} has been changed since ${backwardsCompatInfo.info.version}.\nWhile this import can be used, read the below to help with migration:\n\n$infoMessage';
+      var message:String = 'Scripted class ${path} has been changed since ${backwardsCompatInfo.info.version}.\nWhile this import can be used, read the below to help with migration:\n$infoMessage';
 
       Polymod.warning(SCRIPTED_CLASS_BACKWARDS_COMPATIBILITY_IMPORT, message, SCRIPT_RUNTIME);
     }
+  }
+
+  /**
+   * Checks to see if the given class is deprecated and warns the user if so.
+   * @param cls The class to check. If this is deprecated as well it'll thrown an error.
+   */
+  public function checkTypeForDeprecation(cls:String):Void
+  {
+    if (!_deprecatedTypes.exists(cls) || _cachedDeprecatedClasses.contains(cls))
+      return;
+
+    var message:String = _deprecatedTypes.get(cls);
+
+    Polymod.warning(SCRIPTED_CLASS_FIELD_DEPRECATED, 'Type $cls is deprecated\n$message', SCRIPT_RUNTIME);
+
+    _cachedDeprecatedClasses.push(cls);
+  }
+
+  /**
+   * Checks to see if the given class is deprecated and warns the user if so.
+   * @param cls The class to check. If this is deprecated as well it'll thrown an error.
+   * @param f The field to check.
+   */
+  public function checkFieldForDeprecation(cls:String, f:String):Void
+  {
+    if (!_deprecatedFields.get(cls)?.exists(f) ?? false)
+      return;
+
+    // If we've already warned the user the field has been deprecated, don't warn them again.
+    if (_cachedDeprecatedFields.get(cls).contains(f))
+      return;
+
+    var message:String = _deprecatedFields.get(cls).get(f);
+
+    Polymod.warning(SCRIPTED_CLASS_FIELD_DEPRECATED, 'Field $f is deprecated\n$message', SCRIPT_RUNTIME);
+
+    var fields = _cachedDeprecatedFields.get(cls) ?? [];
+    fields.push(f);
+
+    _cachedDeprecatedFields.set(cls, fields);
   }
 
   /**
