@@ -1601,9 +1601,10 @@ class PolymodScriptClass
    */
   public static function buildExtensionFunctionCache(clsDecl:ClassDecl, usingCache):Void
   {
-    if (Interp._classDeclUsingCache.exists(clsDecl))
+    var fullClassName:String = Util.getFullClassName(clsDecl);
+    if (Interp._classDeclUsingCache.exists(fullClassName))
     {
-      for (field => func in Interp._classDeclUsingCache.get(clsDecl))
+      for (field => func in Interp._classDeclUsingCache.get(fullClassName))
       {
         usingCache.set(field, func);
       }
@@ -1641,7 +1642,7 @@ class PolymodScriptClass
     {
       usingCache.set(field, func);
     }
-    Interp._classDeclUsingCache.set(clsDecl, usingCacheList);
+    Interp._classDeclUsingCache.set(fullClassName, usingCacheList);
   }
 
   /**

@@ -61,7 +61,7 @@ class Interp
 
   static var _scriptPersistentFields:Map<String, Map<String, Dynamic>> = [];
 
-  static var _classDeclUsingCache:Map<ClassDecl, Map<String, Array<Dynamic>->Dynamic>> = [];
+  static var _classDeclUsingCache:Map<String, Map<String, Array<Dynamic>->Dynamic>> = [];
 
   static var _deprecatedTypes:Map<String, String> = [];
   static var _deprecatedFields:Map<String, Map<String, String>> = [];
