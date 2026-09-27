@@ -195,7 +195,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
             {
               if (topASC.findFunction(setName) != null)
               {
-                r = topASC.callFunction(setName);
+                r = topASC.callFunction(setName, [value]);
                 this._interp._propTrack.remove(setName);
                 return r;
               }
