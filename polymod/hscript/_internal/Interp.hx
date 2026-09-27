@@ -64,7 +64,7 @@ class Interp
   static var _deprecatedTypes:Map<String, String> = [];
   static var _deprecatedFields:Map<String, Map<String, String>> = [];
 
-  var _cachedDeprecatedClasses:Array<String> = [];
+  var _cachedDeprecatedTypes:Array<String> = [];
   var _cachedDeprecatedFields:Map<String, Array<String>> = [];
 
   var _propTrack:Map<String, Bool> = [];
@@ -923,6 +923,9 @@ class Interp
 
     // Clear the script class descriptors.
     _scriptClassDescriptors.clear();
+
+    _cachedDeprecatedTypes = [];
+    _cachedDeprecatedFields = [];
 
     _deprecatedTypes.clear();
     _deprecatedFields.clear();
@@ -1886,11 +1889,6 @@ class Interp
     {
       if (PolymodScriptClass.importOverrides.exists(fullPath))
       {
-        if (_deprecatedTypes.exists(fullPath))
-        {
-          checkTypeForDeprecation(fullPath);
-        }
-
         if (PolymodScriptClass.backwardsCompatibilityImports.exists(fullPath))
         {
           // This import alias is a backwards compatibility import, notify the user that they should change the class to the provided one.
@@ -4435,14 +4433,14 @@ class Interp
    */
   public function checkTypeForDeprecation(cls:String):Void
   {
-    if (!_deprecatedTypes.exists(cls) || _cachedDeprecatedClasses.contains(cls))
+    if (!_deprecatedTypes.exists(cls) || _cachedDeprecatedTypes.contains(cls))
       return;
 
     var message:String = _deprecatedTypes.get(cls);
 
     Polymod.warning(SCRIPTED_CLASS_FIELD_DEPRECATED, 'Type $cls is deprecated\n$message', SCRIPT_RUNTIME);
 
-    _cachedDeprecatedClasses.push(cls);
+    _cachedDeprecatedTypes.push(cls);
   }
 
   /**
