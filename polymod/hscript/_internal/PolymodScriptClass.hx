@@ -1601,12 +1601,23 @@ class PolymodScriptClass
    */
   public static function buildExtensionFunctionCache(clsDecl:ClassDecl, usingCache):Void
   {
+    if (Interp._classDeclUsingCache.exists(clsDecl))
+    {
+      for (field => func in Interp._classDeclUsingCache.get(clsDecl))
+      {
+        usingCache.set(field, func);
+      }
+      return;
+    }
+
+    var usingCacheList = new Map<String, Array<Dynamic>->Dynamic>();
+
     // Append using cache for any `using` keywords.
     for (u in clsDecl.usings)
     {
       for (field => func in buildUsingListCache(u.fullPath) ?? [])
       {
-        usingCache.set(field, func);
+        usingCacheList.set(field, func);
       }
     }
 
@@ -1620,10 +1631,17 @@ class PolymodScriptClass
 
         for (field => func in buildUsingListCache(cls) ?? [])
         {
-          usingCache.set(field, func);
+          usingCacheList.set(field, func);
+
         }
       }
     }
+
+    for (field => func in usingCacheList)
+    {
+      usingCache.set(field, func);
+    }
+    Interp._classDeclUsingCache.set(clsDecl, usingCacheList);
   }
 
   /**
