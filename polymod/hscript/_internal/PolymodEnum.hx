@@ -6,13 +6,26 @@ import polymod.hscript._internal.Expr;
 @:allow(polymod.Polymod)
 class PolymodEnum
 {
-  private static final scriptInterp = new Interp(null, null);
   private static final _staticUsingFunctionsCache:Map<String, Map<String, Array<Dynamic>->Dynamic>> = [];
 
+  /**
+   * The scripted enum declaration used for this enum value.
+   */
   private var _e:EnumDecl;
+
+  /**
+   * The value itself of the enum.
+   */
   private var _value:String;
+
+  /**
+   * The arguments provided for this enum value.
+   */
   private var _args:Array<Dynamic>;
 
+  /**
+   * The current list of using functions from other classes that this value is able to have.
+   */
   public var usingFunctionsCache:Map<String, Array<Dynamic>->Dynamic> = [];
 
   public function new(e:EnumDecl, value:String, args:Array<Dynamic>)
@@ -42,7 +55,7 @@ class PolymodEnum
 
   /**
    * Attempts to retrieve the full package of a scripted enum.
-   * @param id
+   * @param id The id to and find.
    */
   public static function tryResolve(id:String):Null<String>
   {
@@ -67,7 +80,9 @@ class PolymodEnum
 
   public static function clearScriptedEnums():Void
   {
-    scriptInterp.clearScriptEnumDescriptors();
+    @:privateAccess
+    Interp._scriptEnumDescriptors.clear();
+    _staticUsingFunctionsCache.clear();
   }
 
   public function buildUsingCache()

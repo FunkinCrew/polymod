@@ -46,56 +46,180 @@ private enum Stop
 @:access(polymod.hscript._internal.PolymodEnum)
 class Interp
 {
-  private var _proxy:PolymodAbstractScriptClass = null;
-  var _classDeclOverride:ClassDecl = null;
-  var targetCls:Class<Dynamic>;
+  /**
+   * STATIC FIELDS
+   */
 
-  private static var _scriptClassImports:Map<String, Array<ClassImport>> = new Map<String, Array<ClassImport>>();
-  private static var _scriptClassUsings:Map<String, Array<ClassImport>> = new Map<String, Array<ClassImport>>();
+  /**
+   * A list of all scripted class declaration that have been registered.
+   */
   private static var _scriptClassDescriptors:Map<String, ClassDecl> = new Map<String, ClassDecl>();
+
+  /**
+   * A list of all scripted enum declarations that have been registered.
+   */
   private static var _scriptEnumDescriptors:Map<String, EnumDecl> = new Map<String, EnumDecl>();
+
+  /**
+   * A list of all scripted interface declarations that have been registered.
+   */
   private static var _scriptInterfaceDescriptors:Map<String, InterfaceDecl> = new Map<String, InterfaceDecl>();
 
+  /**
+   * A list of import.hx files including their given class imports.
+   */
+  private static var _scriptClassImports:Map<String, Array<ClassImport>> = new Map<String, Array<ClassImport>>();
+
+  /**
+   * The class `using` keywords from import.hx files.
+   */
+  private static var _scriptClassUsings:Map<String, Array<ClassImport>> = new Map<String, Array<ClassImport>>();
+
+  /**
+   * Mapping of a class's access control for what they're allowed to access (`@:allow`). This includes fields as well.
+   */
   static var allowMetadataControlList:Map<String, ClassAccessControl> = [];
+
+  /**
+   * Mapping of a class's access control for what they're allowed to access (`@:access`). This includes fields as well.
+   */
   static var accessMetadataControlList:Map<String, ClassAccessControl> = [];
 
+  /**
+   * Populated when scripts are cleared/loaded, a mapping of each field name and their previous value.
+   */
   static var _scriptPersistentFields:Map<String, Map<String, Dynamic>> = [];
 
+  /**
+   * An internal cache for using function objects are available for the given scripted class declaration.
+   */
   static var _classDeclUsingCache:Map<String, Map<String, Array<Dynamic>->Dynamic>> = [];
 
+  /**
+   * The list of deprecated types (including Classes, Enums, Interfaces, etc).
+   */
   static var _deprecatedTypes:Map<String, String> = [];
+
+  /**
+   * A list of deprecated fields from a type.
+   */
   static var _deprecatedFields:Map<String, Map<String, String>> = [];
 
-  var _cachedDeprecatedTypes:Array<String> = [];
-  var _cachedDeprecatedFields:Map<String, Array<String>> = [];
-
-  var _propTrack:Map<String, Bool> = [];
-
+  /**
+   * The general default variables available to all interpreters.
+   */
   static var defaultVariables:Map<String, Dynamic>;
 
-  public var variables:Map<String, Dynamic>;
-  public var functions:Map<String, Dynamic>;
+
+  /**
+   * INSTANCE FIELDS
+   */
+
+  /**
+   * The scripted class associated with this interpreter.
+   */
+  var _proxy:PolymodAbstractScriptClass = null;
+
+  /**
+   * The class declaration that this interpreter should base itself off of instead.
+   * Used for static functions & fields.
+   */
+  var _classDeclOverride:ClassDecl = null;
+
+  /**
+   * The target native class this interpreter is targeting (unused).
+   */
+  var targetCls:Class<Dynamic>;
+
+  /**
+   * The current function being called within this interpreter.
+   */
   var currentFunction:Null<String> = null;
+
+  /**
+   * Used for properties to check whether their given getter/setter functions is
+   */
+  var _propTrack:Map<String, Bool> = [];
+
+  /**
+   * A list of all global variables saved into this interpreter.
+   */
+  public var variables:Map<String, Dynamic>;
+
+  /**
+   * The list of functions that have been changed (only used when they're `dynamic`).
+   */
+  public var functions:Map<String, Dynamic>;
+
+  /**
+   * The list of local variables currently available from within a function's local scope.
+   */
   var locals:Map<String,
     {r:Dynamic, ?isfinal:Bool}>;
+
+  /**
+   * List of local variables that have been directly declared.
+   */
+  var declared:Array<{n:String, old:{r:Dynamic, ?isfinal:Bool}}>;
+
+  /**
+   * A list of types that the interpreter has already warned the user has been deprecated.
+   */
+  var _cachedDeprecatedTypes:Array<String> = [];
+
+  /**
+   * A list of fields that the interpreter has already warned the user has been deprecated.
+   */
+  var _cachedDeprecatedFields:Map<String, Array<String>> = [];
+
+  /**
+   * A list of binary operators and their given function expressions are when calling them.
+   */
   var binops:Map<String, Expr->Expr->Dynamic>;
-  var depth:Int;
+
+  /**
+   * Whether we're in a try blocked.
+   */
   var inTry:Bool;
-  var declared:Array<
-    {
-      n:String,
-      old:
-        {r:Dynamic, ?isfinal:Bool}
-    }>;
-  var returnValue:Dynamic;
-  #if hscriptPos
-  var curExpr:Expr;
-  #end
+
+  /**
+   * Whether we're currently evaluating a switch case right now.
+   */
   var inSwitchCase:Bool = false;
+
+  /**
+   * The current value of the object that's being used in a switch case.
+   */
   var curSwitchValue:Null<Dynamic>;
 
+  /**
+   * Whether we're currently in a private access block right now from a `@:privateAccess` metadata.
+   */
   var inPrivateAccess:Bool = false;
+
+  /**
+   * Whether we're currently in a private access block right now from a `@:noPrivateAccess` metadata.
+   */
   var inNoPrivateAccess:Bool = false;
+
+  /**
+   * The value for when we threw a return block.
+   */
+  var returnValue:Dynamic;
+
+  /**
+   * The object to use when interpreting the next function call.
+   */
+  var _nextCallObject:Dynamic = null;
+
+  var depth:Int;
+
+  #if hscriptPos
+  /**
+   * The current expression block we're currently on, used for debugging purposes that includes the line we're on, etc.
+   */
+  var curExpr:Expr;
+  #end
 
   function getClassDecl():Null<ClassDecl>
   {
@@ -124,8 +248,1524 @@ class Interp
     return _proxy.fullyQualifiedName;
   }
 
-  public function new(targetCls:Class<Dynamic>,
-    proxy:PolymodAbstractScriptClass)
+  /**
+   * STATIC FUNCTIONS
+   */
+
+  /**
+   * Attempts to retrieves the given scripted class declaration by name.
+   * @param name The name of the scripted class declaration to retrieve.
+   */
+  public static function findScriptClassDescriptor(name:String)
+  {
+    return _scriptClassDescriptors.get(name);
+  }
+
+  /**
+   * Attempts to retrieves the given scripted interface declaration by name.
+   * @param name The name of the scripted interface declaration to retrieve.
+   */
+  public static function findScriptInterfaceDescriptor(name:String)
+  {
+    return _scriptInterfaceDescriptors.get(name);
+  }
+
+  /**
+   * Adds the given scripted class declaration into the static list to be used.
+   * Will check whether the name or full package name already exists.
+   * @param c The class declaration to be added.
+   */
+  static function registerScriptClass(c:ClassDecl)
+  {
+    var name = Util.getFullClassName(c);
+
+    if (_scriptClassDescriptors.exists(name))
+    {
+      Polymod.error(
+        SCRIPTED_CLASS_ALREADY_REGISTERED,
+        'Scripted class with fully qualified name "$name" has already been defined. Please change the class name or the package name to ensure uniqueness.',
+        SCRIPT_RUNTIME
+      );
+      return;
+    }
+    else
+    {
+      Polymod.debug('Registering scripted class $name');
+      _scriptClassDescriptors.set(name, c);
+    }
+    registerDeprecatedFields(name);
+  }
+
+  /**
+   * Adds the given scripted interface declaration into the static list to be used.
+   * Will check whether the name or full package name already exists.
+   * @param i The interface declaration to be added.
+   */
+  static function registerScriptInterface(i:InterfaceDecl)
+  {
+    var name:String = i.name;
+    if (i.pkg != null && i.pkg.length > 0)
+    {
+      name = i.pkg.join('.') + '.' + i.name;
+    }
+
+    if (_scriptInterfaceDescriptors.exists(name) || PolymodScriptClass.interfaceImpls.exists(name) || _scriptClassDescriptors.exists(name))
+    {
+      Polymod.error(SCRIPTED_CLASS_ALREADY_REGISTERED,
+      'Scripted interface with fully qualified name "$name" has already been defined. Please change the interface or the package name to ensure uniqueness.',
+      SCRIPT_RUNTIME);
+      return;
+    }
+    else
+    {
+      Polymod.debug('Registering scripted interface $name');
+      _scriptInterfaceDescriptors.set(name, i);
+      registerDeprecatedFields(name);
+    }
+  }
+
+  /**
+   * Adds the given scripted enum declaration into the static list to be used.
+   * Will check whether the name or full package name already exists.
+   * @param e The enum declaration to be added.
+   */
+  private static function registerScriptEnum(e:EnumDecl)
+  {
+    var name = e.name;
+    if (e.pkg != null)
+    {
+      name = e.pkg.join(".") + "." + name;
+    }
+
+    if (_scriptEnumDescriptors.exists(name))
+    {
+      Polymod.error(
+        SCRIPTED_CLASS_ALREADY_REGISTERED,
+        'An enum with the fully qualified name "$name" has already been defined. Please change the enum name to ensure a unique name.',
+        SCRIPT_RUNTIME
+      );
+      return;
+    }
+    else
+    {
+      Polymod.debug('Registering scripted enum $name');
+      _scriptEnumDescriptors.set(name, e);
+      registerDeprecatedFields(name);
+    }
+  }
+
+  /**
+   * Given a class declaration, fetches all fields with the `@:unreflective` metadata and adds it to the script class blacklist.
+   * @param cls The class declaration.
+   */
+  static function registerScriptClassBlacklist(cls:ClassDecl):Void
+  {
+    var clsName:String = Util.getFullClassName(cls);
+    if (cls.meta.length > 0 && cls.meta.findIndex((m) -> return m.name == ':unreflective') != -1)
+    {
+      Polymod.blacklistScriptClassImport(clsName);
+    }
+
+    // Filter fields to see which have the `@:unreflective` metadata.
+    var staticFields:Array<String> = [for (field in cls.staticFields.filter((f) -> f.meta.length > 0 && f.meta.findIndex((m) -> return m.name == ':unreflective') != -1)) field.name];
+    var instanceFields:Array<String> = [for (field in cls.fields.filter((f) -> f.meta.length > 0 && f.meta.findIndex((m) -> return m.name == ':unreflective') != -1)) field.name];
+
+    if (staticFields.length > 0)
+      Polymod.blacklistScriptClassStaticFields(clsName, staticFields);
+
+    if (instanceFields.length > 0)
+      Polymod.blacklistScriptClassInstanceFields(clsName, instanceFields);
+  }
+
+  /**
+   * Clear the data of all scripted declarations including classes, interfaces, etc.
+   */
+  public function clearScriptClassDescriptors():Void
+  {
+    // Save all static fields with the @:persistent metadata.
+    storePersistentStaticFields();
+
+    // Clear the script class descriptors.
+    _scriptClassDescriptors.clear();
+
+    _cachedDeprecatedTypes = [];
+    _cachedDeprecatedFields = [];
+
+    _deprecatedTypes.clear();
+    _deprecatedFields.clear();
+
+    _classDeclUsingCache.clear();
+
+    // We clear this field so it later re-generates when validating imports.
+    @:privateAccess
+    PolymodScriptClass._scriptClassesByPackage = null;
+
+    // This needs to be cleared since the scripted interface data could be outdated. Will be later re-populated.
+    @:privateAccess
+    {
+      PolymodScriptClass._classesExtendingInterfaces?.clear();
+      PolymodScriptClass._classesExtendingInterfaces = null;
+    }
+
+    // Do this first since scripted interfaces are checked through their scripted decls.
+    PolymodStaticInterfaceReference.clearScriptedInterfaces();
+    _scriptInterfaceDescriptors.clear();
+
+    PolymodEnum.clearScriptedEnums();
+
+    // Also clear the imports from the import.hx files.
+    _scriptClassImports.clear();
+    _scriptClassUsings.clear();
+
+    // Also destroy local variable scope.
+    this.resetVariables();
+  }
+
+  /**
+   * Given a class declaration, fetches all fields with the `@:deprecated` metadata and adds it to their given list.
+   * @param cls The class declaration.
+   */
+  static function registerDeprecatedFields(path:String):Void
+  {
+    var printer = new Printer();
+    if (Interp.findScriptClassDescriptor(path) != null)
+    {
+      var decl:ClassDecl = Interp.findScriptClassDescriptor(path);
+
+      var deprecatedClassMeta = decl.meta.find((m) -> m.name == ':deprecated');
+      if (deprecatedClassMeta != null)
+      {
+        var message:String = printer.exprToString(deprecatedClassMeta.params[0]);
+        _deprecatedTypes.set(path, message);
+      }
+
+      for (field in decl.fields.concat(decl.staticFields))
+      {
+        var deprecatedMeta = field.meta.find((m) -> m.name == ':deprecated');
+        if (deprecatedMeta != null)
+        {
+          var message:String = printer.exprToString(deprecatedMeta.params[0]);
+          var fields:Map<String, String> = _deprecatedFields.get(path) ?? [];
+
+          fields.set(field.name, message);
+          _deprecatedFields.set(path, fields);
+        }
+      }
+    }
+    else if (Interp.findScriptInterfaceDescriptor(path) != null)
+    {
+      var decl:InterfaceDecl = Interp.findScriptInterfaceDescriptor(path);
+
+      var deprecatedClassMeta = decl.meta.find((m) -> m.name == ':deprecated');
+      if (deprecatedClassMeta != null)
+      {
+        var message:String = printer.exprToString(deprecatedClassMeta.params[0]);
+        _deprecatedTypes.set(path, message);
+      }
+
+      for (field in decl.fields)
+      {
+        var deprecatedMeta = field.meta.find((m) -> m.name == ':deprecated');
+        if (deprecatedMeta != null)
+        {
+          var message:String = printer.exprToString(deprecatedMeta.params[0]);
+          var fields:Map<String, String> = _deprecatedFields.get(path) ?? [];
+
+          fields.set(field.name, message);
+          _deprecatedFields.set(path, fields);
+        }
+      }
+    }
+    else if (_scriptEnumDescriptors.exists(path))
+    {
+      var decl:EnumDecl = _scriptEnumDescriptors.get(path);
+
+      var deprecatedClassMeta = decl.meta.find((m) -> m.name == ':deprecated');
+      if (deprecatedClassMeta != null)
+      {
+        var message:String = printer.exprToString(deprecatedClassMeta.params[0]);
+        _deprecatedTypes.set(path, message);
+      }
+    }
+  }
+
+  /**
+   * After all scripted classes have been registered, validates all of the imports to make sure they aren't blacklisted, and no scripted declarations are missed.
+   */
+  public static function validateImports():Void
+  {
+    function tryImport(cls:ClassDecl, clsImport:ClassImport):Void
+    {
+      if (PolymodScriptClass.blacklistedScriptClasses.contains(clsImport.fullPath))
+      {
+        // Set as `null` so it's registered as blacklisted.
+        cls.imports.set(clsImport.name, null);
+      }
+      else
+      {
+        cls.imports.set(clsImport.name, clsImport);
+      }
+    }
+
+    for (cls in _scriptClassDescriptors)
+    {
+      var clsPath = Util.getFullClassName(cls);
+
+      // Automatically import classes with the same package or a parent package.
+      // First scripted classes.
+      for (imp in _scriptClassDescriptors)
+      {
+        if (cls == imp) continue;
+
+        var classImport =
+        {
+          name: imp.name,
+          pkg: imp.pkg,
+          fullPath: Util.getFullClassName(imp)
+        }
+
+        if ((imp.pkg?.length ?? 0) == 0)
+        {
+          tryImport(cls, classImport);
+          continue;
+        }
+
+        var hasPackage:Bool = cls.pkg != null && cls.pkg.length > 0;
+        var fullPackage:String = hasPackage ? cls.pkg.join(".") + "." : "";
+        if (hasPackage && clsPath.indexOf(fullPackage) == 0)
+        {
+          tryImport(cls, classImport);
+        }
+      }
+
+      // Now import interfaces.
+      // Populate list of interfaces to validate.
+      var interfaceList:Array<String> = [for (key in PolymodScriptClass.interfaceImpls.keys()) key].concat([for (key in _scriptInterfaceDescriptors.keys()) key]);
+      for (fullInterfacePath in interfaceList)
+      {
+        var fullPathSplit:Array<String> = fullInterfacePath.split('.');
+        var interfaceName:String = fullPathSplit[fullPathSplit.length - 1];
+        var interfacePkg:Null<Array<String>> = fullPathSplit.length == 1 ? null : fullPathSplit.slice(0, -1);
+
+        var interfaceImport:ClassImport =
+        {
+          name: interfaceName,
+          pkg: interfacePkg,
+          fullPath: fullInterfacePath,
+        }
+
+        if ((interfacePkg?.length ?? 0) == 0)
+        {
+          cls.imports.set(interfaceName, interfaceImport);
+          continue;
+        }
+
+        if (interfacePkg != null && fullInterfacePath.indexOf(interfacePkg.join('.')) == 0)
+        {
+          cls.imports.set(interfaceName, interfaceImport);
+        }
+      }
+
+      // Import classes from the import.hx files.
+      var pkg:String = cls.pkg?.join(".") ?? "";
+
+      for (key => imps in _scriptClassImports)
+      {
+        if (!pkg.startsWith(key) && key.length != 0) continue;
+
+        for (imp in imps)
+        {
+          if (imp.wildcard)
+          {
+            for (name => clsImport in importWildcard(cls.imports, imp))
+            {
+              cls.imports.set(name, clsImport);
+            }
+          }
+          else
+            tryImport(cls, imp);
+        }
+      }
+
+      for (key => uses in _scriptClassUsings)
+      {
+        if (!pkg.startsWith(key) && key.length != 0) continue;
+
+        for (use in uses) cls.usings.set(use.name, use);
+      }
+
+      // Add the scripted imports.
+      for (key => imp in cls.importsToValidate)
+      {
+        if (imp.wildcard)
+        {
+          for (name => clsImport in importWildcard(cls.imports, imp))
+          {
+            cls.imports.set(name, clsImport);
+          }
+          continue;
+        }
+
+        if (PolymodScriptClass.interfaceImpls.exists(imp.fullPath) || _scriptInterfaceDescriptors.exists(imp.fullPath) ||
+          _scriptClassDescriptors.exists(imp.fullPath) || _scriptEnumDescriptors.exists(imp.fullPath))
+        {
+          tryImport(cls, imp);
+          continue;
+        }
+
+        #if POLYMOD_CPPIA
+        // A compiled class has no descriptor, so check the cppia registry too.
+        if (PolymodCppiaClassReference.hasCppiaClass(imp.fullPath))
+        {
+          cls.imports.set(key, imp);
+          continue;
+        }
+        #end
+
+        Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not import ${imp.fullPath}. Check to ensure the module exists and is spelled correctly.', SCRIPT_RUNTIME);
+      }
+
+      // Add the scripted usings.
+      for (key => use in cls.usingsToValidate)
+      {
+        if (_scriptClassDescriptors.exists(use.fullPath))
+        {
+          cls.usings.set(key, use);
+          continue;
+        }
+
+        Polymod.error(
+          SCRIPTED_CLASS_UNRESOLVED_IMPORT,
+          'Could not use ${use.fullPath}. Check to ensure the module exists and is spelled correctly.',
+          SCRIPT_RUNTIME
+        );
+      }
+
+      // Check if the scripted classes extend the right type.
+      if (cls.extend == null) continue;
+
+      var superClassPath:String = new Printer().typeToString(cls.extend);
+      if (!cls.imports.exists(superClassPath))
+      {
+        switch (cls.extend)
+        {
+          case CTPath(path, params):
+            if (params != null && params.length > 0)
+            {
+              Polymod.error(
+                SCRIPTED_CLASS_UNRESOLVED_IMPORT,
+                'Could not extend ${superClassPath}, do not include type parameters in super class name.',
+                SCRIPT_RUNTIME
+              );
+            }
+
+          default:
+            // Other error handling?
+        }
+
+        // Default
+        Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not extend ${superClassPath}. Make sure the type to extend has been imported.', SCRIPT_RUNTIME);
+      }
+      else
+      {
+        switch (cls.extend)
+        {
+          case CTPath(_, params):
+            cls.extend = CTPath(cls.imports.get(superClassPath).fullPath.split('.'), params);
+          case _:
+        }
+      }
+    }
+    validateInterfaceImports();
+  }
+
+  /**
+   * After validating all scripted classes, proceed to validate all scripted interfaces to make sure they're validate to use as well.
+   */
+  public static function validateInterfaceImports():Void
+  {
+    // Mostly the same with `validateImports` except we don't need to check for using.
+    for (path => inter in _scriptInterfaceDescriptors)
+    {
+      // Automatically import interfaces classes with the same package or a parent package.
+      var interfaceList:Array<String> = [for (key in PolymodScriptClass.interfaceImpls.keys()) key].concat([for (key in _scriptInterfaceDescriptors.keys()) key]);
+      for (fullInterfacePath in interfaceList)
+      {
+        var fullPathSplit:Array<String> = fullInterfacePath.split('.');
+        var interfaceName:String = fullPathSplit[fullPathSplit.length - 1];
+        var interfacePkg:Null<Array<String>> = fullPathSplit.length == 1 ? null : fullPathSplit.slice(0, -1);
+
+        var interfaceImport:ClassImport =
+        {
+          name: interfaceName,
+          pkg: interfacePkg,
+          fullPath: fullInterfacePath,
+        }
+
+        if ((interfacePkg?.length ?? 0) == 0)
+        {
+          inter.imports.set(interfaceName, interfaceImport);
+          continue;
+        }
+
+        if (interfacePkg != null && fullInterfacePath.indexOf(interfacePkg.join('.')) == 0)
+        {
+          inter.imports.set(interfaceName, interfaceImport);
+        }
+      }
+
+      // Now we need to import scripted classes.
+      for (cls in _scriptClassDescriptors)
+      {
+        var clsPath:String = Util.getFullClassName(cls);
+        var classImport:ClassImport =
+        {
+          name: cls.name,
+          pkg: cls.pkg,
+          fullPath: clsPath
+        }
+
+        if ((cls.pkg?.length ?? 0) == 0)
+        {
+          inter.imports.set(cls.name, classImport);
+          continue;
+        }
+
+        var hasPackage:Bool = cls.pkg != null && cls.pkg.length > 0;
+        var fullPackage:String = hasPackage ? cls.pkg.join(".") + "." : "";
+        if (hasPackage && clsPath.indexOf(fullPackage) == 0)
+        {
+          inter.imports.set(cls.name, classImport);
+        }
+      }
+
+      // Import classes from the import.hx files.
+      var pkg:String = inter.pkg?.join(".") ?? "";
+
+      for (key => imps in _scriptClassImports)
+      {
+        if (!pkg.startsWith(key) && key.length != 0) continue;
+
+        for (imp in imps)
+        {
+          if (imp.wildcard)
+          {
+            for (name => clsImport in importWildcard(inter.imports, imp))
+            {
+              inter.imports.set(name, clsImport);
+            }
+          }
+          else
+            inter.imports.set(imp.name, imp);
+        }
+      }
+
+      // Add validated imports.
+      for (key => imp in inter.importsToValidate)
+      {
+        if (imp.wildcard)
+        {
+          for (name => clsImport in importWildcard(inter.imports, imp))
+          {
+            inter.imports.set(name, clsImport);
+          }
+          continue;
+        }
+
+        if (PolymodScriptClass.interfaceImpls.exists(imp.fullPath) || _scriptInterfaceDescriptors.exists(imp.fullPath) || _scriptClassDescriptors.exists(imp.fullPath)
+        || _scriptEnumDescriptors.exists(imp.fullPath))
+        {
+          inter.imports.set(key, imp);
+          continue;
+        }
+
+        Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not import ${imp.fullPath}. Check to ensure the module exists and is spelled correctly.', SCRIPT_RUNTIME);
+      }
+    }
+
+    // Re-iterate through the interfaces to validate that any extends are properly imported.
+    // We don't have an Interp inside interfaces so we have to do this.
+    for (path => inter in _scriptInterfaceDescriptors)
+    {
+      if (inter.extend.length == 0) continue;
+
+      var interfacePath:String = path;
+
+      for (extend in inter.extend)
+      {
+        var superClassPath:String = new Printer().typeToString(extend);
+        var baseInterfaceName:String = superClassPath;
+
+        switch (extend)
+        {
+          case CTPath(path, params):
+            if (params != null && params.length > 0)
+            {
+              Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not extend ${superClassPath}, do not include type parameters in super class name.', SCRIPT_RUNTIME);
+
+              _scriptInterfaceDescriptors.remove(interfacePath);
+              break;
+            }
+            baseInterfaceName = path[path.length - 1];
+
+            // The full package was used for the interface.
+            // Check to see if said interface exists.
+            if (path.length > 1)
+            {
+              if (!PolymodScriptClass.interfaceImpls.exists(superClassPath) && !_scriptInterfaceDescriptors.exists(superClassPath))
+              {
+                Polymod.error(SCRIPTED_CLASS_NOT_REGISTERED, 'Could not import ${superClassPath}. Check to ensure the module exists and is spelled correctly.', SCRIPT_RUNTIME);
+                _scriptInterfaceDescriptors.remove(interfacePath);
+                break;
+              }
+            }
+            else
+            {
+              // Check to see if it's been properly imported.
+              var interfaceImport:ClassImport = inter.imports.get(baseInterfaceName);
+
+              // Interface isn't imported.
+              if (interfaceImport == null)
+              {
+                Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Interface $superClassPath has not been defined.', SCRIPT_RUNTIME);
+                _scriptInterfaceDescriptors.remove(interfacePath);
+                break;
+              }
+            }
+          default:
+        }
+      }
+    }
+    PolymodStaticInterfaceReference.cacheScriptedInterfaces();
+  }
+
+  /**
+   * Tries to resolve the type of an imported class, which will end up in `cls`, `enm` or `abs`.
+   * @param importedClass The import to resolve.
+   * @param ignoreEnums Whether to skip resolving enums. Used when resolving a `using` import.
+   * @return `false` if this import was blacklisted, otherwise always `true`.
+   */
+  static function resolveImportedClass(importedClass:ClassImport, ignoreEnums:Bool = false):Bool
+  {
+    // The path without the possibly included module name, which resolve methods disregard.
+    final modulelessPath:String = importedClass.pkg.slice(0, -1).concat([importedClass.name]).join('.');
+    for (fullPath in [importedClass.fullPath, modulelessPath])
+    {
+      if (PolymodScriptClass.importOverrides.exists(fullPath))
+      {
+        if (PolymodScriptClass.backwardsCompatibilityImports.exists(fullPath))
+        {
+          // This import alias is a backwards compatibility import, notify the user that they should change the class to the provided one.
+          backwardsCompatibilityImport(fullPath);
+        }
+
+        // importOverrides can exist but be null (if it was set to null).
+        // If so, that means the class is blacklisted.
+        importedClass.cls = PolymodScriptClass.importOverrides.get(fullPath) ?? return false;
+        break;
+      }
+      else if (PolymodScriptClass.abstractClassImpls.exists(fullPath))
+      {
+        // We used a macro to map each abstract to its implementation.
+        importedClass.abs = PolymodScriptClass.abstractClassImpls.get(fullPath);
+        break;
+      }
+      else if (PolymodScriptClass.typedefs.exists(fullPath))
+      {
+        importedClass.cls = PolymodScriptClass.typedefs.get(fullPath);
+        break;
+      }
+      else if (!PolymodScriptClass.interfaceImpls.exists(fullPath)) // Base interfaces can be resolved, we don't want that.
+      {
+        var resultCls:Class<Dynamic> = Type.resolveClass(fullPath);
+        #if POLYMOD_CPPIA
+        if (resultCls != null && PolymodCppiaClassReference.isInactiveCppiaClass(fullPath)) resultCls = null;
+        #end
+        if (resultCls != null)
+        {
+          importedClass.cls = resultCls;
+          break;
+        }
+
+        if (ignoreEnums) continue;
+        // If the class is not found, try to find it as an enum.
+        var resultEnm:Enum<Dynamic> = Type.resolveEnum(fullPath);
+        if (resultEnm != null)
+        {
+          importedClass.enm = resultEnm;
+          break;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Creates a mapping of class imports based on a wildcard import
+   * @param importList The already existing import list to use to check for blacklists.
+   * @param wildcardImport The wildcard import to use while creating the final import list.
+   * @return A mapping of all class names and their imports created from the wildcard import.
+   */
+  static function importWildcard(importList:Map<String, ClassImport>, wildcardImport:ClassImport):Map<String, ClassImport>
+  {
+    var pack:String = wildcardImport.fullPath;
+    var classesToImport:Array<String> = [];
+
+    if (PolymodScriptClass.baseClassesByPackage.exists(pack))
+      classesToImport = classesToImport.concat(PolymodScriptClass.baseClassesByPackage.get(pack));
+
+    if (PolymodScriptClass.scriptClassesByPackage.exists(pack))
+      classesToImport = classesToImport.concat(PolymodScriptClass.scriptClassesByPackage.get(pack));
+
+    if (classesToImport.length == 0)
+      return [];
+
+    var validImports:Map<String, ClassImport> = [];
+    for (clsName in classesToImport)
+    {
+      var name:String = clsName.substr(pack.length + 1);
+
+      if (importList.exists(name))
+      {
+        if (importList.get(name) == null)
+        {
+          Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Scripted class ${name} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
+        }
+        else
+        {
+          Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Scripted class ${name} has already been imported.', SCRIPT_RUNTIME);
+        }
+        continue;
+      }
+
+      var classImport:ClassImport = {
+        name: name,
+        pkg: pack.split('.'),
+        fullPath: clsName,
+        cls: null,
+        abs: null,
+        enm: null,
+      }
+
+      if (resolveImportedClass(classImport) && classImport.cls == null && classImport.enm == null && classImport.abs == null)
+      {
+        // Check if this is a scripted class.
+        if (_scriptClassDescriptors.exists(classImport.fullPath) || _scriptEnumDescriptors.exists(classImport.fullPath))
+        {
+          if (PolymodScriptClass.blacklistedScriptClasses.contains(classImport.fullPath) && !_scriptEnumDescriptors.exists(classImport.fullPath))
+          {
+            validImports.set(classImport.name, null);
+            continue;
+          }
+          validImports.set(classImport.name, classImport);
+          continue;
+        }
+      }
+      validImports.set(classImport.name, classImport);
+    }
+    return validImports;
+  }
+
+  /**
+   * Warns the user that the given import of `path` is used for backwards compatibility.
+   * @param path The path to alert the user of.
+   */
+  public static function backwardsCompatibilityImport(path:String):Void
+  {
+    // Don't throw a warning if this is already a default import.
+    if (PolymodScriptClass.defaultImports.exists(path))
+      return;
+
+    // This import alias is a backwards compatibility import, notify the user that they should change the class to the provided one.
+    var backwardsCompatInfo = PolymodScriptClass.backwardsCompatibilityImports.get(path);
+    if (backwardsCompatInfo != null)
+    {
+      var newClassName:String = Type.getClassName(backwardsCompatInfo.cls);
+      var infoMessage:String = backwardsCompatInfo.info.message ?? 'Please import and adjust your script to use $newClassName instead.';
+      var message:String = 'Scripted class ${path} has been changed since ${backwardsCompatInfo.info.version}.\nWhile this import can be used, read the below to help with migration:\n$infoMessage';
+
+      Polymod.warning(SCRIPTED_CLASS_BACKWARDS_COMPATIBILITY_IMPORT, message, SCRIPT_RUNTIME);
+    }
+  }
+
+  /**
+   * Registers the given class import from an import.hxc file to a certan package.
+   * @param pkg The package to register the class import to, based on the import.hxc file.
+   * @param imp The import itself to register.
+   * @param isUsing Whether the import is a using import. Will add the import to another list if so.
+   */
+  private static function registerImportForPackage(pkg:Null<Array<String>>, imp:ClassImport, isUsing:Bool = false)
+  {
+    var impFilePkg:String = pkg?.join(".") ?? "";
+    var map:Map<String, Array<ClassImport>> = isUsing ? _scriptClassUsings : _scriptClassImports;
+
+    if (!map.exists(impFilePkg))
+    {
+      map.set(impFilePkg, []);
+    }
+
+    map.get(impFilePkg).push(imp);
+  }
+
+
+  /**
+   * STATIC FIELD FUNCTION HELPERS
+   */
+
+  public function addModule(moduleContents:String, ?origin:String = "hscript")
+  {
+    var parser = new Parser();
+    var decls = parser.parseModule(moduleContents, origin);
+    registerModules(decls, origin);
+  }
+
+  public function registerModules(module:Array<ModuleDecl>, ?origin:String = "hscript"):Void
+  {
+    var isImportFile:Bool = (new haxe.io.Path(origin).file == "import");
+
+    var pkg:Array<String> = null;
+    var imports:Map<String, ClassImport> = [];
+    var importsToValidate:Map<String, ClassImport> = [];
+    var usings:Map<String, ClassImport> = [];
+    var usingsToValidate:Map<String, ClassImport> = [];
+
+    // Don't add the default imports to import.hx since they're added to other script classes anyway.
+    if (!isImportFile)
+    {
+      for (importPath in PolymodScriptClass.defaultImports.keys())
+      {
+        var splitPath = importPath.split(".");
+        var clsName = splitPath[splitPath.length - 1];
+
+        imports.set(clsName, {
+          name: clsName,
+          pkg: splitPath.slice(0, splitPath.length - 1),
+          fullPath: importPath,
+          cls: PolymodScriptClass.defaultImports.get(importPath),
+        });
+      }
+    }
+
+    for (decl in module)
+    {
+      switch (decl)
+      {
+        case DPackage(path):
+          pkg = path;
+        case DImport(path, star, name):
+          if (star)
+          {
+            if (path.length == 0) continue; // Disallow wildcards imports with no package.
+            if ((importsToValidate.get(path.join('.'))?.wildcard) ?? false) continue; // Don't add duplicate wildcards.
+
+            var wildcardImport:ClassImport = {
+              name: null,
+              pkg: null,
+              fullPath: path.join('.'),
+              wildcard: star
+            }
+
+            if (isImportFile)
+            {
+              registerImportForPackage(pkg, wildcardImport);
+              continue;
+            }
+
+            // We'll leave this as an import to be validated later.
+            importsToValidate.set(wildcardImport.fullPath, wildcardImport);
+          }
+          else
+          {
+            var clsName:String = name != null ? name : path[path.length - 1];
+
+            if (imports.exists(clsName))
+            {
+              if (imports.get(clsName) == null)
+              {
+                Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Scripted class ${clsName} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
+              }
+              else
+              {
+                Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Scripted class ${clsName} has already been imported.', SCRIPT_RUNTIME);
+              }
+              continue;
+            }
+
+            var importedClass:ClassImport = {
+              name: clsName,
+              pkg: path.slice(0, path.length - 1),
+              fullPath: path.join(".")
+            };
+
+            if (_scriptEnumDescriptors.exists(importedClass.fullPath))
+            {
+              // do nothing
+            }
+            else
+            {
+              if (resolveImportedClass(importedClass) && importedClass.cls == null && importedClass.enm == null && importedClass.abs == null)
+              {
+                if (isImportFile)
+                {
+                  registerImportForPackage(pkg, importedClass);
+                  continue;
+                }
+
+                // Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import class ${importedClass.fullPath}', SCRIPT_RUNTIME);
+                // this could be a scripted class or enum that hasn't been registered yet
+                importsToValidate.set(importedClass.name, importedClass);
+                continue;
+              }
+            }
+
+            if (isImportFile)
+            {
+              registerImportForPackage(pkg, importedClass);
+              continue;
+            }
+
+            // Polymod.debug('Imported class ${importedClass.name} from ${importedClass.fullPath}');
+            imports.set(importedClass.name, importedClass);
+          }
+        case DUsing(path):
+          var clsName = path.join('.');
+
+          if (usings.exists(clsName))
+          {
+            if (usings.get(clsName) == null)
+            {
+              Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Scripted class ${clsName} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
+            }
+            else
+            {
+              Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Scripted class ${clsName} has already been used.', SCRIPT_RUNTIME);
+            }
+            continue;
+          }
+
+          var importedClass:ClassImport = {
+            name: clsName,
+            pkg: path.slice(0, path.length - 1),
+            fullPath: path.join("."),
+            cls: null,
+            enm: null,
+            abs: null
+          };
+
+          if (!_scriptEnumDescriptors.exists(importedClass.fullPath))
+          {
+            if (resolveImportedClass(importedClass, true) && importedClass.cls == null && importedClass.enm == null && importedClass.abs == null)
+            {
+              if (isImportFile)
+              {
+                registerImportForPackage(pkg, importedClass, true);
+                continue;
+              }
+
+              // this could be a scripted class that hasn't been registered yet
+              usingsToValidate.set(importedClass.name, importedClass);
+              continue;
+            }
+          }
+
+          if (isImportFile)
+          {
+            registerImportForPackage(pkg, importedClass, true);
+            continue;
+          }
+
+          usings.set(importedClass.name, importedClass);
+        case DClass(c):
+          if (isImportFile) continue;
+
+          var instanceFields = [];
+          var staticFields = [];
+          for (f in c.fields)
+          {
+            if (f.access.contains(AStatic))
+            {
+              staticFields.push(f);
+            }
+            else
+            {
+              instanceFields.push(f);
+            }
+          }
+
+          var classDecl:ClassDecl = {
+            imports: imports,
+            importsToValidate: importsToValidate,
+            usings: usings,
+            usingsToValidate: usingsToValidate,
+            pkg: pkg,
+            name: c.name,
+            params: c.params,
+            meta: c.meta,
+            isPrivate: c.isPrivate,
+            extend: c.extend,
+            implement: c.implement,
+            fields: instanceFields,
+            isExtern: c.isExtern,
+            staticFields: staticFields,
+          };
+          registerScriptClassBlacklist(classDecl);
+          registerScriptClass(classDecl);
+        case DInterface(i):
+          if (isImportFile) continue;
+
+          var interfaceDecl:InterfaceDecl = {
+            imports: imports,
+            importsToValidate: importsToValidate,
+            name: i.name,
+            params: i.params,
+            meta: i.meta,
+            isPrivate: i.isPrivate,
+            pkg: pkg,
+            extend: i.extend,
+            isExtern: i.isExtern,
+            fields: i.fields,
+          }
+          registerScriptInterface(interfaceDecl);
+        case DEnum(e):
+          if (isImportFile) continue;
+
+          if (pkg != null)
+          {
+            imports.set(e.name, {
+              name: e.name,
+              pkg: pkg,
+              fullPath: pkg.join(".") + "." + e.name,
+              cls: null,
+              enm: null,
+            });
+          }
+
+          var enumDecl:EnumDecl = {
+            pkg: pkg,
+            name: e.name,
+            meta: e.meta,
+            params: e.params,
+            isPrivate: e.isPrivate,
+            fields: e.fields,
+          };
+
+          registerScriptEnum(enumDecl);
+        case DTypedef(_):
+      }
+    }
+  }
+
+  /**
+   * Store all the values of static fields with the `@:persistent` metadata.
+   */
+  public function storePersistentStaticFields():Void
+  {
+    for (key => decl in _scriptClassDescriptors)
+    {
+      var persistentFields:Null<Map<String, Dynamic>> = null;
+
+      var persistentFieldDecls:Array<FieldDecl> = decl.staticFields.filter(
+        (f) -> f.meta.length > 0 && (f.meta.findIndex((m) -> m.name == ':persistent') != -1)
+      );
+      for (field in persistentFieldDecls)
+      {
+        switch (field.kind)
+        {
+          case KVar(v):
+            if (
+              v.set != null
+              && (v.set == 'never' || v.set == 'set' && v.get != null && v.get == 'get')
+              && field.meta.findIndex((m) -> m.name == ':isVar') == -1
+            ) continue;
+
+            var value:Dynamic = PolymodScriptClass.getScriptClassStaticField(key, field.name);
+
+            persistentFields ??= new Map<String, Dynamic>();
+            persistentFields.set(field.name, value);
+          default:
+            // Don't save functions.
+        }
+      }
+
+      if (persistentFields != null) _scriptPersistentFields.set(key, persistentFields);
+    }
+  }
+
+  /**
+   * Reloads the values of any static fields that happen to have the `@:persistent` metadata with them for if scripts are clear or reloaded.
+   */
+  public function reloadPersistentStaticFields():Void
+  {
+    for (key => fieldVal in _scriptPersistentFields)
+    {
+      if (!_scriptClassDescriptors.exists(key)) continue;
+
+      var decl:ClassDecl = _scriptClassDescriptors.get(key);
+      for (name => v in fieldVal)
+      {
+        var persistentField:Null<FieldDecl> = decl.staticFields.find((f) -> f.name == name && (f.meta.findIndex((m) -> m.name == ':persistent') != -1));
+        if (persistentField != null)
+        {
+          // Save the field value, we manually set the variables map to avoid calling accessors.
+          this.variables.set('$key#$name', v);
+        }
+      }
+    }
+    _scriptPersistentFields.clear();
+  }
+
+  /**
+   * Builds a usable native function object that's able to be called for a scripted static function.
+   * @param clsName The name of the scripted class that the static function exists within.
+   * @param fieldName The name of the static function.
+   * @return The value of the static function.
+   */
+  private inline function buildScriptClassStaticFunction(clsName:String, fieldName:String):Dynamic
+  {
+    return Reflect.makeVarArgs(function(args:Array<Dynamic>):Dynamic
+    {
+      return callScriptClassStaticFunction(clsName, fieldName, args);
+    });
+  }
+
+  /**
+   * Retrieve a static field declaration of a scripted class.
+   * @param clsName The full classpath of the scripted class.
+   * @param fieldName The name of the field to retrieve.
+   * @return The value of the field.
+   */
+  public function getScriptClassStaticFieldDecl(clsName:String, fieldName:String):Null<FieldDecl>
+  {
+    if (_scriptClassDescriptors.exists(clsName))
+    {
+      var cls = _scriptClassDescriptors.get(clsName);
+      var staticFields = cls.staticFields;
+
+      // TODO: Optimize with a cache?
+      for (f in staticFields)
+      {
+        if (f.name == fieldName)
+        {
+          return f;
+        }
+      }
+
+      // Fallthrough.
+      return null;
+    }
+    else
+    {
+      Polymod.error(SCRIPTED_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.', SCRIPT_RUNTIME);
+      return null;
+    }
+  }
+
+  /**
+   * Call a static function of a scripted class.
+   * @param clsName The full classpath of the scripted class.
+   * @param fnName The name of the function to call.
+   * @param args The arguments to pass to the function.
+   * @return The return value of the function.
+   */
+  public function callScriptClassStaticFunction(clsName:String, fnName:String, args:Array<Dynamic> = null):Null<Dynamic>
+  {
+    // For functions listScriptClasses and scriptInit, we want to return the needed values without much checking.
+    if (fnName == "listScriptClasses")
+    {
+      return PolymodScriptClass.listScriptClassesExtending(clsName);
+    }
+
+    if (fnName == "scriptInit")
+    {
+      args = args ?? [];
+
+      if (args.length < 1)
+      {
+        error(EInvalidArgCount(" for function 'scriptInit'", 1, args.length));
+      }
+
+      var clsToInit:String = Std.string(args.shift());
+      var clsRef = PolymodStaticClassReference.tryBuild(clsToInit);
+
+      if (clsRef == null)
+      {
+        Polymod.error(
+          SCRIPT_RUNTIME_EXCEPTION,
+          'Could not construct instance of scripted class ($clsToInit extends ' + clsName + ')\nUnknown error building class reference'
+        );
+        return null;
+      }
+
+      try
+      {
+        var result = clsRef.instantiate(args);
+        if (result == null)
+        {
+          Polymod.error(
+            SCRIPT_RUNTIME_EXCEPTION,
+            'Could not construct instance of scripted class ($clsToInit extends ' + clsName + '):\nUnknown error instantiating class'
+          );
+          return null;
+        }
+
+        return result;
+      }
+      catch (error)
+      {
+        var callStack:String = polymod.util.Util.fetchCallStack();
+
+        Polymod.error(
+          SCRIPT_RUNTIME_EXCEPTION,
+          'An uncaught exception was thrown while constructing an instance of scripted class ($clsToInit extends ' + clsName + '):\n$error\n$callStack',
+          SCRIPT_RUNTIME
+        );
+        return null;
+      }
+    }
+
+    var fn:Null<FunctionDecl> = null;
+    var imports:Map<String, ClassImport> = [];
+
+    var cls:Null<ClassDecl> = _scriptClassDescriptors.get(clsName);
+    if (cls != null)
+    {
+      imports = cls.imports;
+
+      // TODO: Optimize with a cache?
+      for (f in cls.staticFields)
+      {
+        if (f.name == fnName)
+        {
+          switch (f.kind)
+          {
+            case KFunction(func):
+              fn = func;
+            case _:
+          }
+        }
+      }
+    }
+    else
+    {
+      Polymod.error(SCRIPTED_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.', SCRIPT_RUNTIME);
+      return null;
+    }
+
+    if (fn != null)
+    {
+      // Populate function arguments.
+
+      var previousClassDecl = _classDeclOverride;
+      this._classDeclOverride = cls;
+
+      var result:Dynamic = null;
+      try
+      {
+        if (fn.isdynamic)
+        {
+          var prefixedName = '$clsName#$fnName';
+          if (this.functions.exists(prefixedName))
+          {
+            result = Reflect.callMethod(this, this.functions.get(prefixedName), args);
+          }
+          else
+          {
+            result = this.executeFunction(fn, fnName, args);
+          }
+        }
+        else
+        {
+          result = this.executeFunction(fn, fnName, args);
+        }
+      }
+      catch (err:Expr.Error)
+      {
+        PolymodScriptClass.reportError(err, clsName, fnName);
+        // A script error occurred while executing the script function.
+        // Purge the function from the cache so it is not called again.
+        // purgeStaticFunction(fnName);
+        return null;
+      }
+
+      this._classDeclOverride = previousClassDecl;
+
+      return result;
+    }
+    else
+    {
+      Polymod.error(
+        SCRIPT_RUNTIME_EXCEPTION,
+        'Error while calling static function ${clsName}.${fnName}(): EInvalidAccess' + '\n' + 'Static function "${fnName}" does not exist! Define it or call the correct function.',
+        SCRIPT_RUNTIME
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Checks whether `clsName` has a static field named `funcNamew`
+   * @param clsName The class name to check for.
+   * @param funcName The name of the field to check whether it exists.
+   * @return Bool
+   */
+  public function hasScriptClassStaticField(clsName:String, fieldName:String):Bool
+  {
+    // Every scripted class has these functions, so we force the check to return true.
+    if (['scriptInit', 'listScriptClasses'].contains(fieldName)) return true;
+
+    var imports:Map<String, ClassImport> = [];
+
+    var cls:Null<ClassDecl> = _scriptClassDescriptors.get(clsName);
+    if (cls != null)
+    {
+      imports = cls.imports;
+
+      // TODO: Optimize with a cache?
+      for (f in cls.staticFields)
+      {
+        if (f.name == fieldName)
+        {
+          // ALWAYS true regardless if it's a function.
+          return true;
+        }
+      }
+    }
+    else
+    {
+      Polymod.error(SCRIPTED_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.', SCRIPT_RUNTIME);
+      return false;
+    }
+
+    return false;
+  }
+
+
+  /**
+   * Checks whether `clsName` has a static function named `funcNamew`
+   * @param clsName The class name to check for.
+   * @param funcName The name of the function to check whether it exists.
+   * @return Bool
+   */
+  public function hasScriptClassStaticFunction(clsName:String, fnName:String):Bool
+  {
+    // Every scripted class has these functions, so we force the check to return true.
+    if (["scriptInit", "listScriptClasses"].contains(fnName)) return true;
+
+    var imports:Map<String, ClassImport> = [];
+
+    var cls:Null<ClassDecl> = _scriptClassDescriptors.get(clsName);
+    if (cls != null)
+    {
+      imports = cls.imports;
+
+      // TODO: Optimize with a cache?
+      for (f in cls.staticFields)
+      {
+        if (f.name == fnName)
+        {
+          switch (f.kind)
+          {
+            case KFunction(func):
+              return true;
+            case _:
+          }
+        }
+      }
+    }
+    else
+    {
+      Polymod.error(SCRIPTED_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.', SCRIPT_RUNTIME);
+      return false;
+    }
+
+    return false;
+  }
+
+  /**
+   * Retrieves the value of the static field of a scripted class name.
+   * @param clsName The name of the scripted class to get the field value from.
+   * @param fieldName The name of the field to retrieve the value of.
+   * @return The value of said field.
+   */
+  public function getScriptClassStaticField(clsName:String, fieldName:String):Null<Dynamic>
+  {
+    var prefixedName = clsName + '#' + fieldName;
+    var fieldDecl = getScriptClassStaticFieldDecl(clsName, fieldName);
+
+    if (fieldDecl != null)
+    {
+      switch (fieldDecl.kind)
+      {
+        case KFunction(fn):
+          if (!this.variables.exists(prefixedName))
+          {
+            var result = buildScriptClassStaticFunction(clsName, fieldName);
+            this.variables.set(prefixedName, result);
+            return result;
+          }
+          return this.variables.get(prefixedName);
+
+        case KVar(v):
+          if (v.get != null)
+          {
+            switch (v.get)
+            {
+              case 'get':
+                var getterFunc = 'get_${fieldName}';
+                final getName = '${clsName}#$getterFunc';
+                if (hasScriptClassStaticFunction(clsName, getterFunc))
+                {
+                  if (_propTrack.exists(getName))
+                  {
+                    return this.variables.get(prefixedName);
+                  }
+                  else
+                  {
+                    _propTrack.set(getName, true);
+                    var result = callScriptClassStaticFunction(clsName, getterFunc, []);
+                    _propTrack.remove(getName);
+                    return result;
+                  }
+                }
+                else
+                {
+                  throw 'Could not resolve getter for property ${prefixedName}';
+                }
+
+              case 'default':
+                if (!this.variables.exists(prefixedName))
+                {
+                  var result = this.expr(v.expr);
+                  this.variables.set(prefixedName, result);
+                  return result;
+                }
+                return this.variables.get(prefixedName);
+
+              default:
+                throw 'Could not resolve getter for property ${prefixedName}';
+            }
+          }
+          else if (this.variables.exists(prefixedName))
+          {
+            return this.variables.get(prefixedName);
+          }
+          else if (v.expr != null)
+          {
+            var result = this.expr(v.expr);
+            this.variables.set(prefixedName, result);
+            return result;
+          }
+          else
+          {
+            throw 'Could not resolve field declaration for ${prefixedName}';
+          }
+
+        default:
+          throw 'Could not resolve field kind for ${prefixedName}';
+      }
+    }
+    else
+    {
+      error(EInvalidAccess(fieldName));
+      return null;
+    }
+  }
+
+
+  /**
+   * Writes the given value of a static field from the given scripted class name.
+   * @param clsName The name of the scripted class of which the field is from.
+   * @param fieldName The name of the field to write the value to.
+   * @param fieldValue The value to set to the static field to.
+   * @return Dynamic
+   */
+  public function setScriptClassStaticField(clsName:String, fieldName:String, value:Dynamic):Null<Dynamic>
+  {
+    var prefixedName = clsName + '#' + fieldName;
+    var fieldDecl = getScriptClassStaticFieldDecl(clsName, fieldName);
+    if (fieldDecl != null)
+    {
+      switch (fieldDecl.kind)
+      {
+        case KFunction(fn):
+          if (fn.isdynamic)
+          {
+            if (Reflect.isFunction(value))
+            {
+              this.functions.set(prefixedName, value);
+              return value;
+            }
+            else
+            {
+              throw 'Cannot assign non-function value to dynamic function "${fieldName}"';
+            }
+          }
+          else
+          {
+            throw 'Cannot override non-dynamic function "${fieldName}"';
+          }
+        case KVar(v):
+          if (v.isfinal)
+          {
+            throw 'Cannot override final static field ${prefixedName}';
+          }
+          if (v.set != null)
+          {
+            switch (v.set)
+            {
+              case 'set':
+                var setterFunc = 'set_${fieldName}';
+                final setName = '${clsName}#$setterFunc';
+                if (hasScriptClassStaticFunction(clsName, setterFunc))
+                {
+                  if (!_propTrack.exists(setName))
+                  {
+                    _propTrack.set(setName, true);
+                    var out = callScriptClassStaticFunction(clsName, setterFunc, [value]);
+                    _propTrack.remove(setName);
+                    return (out == null) ? value : out;
+                  }
+                  else
+                  {
+                    this.variables.set(prefixedName, value);
+                    return value;
+                  }
+                }
+                else
+                {
+                  throw 'Could not resolve setter for property ${prefixedName}';
+                }
+
+              case 'never':
+                throw 'Cannot assign to property ${prefixedName}';
+
+              case 'null':
+                throw 'Cannot assign to property ${prefixedName}';
+
+              case 'default':
+                this.variables.set(prefixedName, value);
+                return value;
+              default:
+                throw 'Could not resolve setter for property ${prefixedName}';
+            }
+          }
+          else
+          {
+            this.variables.set(prefixedName, value);
+            return value;
+          }
+      }
+    }
+    else
+    {
+      error(EInvalidAccess(fieldName));
+      return null;
+    }
+  }
+
+
+  public function new(targetCls:Class<Dynamic>, proxy:PolymodAbstractScriptClass)
   {
     locals = new Map();
     declared = [];
@@ -137,6 +1777,309 @@ class Interp
     _proxy = proxy;
     this.targetCls = targetCls;
   }
+
+
+  public inline function error(e:#if hscriptPos ErrorDef #else Error #end,
+    rethrow = false):Null<Dynamic>
+  {
+    #if hscriptPos var e = new Error(e, curExpr?.pmin ?? 0, curExpr?.pmax ?? 0, curExpr?.origin ?? 'unknown', curExpr?.line ?? 0); #end
+    if (rethrow) this.rethrow(e)
+    else
+      throw e;
+    return null;
+  }
+
+  inline function isHScriptedClass(o:Dynamic):Bool
+  {
+    return Std.isOfType(o, HScriptedClass) || (o != null && o._asc != null);
+  }
+
+  public function validateClassMetadata():Void
+  {
+    var clsDecl:ClassDecl = getClassDecl();
+    var clsName:String = getClassFullyQualifiedName();
+
+    var clsMeta = clsDecl.meta ?? [];
+    for (meta in clsMeta)
+    {
+      switch (meta.name)
+      {
+        case ':allow', ':access':
+          // These metadata will control class private field access without an error being thrown.
+          var listToUse:Map<String, ClassAccessControl> = meta.name == ':allow' ? allowMetadataControlList : accessMetadataControlList;
+
+          var accessData:ClassAccessControl = listToUse.get(clsName) ?? {
+            cls: null,
+            fields: null
+          };
+          var accessControl:AccessControl = parseAccessMetadata(clsDecl, meta);
+
+          if (accessData.cls != null)
+          {
+            // Append any interface packs.
+            if (accessControl.interfacePackage != null)
+            {
+              accessData.cls.interfacePackage ??= [];
+              for (pack in accessControl.interfacePackage)
+              {
+                accessData.cls.interfacePackage.push(pack);
+              }
+            }
+
+            // Append any general packages.
+            if (accessControl.pkg != null)
+            {
+              accessData.cls.pkg ??= [];
+              for (pack in accessControl.pkg)
+              {
+                accessData.cls.pkg.push(pack);
+              }
+            }
+
+            if (accessControl.access != null)
+            {
+              // Append the access control to the main one.
+              for (clsName => fields in accessControl.access)
+              {
+                accessData.cls.access ??= [];
+                var fieldsList:Array<String> = accessData.cls.access.get(clsName) ?? [];
+                if (fields != null)
+                {
+                  for (f in fields)
+                  {
+                    if (!fieldsList.contains(f)) fieldsList.push(f);
+                  }
+                  accessData.cls.access.set(clsName, fieldsList);
+                }
+                else
+                {
+                  accessData.cls.access.set(clsName, null);
+                }
+              }
+            }
+          }
+          else
+          {
+            accessData.cls = accessControl;
+          }
+          listToUse.set(clsName, accessData);
+        case ':deprecation':
+          var message:String = new Printer().exprToString(meta.params[0]);
+          _deprecatedTypes.set(clsName, message);
+      }
+    }
+
+    // Handle metadata for fields.
+    var clsFields:Array<FieldDecl> = clsDecl.fields.concat(clsDecl.staticFields).filter((f) -> f.meta.length > 0);
+    for (field in clsFields)
+    {
+      var fieldMeta = field.meta ?? [];
+      for (meta in fieldMeta)
+      {
+        switch (meta.name)
+        {
+          case ':allow', ':access':
+            switch (field.kind)
+            {
+              case KVar(v):
+                // @:access metadata is invalid for class variables.
+                if (meta.name == ':access') continue;
+              default:
+            }
+            var listToUse:Map<String, ClassAccessControl> = meta.name == ':allow' ? allowMetadataControlList : accessMetadataControlList;
+
+            var accessData:ClassAccessControl = listToUse.get(clsName) ?? {
+              cls: null,
+              fields: null
+            };
+            var accessControl:AccessControl = parseAccessMetadata(clsDecl, meta);
+
+            if (accessData.fields != null)
+            {
+              // Append any general packages.
+              if (accessControl.pkg != null)
+              {
+                var fieldAccessData = accessData.fields.get(field.name) ?? {
+                  access: null,
+                  pkg: null,
+                  interfacePackage: null
+                };
+                var fieldPkgControl = fieldAccessData.pkg ?? new Array<String>();
+
+                for (pack in accessControl.pkg)
+                {
+                  fieldPkgControl.push(pack);
+                }
+                fieldAccessData.pkg = fieldPkgControl;
+                accessData.fields.set(field.name, fieldAccessData);
+              }
+
+              // Append the access control to this fields access control data.
+              if (accessControl.access != null)
+              {
+                var fieldAccessData = accessData.fields.get(field.name) ?? {
+                  access: null,
+                  pkg: null,
+                  interfacePackage: null
+                };
+                var fieldAccessControl = fieldAccessData.access ?? new Map<String, Array<String>>();
+                for (cls => fields in accessControl.access)
+                {
+                  var fieldsList:Array<String> = fieldAccessControl.get(cls) ?? new Array<String>();
+                  if (fields != null)
+                  {
+                    for (f in fields)
+                    {
+                      if (!fieldsList.contains(f)) fieldsList.push(f);
+                    }
+                    fieldAccessControl.set(cls, fieldsList);
+                  }
+                  else
+                  {
+                    fieldAccessControl.set(cls, null);
+                  }
+                  fieldAccessData.access = fieldAccessControl;
+                  accessData.fields.set(field.name, fieldAccessData);
+                }
+              }
+            }
+            else
+            {
+              accessData.fields = new Map<String, AccessControl>();
+              accessData.fields.set(field.name, accessControl);
+            }
+            listToUse.set(clsName, accessData);
+          case ':deprecation':
+            var message:String = new Printer().exprToString(meta.params[0]);
+            var fields:Map<String, String> = _deprecatedFields.get(clsName) ?? [];
+
+            fields.set(field.name, message);
+            _deprecatedFields.set(clsName, fields);
+        }
+      }
+    }
+  }
+
+  public function parseAccessMetadata(clsDecl:ClassDecl, meta:{name:String, params:Array<Expr>}):AccessControl
+  {
+    var expr = meta.params[0];
+    var classPackageExpr:String = new Printer().exprToString(expr);
+    var path:Array<String> = classPackageExpr.split('.');
+    if (path.length == 1)
+    {
+      // We're dealing with an imported class.
+      // Classes with no package are auto-imported so this should be fine to check.
+      var clsPack:String = clsDecl.imports.get(classPackageExpr)?.fullPath ?? classPackageExpr;
+      if (PolymodStaticInterfaceReference.tryBuild(clsPack) != null)
+      {
+        // We're dealing with an interface package.
+        return {
+          interfacePackage: [clsPack]
+        };
+      }
+      else
+      {
+        // Attempt to resolve the class, and if it fails, this access control is for a package.
+        var cls:Null<Dynamic> = resolveDottedPath(classPackageExpr);
+        if (cls != null)
+        {
+          return {
+            access: [clsPack => null]
+          };
+        }
+        else
+        {
+          return {
+            pkg: [clsPack]
+          };
+        }
+      }
+    }
+    else
+    {
+      // We're dealing with a multi-dotted package that could potentially also be a field.
+      // Class metadata don't have very strict syntax in regular Haxe.
+
+      // Try to see if we can resolve the class first.
+      var cls:Null<Dynamic> = resolveDottedPath(classPackageExpr);
+      if (cls != null)
+      {
+        if (cls is PolymodStaticInterfaceReference)
+        {
+          // We're dealing with an interface package.
+          return {
+            interfacePackage: [classPackageExpr]
+          };
+        }
+        else
+        {
+          // Regular class path.
+          return {
+            access: [classPackageExpr => null]
+          };
+        }
+      }
+      else
+      {
+        var clsField:String = path[path.length - 1];
+        var clsPack:String = path.slice(0, -1).join('.');
+
+        // Check for imports just in case the resolved class isn't dotted anymore.
+        clsPack = clsDecl.imports.get(clsPack)?.fullPath ?? clsPack;
+
+        cls = resolveDottedPath(clsPack);
+        if (cls != null)
+        {
+          // Regular class path.
+          return {
+            access: [clsPack => [clsField]]
+          };
+        }
+        else
+        {
+          // We're most likely dealing with a regular package.
+          return {
+            pkg: [classPackageExpr]
+          };
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Resets the local variable scope of this interpreter.
+   */
+  private function resetVariables()
+  {
+    variables = new Map<String, Dynamic>();
+    variables.set("null", null);
+    variables.set("true", true);
+    variables.set("false", false);
+    variables.set("trace", Reflect.makeVarArgs(function(el)
+    {
+      var inf = posInfos();
+      var v = el.shift();
+      if (el.length > 0) inf.customParams = el;
+      haxe.Log.trace(Std.string(v), inf);
+    }));
+
+    variables.set("Math", #if hl polymod.hscript._internal.HLWrapperMacro.HLMath #else Math #end);
+    variables.set("Std", #if hl polymod.hscript._internal.HLWrapperMacro.HLStd #else Std #end);
+
+    variables.set("Array", Array);
+    variables.set("Bool", Bool);
+    variables.set("Dynamic", Dynamic);
+    variables.set("Float", Float);
+    variables.set("Int", Int);
+    variables.set("String", String);
+
+    if (defaultVariables == null)
+    {
+      defaultVariables = variables.copy();
+    }
+  }
+
 
   function cnew(cl:String, args:Array<Dynamic>):Dynamic
   {
@@ -182,17 +2125,8 @@ class Interp
       var packagedClass = getClassDecl().pkg.join(".") + "." + cl;
       if (_scriptClassDescriptors.exists(packagedClass))
       {
-        // OVERRIDE CHANGE: Create a PolymodScriptClass instead of a ScriptClass
-        var clsDescriptor:ClassDecl = findScriptClassDescriptor(packagedClass);
-        var ctorField:Null<FieldDecl> = clsDescriptor.fields.find((f) -> f.name == 'new');
-        if (clsDescriptor != getClassDecl() && ctorField?.access.contains(APrivate))
-        {
-          error(ECustom('Cannot access private constructor of ${clsRef.cls.name}'));
-          return null;
-        }
-
-        var proxy:PolymodAbstractScriptClass = new PolymodScriptClass(clsDescriptor, args);
-        return proxy;
+        var clsRef = PolymodStaticClassReference.tryBuild(packagedClass);
+        if (clsRef != null) return tryBuildClass(clsRef, args);
       }
     }
     @:privateAccess
@@ -201,16 +2135,8 @@ class Interp
       var importedClass:ClassImport = getClassDecl().imports.get(cl);
       if (_scriptClassDescriptors.exists(importedClass.fullPath))
       {
-        // OVERRIDE CHANGE: Create a PolymodScriptClass instead of a ScriptClass
-        var clsDescriptor:ClassDecl = findScriptClassDescriptor(importedClass.fullPath);
-        var ctorField:Null<FieldDecl> = clsDescriptor.fields.find((f) -> f.name == 'new');
-        if (clsDescriptor != getClassDecl() && ctorField?.access.contains(APrivate))
-        {
-          error(ECustom('Cannot access private constructor of ${clsRef.cls.name}'));
-          return null;
-        }
-        var proxy:PolymodAbstractScriptClass = new PolymodScriptClass(clsDescriptor, args);
-        return proxy;
+        var clsRef = PolymodStaticClassReference.tryBuild(importedClass.fullPath);
+        if (clsRef != null) return tryBuildClass(clsRef, args);
       }
 
       // Ignore importedClass.enm as enums cannot be instantiated.
@@ -244,7 +2170,64 @@ class Interp
     return null;
   }
 
-  private var _nextCallObject:Dynamic = null;
+  /**
+   * Creates an object describing the current position info of the current expression.
+   * @return PosInfos
+   */
+  public function posInfos():PosInfos
+  {
+    #if hscriptPos
+    if (curExpr != null) return cast {
+      fileName: curExpr.origin,
+      lineNumber: curExpr.line
+    };
+    #end
+    return cast {
+      fileName: "hscript",
+      lineNumber: 0
+    };
+  }
+
+  function initOps()
+  {
+    var me = this;
+    binops = new Map();
+    binops.set("+", function(e1, e2) return me.expr(e1) + me.expr(e2));
+    binops.set("-", function(e1, e2) return me.expr(e1) - me.expr(e2));
+    binops.set("*", function(e1, e2) return me.expr(e1) * me.expr(e2));
+    binops.set("/", function(e1, e2) return me.expr(e1) / me.expr(e2));
+    binops.set("%", function(e1, e2) return me.expr(e1) % me.expr(e2));
+    binops.set("&", function(e1, e2) return me.expr(e1) & me.expr(e2));
+    binops.set("|", function(e1, e2) return me.expr(e1) | me.expr(e2));
+    binops.set("^", function(e1, e2) return me.expr(e1) ^ me.expr(e2));
+    binops.set("<<", function(e1, e2) return me.expr(e1) << me.expr(e2));
+    binops.set(">>", function(e1, e2) return me.expr(e1) >> me.expr(e2));
+    binops.set(">>>", function(e1, e2) return me.expr(e1) >>> me.expr(e2));
+    binops.set("==", function(e1, e2) return me.expr(e1) == me.expr(e2));
+    binops.set("!=", function(e1, e2) return me.expr(e1) != me.expr(e2));
+    binops.set(">=", function(e1, e2) return me.expr(e1) >= me.expr(e2));
+    binops.set("<=", function(e1, e2) return me.expr(e1) <= me.expr(e2));
+    binops.set(">", function(e1, e2) return me.expr(e1) > me.expr(e2));
+    binops.set("<", function(e1, e2) return me.expr(e1) < me.expr(e2));
+    binops.set("||", function(e1, e2) return me.expr(e1) == true || me.expr(e2) == true);
+    binops.set("&&", function(e1, e2) return me.expr(e1) == true && me.expr(e2) == true);
+    binops.set("=", assign);
+    binops.set("...", function(e1, e2) return new IntIterator(me.expr(e1), me.expr(e2)));
+    binops.set("is", function(e1, e2) return PolymodScriptClass.isOfType(me.expr(e1), me.expr(e2))); // We use a special Std.isOfType to fix scripted classes.
+    binops.set("??", function(e1, e2) return me.expr(e1) ?? me.expr(e2));
+    assignOp("+=", function(v1:Dynamic, v2:Dynamic) return v1 + v2);
+    assignOp("-=", function(v1:Float, v2:Float) return v1 - v2);
+    assignOp("*=", function(v1:Float, v2:Float) return v1 * v2);
+    assignOp("/=", function(v1:Float, v2:Float) return v1 / v2);
+    assignOp("%=", function(v1:Float, v2:Float) return v1 % v2);
+    assignOp("&=", function(v1, v2) return v1 & v2);
+    assignOp("|=", function(v1, v2) return v1 | v2);
+    assignOp("^=", function(v1, v2) return v1 ^ v2);
+    assignOp("<<=", function(v1, v2) return v1 << v2);
+    assignOp(">>=", function(v1, v2) return v1 >> v2);
+    assignOp(">>>=", function(v1, v2) return v1 >>> v2);
+    assignOp("??" + "=", function(v1, v2) return v1 ?? v2);
+  }
 
   /**
    * Call a given function on a given target with the given arguments.
@@ -538,535 +2521,76 @@ class Interp
     }
   }
 
-  /**
-   * Call a static function of a scripted class.
-   * @param clsName The full classpath of the scripted class.
-   * @param fnName The name of the function to call.
-   * @param args The arguments to pass to the function.
-   * @return The return value of the function.
-   */
-  public function callScriptClassStaticFunction(clsName:String, fnName:String, args:Array<Dynamic> = null):Null<Dynamic>
+  public function executeFunction(fn:FunctionDecl, fnName:String, args:Array<Dynamic>):Dynamic
   {
-    // For functions listScriptClasses and scriptInit, we want to return the needed values without much checking.
-    if (fnName == "listScriptClasses")
+    var oldDepth:Int = this.depth;
+    var oldLocals = this.duplicate(locals);
+    var oldDeclared = this.declared;
+    var oldCurrentFunction = this.currentFunction;
+
+    this.locals = [];
+    this.declared = [];
+    this.depth++;
+    this.currentFunction = fnName;
+
+    setFunctionValues(fn, args, fnName, false);
+
+    var result:Null<Dynamic> = null;
+    var exception:Null<Dynamic> = null;
+    try
     {
-      return PolymodScriptClass.listScriptClassesExtending(clsName);
+      result = exprReturn(fn.expr);
+    }
+    catch (err:Dynamic)
+    {
+      exception = err;
     }
 
-    if (fnName == "scriptInit")
+    this.depth = oldDepth;
+    this.locals = oldLocals;
+    this.declared = oldDeclared;
+    this.currentFunction = oldCurrentFunction;
+
+    // Assuming this error will be handled higher.
+    if (exception != null)
     {
-      args = args ?? [];
-
-      if (args.length < 1)
-      {
-        error(EInvalidArgCount(" for function 'scriptInit'", 1, args.length));
-      }
-
-      var clsToInit:String = Std.string(args.shift());
-      var clsRef = PolymodStaticClassReference.tryBuild(clsToInit);
-
-      if (clsRef == null)
-      {
-        Polymod.error(
-          SCRIPT_RUNTIME_EXCEPTION,
-          'Could not construct instance of scripted class ($clsToInit extends ' + clsName + ')\nUnknown error building class reference'
-        );
-        return null;
-      }
-
-      try
-      {
-        var result = clsRef.instantiate(args);
-        if (result == null)
-        {
-          Polymod.error(
-            SCRIPT_RUNTIME_EXCEPTION,
-            'Could not construct instance of scripted class ($clsToInit extends ' + clsName + '):\nUnknown error instantiating class'
-          );
-          return null;
-        }
-
-        return result;
-      }
-      catch (error)
-      {
-        var callStack:String = polymod.util.Util.fetchCallStack();
-
-        Polymod.error(
-          SCRIPT_RUNTIME_EXCEPTION,
-          'An uncaught exception was thrown while constructing an instance of scripted class ($clsToInit extends ' + clsName + '):\n$error\n$callStack',
-          SCRIPT_RUNTIME
-        );
-        return null;
-      }
+      throw exception;
     }
 
-    var fn:Null<FunctionDecl> = null;
-    var imports:Map<String, ClassImport> = [];
+    return result;
+  }
 
-    var cls:Null<ClassDecl> = _scriptClassDescriptors.get(clsName);
-    if (cls != null)
+  public function execute(expr:Expr):Null<Dynamic>
+  {
+    // If this function is being called (and not executeEx),
+    // PolymodScriptClass is not being used to call the expression.
+    // This happens during callbacks and in some other niche cases.
+    // In this case, we know the parent caller doesn't have error handling!
+    // That means we have to do it here.
+    try
     {
-      imports = cls.imports;
-
-      // TODO: Optimize with a cache?
-      for (f in cls.staticFields)
-      {
-        if (f.name == fnName)
-        {
-          switch (f.kind)
-          {
-            case KFunction(func):
-              fn = func;
-            case _:
-          }
-        }
-      }
+      return executeEx(expr);
     }
-    else
+    catch (err:Expr.Error)
     {
-      Polymod.error(SCRIPTED_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.', SCRIPT_RUNTIME);
+      this.currentFunction = null;
+      PolymodScriptClass.reportError(err, getClassFullyQualifiedName());
       return null;
     }
-
-    if (fn != null)
+    catch (err:Dynamic)
     {
-      // Populate function arguments.
-
-      var previousClassDecl = _classDeclOverride;
-      this._classDeclOverride = cls;
-
-      var result:Dynamic = null;
-      try
-      {
-        if (fn.isdynamic)
-        {
-          var prefixedName = '$clsName#$fnName';
-          if (this.functions.exists(prefixedName))
-          {
-            result = Reflect.callMethod(this, this.functions.get(prefixedName), args);
-          }
-          else
-          {
-            result = this.executeFunction(fn, fnName, args);
-          }
-        }
-        else
-        {
-          result = this.executeFunction(fn, fnName, args);
-        }
-      }
-      catch (err:Expr.Error)
-      {
-        PolymodScriptClass.reportError(err, clsName, fnName);
-        // A script error occurred while executing the script function.
-        // Purge the function from the cache so it is not called again.
-        // purgeStaticFunction(fnName);
-        return null;
-      }
-
-      this._classDeclOverride = previousClassDecl;
-
-      return result;
+      throw err;
     }
-    else
-    {
-      Polymod.error(
-        SCRIPT_RUNTIME_EXCEPTION,
-        'Error while calling static function ${clsName}.${fnName}(): EInvalidAccess' + '\n' + 'Static function "${fnName}" does not exist! Define it or call the correct function.',
-        SCRIPT_RUNTIME
-      );
-      return null;
-    }
+    this.currentFunction = null;
   }
 
-
-  /**
-   * Given a class declaration, fetches all fields with the `@:unreflective` metadata and adds it to the script class blacklist.
-   * @param cls The class declaration.
-   */
-  static function registerScriptClassBlacklist(cls:ClassDecl):Void
+  public function executeEx(expr:Expr):Dynamic
   {
-    var clsName:String = Util.getFullClassName(cls);
-    if (cls.meta.length > 0 && cls.meta.findIndex((m) -> return m.name == ':unreflective') != -1)
-    {
-      Polymod.blacklistScriptClassImport(clsName);
-    }
-
-    // Filter fields to see which have the `@:unreflective` metadata.
-    var staticFields:Array<String> = [for (field in cls.staticFields.filter((f) -> f.meta.length > 0 && f.meta.findIndex((m) -> return m.name == ':unreflective') != -1)) field.name];
-    var instanceFields:Array<String> = [for (field in cls.fields.filter((f) -> f.meta.length > 0 && f.meta.findIndex((m) -> return m.name == ':unreflective') != -1)) field.name];
-
-    if (staticFields.length > 0)
-      Polymod.blacklistScriptClassStaticFields(clsName, staticFields);
-
-    if (instanceFields.length > 0)
-      Polymod.blacklistScriptClassInstanceFields(clsName, instanceFields);
-  }
-
-  static function registerDeprecatedFields(path:String):Void
-  {
-    var printer = new Printer();
-    if (Interp.findScriptClassDescriptor(path) != null)
-    {
-      var decl:ClassDecl = Interp.findScriptClassDescriptor(path);
-
-      var deprecatedClassMeta = decl.meta.find((m) -> m.name == ':deprecated');
-      if (deprecatedClassMeta != null)
-      {
-        var message:String = printer.exprToString(deprecatedClassMeta.params[0]);
-        _deprecatedTypes.set(path, message);
-      }
-
-      for (field in decl.fields.concat(decl.staticFields))
-      {
-        var deprecatedMeta = field.meta.find((m) -> m.name == ':deprecated');
-        if (deprecatedMeta != null)
-        {
-          var message:String = printer.exprToString(deprecatedMeta.params[0]);
-          var fields:Map<String, String> = _deprecatedFields.get(path) ?? [];
-
-          fields.set(field.name, message);
-          _deprecatedFields.set(path, fields);
-        }
-      }
-    }
-    else if (Interp.findScriptInterfaceDescriptor(path) != null)
-    {
-      var decl:InterfaceDecl = Interp.findScriptInterfaceDescriptor(path);
-
-      var deprecatedClassMeta = decl.meta.find((m) -> m.name == ':deprecated');
-      if (deprecatedClassMeta != null)
-      {
-        var message:String = printer.exprToString(deprecatedClassMeta.params[0]);
-        _deprecatedTypes.set(path, message);
-      }
-
-      for (field in decl.fields)
-      {
-        var deprecatedMeta = field.meta.find((m) -> m.name == ':deprecated');
-        if (deprecatedMeta != null)
-        {
-          var message:String = printer.exprToString(deprecatedMeta.params[0]);
-          var fields:Map<String, String> = _deprecatedFields.get(path) ?? [];
-
-          fields.set(field.name, message);
-          _deprecatedFields.set(path, fields);
-        }
-      }
-    }
-    else if (_scriptEnumDescriptors.exists(path))
-    {
-      var decl:EnumDecl = _scriptEnumDescriptors.get(path);
-
-      var deprecatedClassMeta = decl.meta.find((m) -> m.name == ':deprecated');
-      if (deprecatedClassMeta != null)
-      {
-        var message:String = printer.exprToString(deprecatedClassMeta.params[0]);
-        _deprecatedTypes.set(path, message);
-      }
-    }
-  }
-  static function registerScriptClass(c:ClassDecl)
-  {
-    var name = Util.getFullClassName(c);
-
-    if (_scriptClassDescriptors.exists(name))
-    {
-      Polymod.error(
-        SCRIPTED_CLASS_ALREADY_REGISTERED,
-        'Scripted class with fully qualified name "$name" has already been defined. Please change the class name or the package name to ensure uniqueness.',
-        SCRIPT_RUNTIME
-      );
-      return;
-    }
-    else
-    {
-      Polymod.debug('Registering scripted class $name');
-      _scriptClassDescriptors.set(name, c);
-    }
-    registerDeprecatedFields(name);
-  }
-
-  static function registerScriptInterface(i:InterfaceDecl)
-  {
-    var name:String = i.name;
-    if (i.pkg != null && i.pkg.length > 0)
-    {
-      name = i.pkg.join('.') + '.' + i.name;
-    }
-
-    if (_scriptInterfaceDescriptors.exists(name) || PolymodScriptClass.interfaceImpls.exists(name) || _scriptClassDescriptors.exists(name))
-    {
-      Polymod.error(SCRIPTED_CLASS_ALREADY_REGISTERED,
-      'Scripted interface with fully qualified name "$name" has already been defined. Please change the interface or the package name to ensure uniqueness.',
-      SCRIPT_RUNTIME);
-      return;
-    }
-    else
-    {
-      Polymod.debug('Registering scripted interface $name');
-      _scriptInterfaceDescriptors.set(name, i);
-      registerDeprecatedFields(name);
-    }
-  }
-
-  private static function registerScriptEnum(e:EnumDecl)
-  {
-    var name = e.name;
-    if (e.pkg != null)
-    {
-      name = e.pkg.join(".") + "." + name;
-    }
-
-    if (_scriptEnumDescriptors.exists(name))
-    {
-      Polymod.error(
-        SCRIPTED_CLASS_ALREADY_REGISTERED,
-        'An enum with the fully qualified name "$name" has already been defined. Please change the enum name to ensure a unique name.',
-        SCRIPT_RUNTIME
-      );
-      return;
-    }
-    else
-    {
-      Polymod.debug('Registering scripted enum $name');
-      _scriptEnumDescriptors.set(name, e);
-      registerDeprecatedFields(name);
-    }
-  }
-
-  private static function registerImportForPackage(pkg:Null<Array<String>>, imp:ClassImport, isUsing:Bool = false)
-  {
-    var impFilePkg:String = pkg?.join(".") ?? "";
-    var map:Map<String, Array<ClassImport>> = isUsing ? _scriptClassUsings : _scriptClassImports;
-
-    if (!map.exists(impFilePkg))
-    {
-      map.set(impFilePkg, []);
-    }
-
-    map.get(impFilePkg).push(imp);
-  }
-
-  public static function findScriptClassDescriptor(name:String)
-  {
-    return _scriptClassDescriptors.get(name);
-  }
-
-  public static function findScriptInterfaceDescriptor(name:String)
-  {
-    return _scriptInterfaceDescriptors.get(name);
-  }
-
-  private function resetVariables()
-  {
-    variables = new Map<String, Dynamic>();
-    variables.set("null", null);
-    variables.set("true", true);
-    variables.set("false", false);
-    variables.set("trace", Reflect.makeVarArgs(function(el)
-    {
-      var inf = posInfos();
-      var v = el.shift();
-      if (el.length > 0) inf.customParams = el;
-      haxe.Log.trace(Std.string(v), inf);
-    }));
-
-    variables.set("Math", #if hl polymod.hscript._internal.HLWrapperMacro.HLMath #else Math #end);
-    variables.set("Std", #if hl polymod.hscript._internal.HLWrapperMacro.HLStd #else Std #end);
-
-    variables.set("Array", Array);
-    variables.set("Bool", Bool);
-    variables.set("Dynamic", Dynamic);
-    variables.set("Float", Float);
-    variables.set("Int", Int);
-    variables.set("String", String);
-
-    if (defaultVariables == null)
-    {
-      defaultVariables = variables.copy();
-    }
-  }
-
-   public function storePersistentStaticFields():Void
-  {
-    for (key => decl in _scriptClassDescriptors)
-    {
-      var persistentFields:Null<Map<String, Dynamic>> = null;
-
-      var persistentFieldDecls:Array<FieldDecl> = decl.staticFields.filter((f) -> f.meta.length > 0 && (f.meta.findIndex((m) -> m.name == ':persistent') != -1));
-      for (field in persistentFieldDecls)
-      {
-        switch (field.kind)
-        {
-          case KVar(v):
-            if (v.set != null && (v.set == 'never' || v.set == 'set' && v.get != null && v.get == 'get') && field.meta.findIndex((m) -> m.name == ':isVar') == -1)
-              continue;
-
-            var value:Dynamic = PolymodScriptClass.getScriptClassStaticField(key, field.name);
-
-            persistentFields ??= new Map<String, Dynamic>();
-            persistentFields.set(field.name, value);
-          default:
-            // Don't save functions.
-        }
-      }
-
-      if (persistentFields != null)
-        _scriptPersistentFields.set(key, persistentFields);
-    }
-  }
-
-  public function clearScriptClassDescriptors():Void
-  {
-    // Save all static fields with the @:persistent metadata.
-    storePersistentStaticFields();
-
-    // Clear the script class descriptors.
-    _scriptClassDescriptors.clear();
-
-    _cachedDeprecatedTypes = [];
-    _cachedDeprecatedFields = [];
-
-    _deprecatedTypes.clear();
-    _deprecatedFields.clear();
-
-    _classDeclUsingCache.clear();
-
-    // We clear this field so it later re-generates when validating imports.
-    @:privateAccess
-    PolymodScriptClass._scriptClassesByPackage = null;
-
-    // This needs to be cleared since the scripted interface data could be outdated. Will be later re-populated.
-    @:privateAccess
-    {
-      PolymodScriptClass._classesExtendingInterfaces?.clear();
-      PolymodScriptClass._classesExtendingInterfaces = null;
-    }
-
-    // Do this first since scripted interfaces are checked through their scripted decls.
-    PolymodStaticInterfaceReference.clearScriptedInterfaces();
-    _scriptInterfaceDescriptors.clear();
-
-    // Also clear the imports from the import.hx files.
-    _scriptClassImports.clear();
-    _scriptClassUsings.clear();
-
-    // Also destroy local variable scope.
-    this.resetVariables();
-  }
-
-  public function clearScriptEnumDescriptors():Void
-  {
-    // Clear the script enum descriptors.
-    _scriptEnumDescriptors.clear();
-
-    // Also destroy local variable scope.
-    this.resetVariables();
-  }
-
-  public function posInfos():PosInfos
-  {
-    #if hscriptPos
-    if (curExpr != null) return cast {
-      fileName: curExpr.origin,
-      lineNumber: curExpr.line
-    };
-    #end
-    return cast {
-      fileName: "hscript",
-      lineNumber: 0
-    };
-  }
-
-  public function reloadPersistentStaticFields():Void
-  {
-    for (key => fieldVal in _scriptPersistentFields)
-    {
-      if (!_scriptClassDescriptors.exists(key))
-        continue;
-
-      var decl:ClassDecl = _scriptClassDescriptors.get(key);
-      for (name => v in fieldVal)
-      {
-        var persistentField:Null<FieldDecl> = decl.staticFields.find((f) -> f.name == name && (f.meta.findIndex((m) -> m.name == ':persistent') != -1));
-        if (persistentField != null)
-        {
-          // Save the field value, we manually set the variables map to avoid calling accessors.
-          this.variables.set('$key#$name', v);
-        }
-      }
-    }
-    _scriptPersistentFields.clear();
-  }
-
-  function initOps()
-  {
-    var me = this;
-    binops = new Map();
-    binops.set("+", function(e1, e2) return me.expr(e1) + me.expr(e2));
-    binops.set("-", function(e1, e2) return me.expr(e1) - me.expr(e2));
-    binops.set("*", function(e1, e2) return me.expr(e1) * me.expr(e2));
-    binops.set("/", function(e1, e2) return me.expr(e1) / me.expr(e2));
-    binops.set("%", function(e1, e2) return me.expr(e1) % me.expr(e2));
-    binops.set("&", function(e1, e2) return me.expr(e1) & me.expr(e2));
-    binops.set("|", function(e1, e2) return me.expr(e1) | me.expr(e2));
-    binops.set("^", function(e1, e2) return me.expr(e1) ^ me.expr(e2));
-    binops.set("<<", function(e1, e2) return me.expr(e1) << me.expr(e2));
-    binops.set(">>", function(e1, e2) return me.expr(e1) >> me.expr(e2));
-    binops.set(">>>", function(e1, e2) return me.expr(e1) >>> me.expr(e2));
-    binops.set("==", function(e1, e2) return me.expr(e1) == me.expr(e2));
-    binops.set("!=", function(e1, e2) return me.expr(e1) != me.expr(e2));
-    binops.set(">=", function(e1, e2) return me.expr(e1) >= me.expr(e2));
-    binops.set("<=", function(e1, e2) return me.expr(e1) <= me.expr(e2));
-    binops.set(">", function(e1, e2) return me.expr(e1) > me.expr(e2));
-    binops.set("<", function(e1, e2) return me.expr(e1) < me.expr(e2));
-    binops.set("||", function(e1, e2) return me.expr(e1) == true || me.expr(e2) == true);
-    binops.set("&&", function(e1, e2) return me.expr(e1) == true && me.expr(e2) == true);
-    binops.set("=", assign);
-    binops.set("...", function(e1, e2) return new IntIterator(me.expr(e1), me.expr(e2)));
-    binops.set("is", function(e1, e2) return PolymodScriptClass.isOfType(me.expr(e1), me.expr(e2))); // We use a special Std.isOfType to fix scripted classes.
-    binops.set("??", function(e1, e2) return me.expr(e1) ?? me.expr(e2));
-    assignOp("+=", function(v1:Dynamic, v2:Dynamic) return v1 + v2);
-    assignOp("-=", function(v1:Float, v2:Float) return v1 - v2);
-    assignOp("*=", function(v1:Float, v2:Float) return v1 * v2);
-    assignOp("/=", function(v1:Float, v2:Float) return v1 / v2);
-    assignOp("%=", function(v1:Float, v2:Float) return v1 % v2);
-    assignOp("&=", function(v1, v2) return v1 & v2);
-    assignOp("|=", function(v1, v2) return v1 | v2);
-    assignOp("^=", function(v1, v2) return v1 ^ v2);
-    assignOp("<<=", function(v1, v2) return v1 << v2);
-    assignOp(">>=", function(v1, v2) return v1 >> v2);
-    assignOp(">>>=", function(v1, v2) return v1 >>> v2);
-    assignOp("??" + "=", function(v1, v2) return v1 ?? v2);
-  }
-
-  function setVar(id:String, v:Dynamic):Dynamic
-  {
-    if (_proxy != null && _proxy.superHasField(id))
-    {
-      if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
-      {
-        var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
-        return superClass.fieldWrite(id, v);
-      }
-      else
-      {
-        set(_proxy.superClass, id, v);
-        return v;
-      }
-    }
-
-    if (_proxy != null && _proxy.fieldExists(id) || variables.exists(id))
-    {
-      // Fallback to setting in local scope.
-      variables.set(id, v);
-      return v;
-    }
-
-    error(EUnknownVariable(id));
-    return null;
+    // Directly call execute (assume error handling happens higher).
+    depth = 0;
+    locals = [];
+    declared = [];
+    return exprReturn(expr);
   }
 
   /**
@@ -1121,6 +2645,69 @@ class Interp
       this.locals.set(a.name, { r: value });
       i++;
     }
+  }
+
+  /**
+   * Validates the minimum argument requirement by using the rightmost required argument index
+   * and ensures the param count is matching the actual length of the given arguments.
+   * Throws an error if validation fails.
+   *
+   * @param param The function parameters
+   * @param args The given arguments
+   * @param name The function name
+   */
+  public function validateArgumentCount(params:Array<Argument>, args:Array<Dynamic>, name:Null<String>):Void
+  {
+    // getters/setters have null given arguments it seems, so we return early
+    if (args == null) return;
+
+    var minParams = 0;
+    //    var maxAllowed = params.length;
+
+    for (i in 0...params.length)
+    {
+      var p = params[i];
+      if (!p.opt && p.value == null) minParams = i + 1;
+    }
+
+    final funcName:String = (name != null) ? " for function '" + name + "'" : "";
+    if (args.length < minParams)
+    {
+      error(EInvalidArgCount(funcName, minParams, args.length));
+    }
+    //    else if (args.length > maxAllowed)
+    //    {
+    //      // Manual return for `new` as parameter count shouldn't matter here
+    //      if (name == "new") return;
+    //      error(EExceedArgsCount(funcName, maxAllowed, args.length));
+    //    }
+  }
+
+  function setVar(id:String, v:Dynamic):Dynamic
+  {
+    if (_proxy != null && _proxy.superHasField(id))
+    {
+      if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
+      {
+        var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
+        return superClass.fieldWrite(id, v);
+      }
+      else
+      {
+        set(_proxy.superClass, id, v);
+        return v;
+      }
+    }
+
+    if (_proxy != null && _proxy.fieldExists(id) || variables.exists(id))
+    {
+      // Fallback to setting in local scope.
+      variables.set(id, v);
+      return v;
+    }
+
+    error(EUnknownVariable(id));
+    return null;
   }
 
   function assign(e1:Expr, e2:Expr):Dynamic
@@ -1554,78 +3141,6 @@ class Interp
     }
   }
 
-  public function execute(expr:Expr):Null<Dynamic>
-  {
-    // If this function is being called (and not executeEx),
-    // PolymodScriptClass is not being used to call the expression.
-    // This happens during callbacks and in some other niche cases.
-    // In this case, we know the parent caller doesn't have error handling!
-    // That means we have to do it here.
-    try
-    {
-      return executeEx(expr);
-    }
-    catch (err:Expr.Error)
-    {
-      this.currentFunction = null;
-      PolymodScriptClass.reportError(err, getClassFullyQualifiedName());
-      return null;
-    }
-    catch (err:Dynamic)
-    {
-      throw err;
-    }
-    this.currentFunction = null;
-  }
-
-  public function executeEx(expr:Expr):Dynamic
-  {
-    // Directly call execute (assume error handling happens higher).
-    depth = 0;
-    locals = [];
-    declared = [];
-    return exprReturn(expr);
-  }
-
-  public function executeFunction(fn:FunctionDecl, fnName:String, args:Array<Dynamic>):Dynamic
-  {
-    var oldDepth:Int = this.depth;
-    var oldLocals = this.duplicate(locals);
-    var oldDeclared = this.declared;
-    var oldCurrentFunction = this.currentFunction;
-
-    this.locals = [];
-    this.declared = [];
-    this.depth++;
-    this.currentFunction = fnName;
-
-    setFunctionValues(fn, args, fnName, false);
-
-    var result:Null<Dynamic> = null;
-    var exception:Null<Dynamic> = null;
-    try
-    {
-      result = exprReturn(fn.expr);
-    }
-    catch (err:Dynamic)
-    {
-      exception = err;
-    }
-
-    this.depth = oldDepth;
-    this.locals = oldLocals;
-    this.declared = oldDeclared;
-    this.currentFunction = oldCurrentFunction;
-
-    // Assuming this error will be handled higher.
-    if (exception != null)
-    {
-      throw exception;
-    }
-
-    return result;
-  }
-
   function exprReturn(e):Null<Dynamic>
   {
     try
@@ -1671,16 +3186,6 @@ class Interp
       var d = declared.pop();
       locals.set(d.n, d.old);
     }
-  }
-
-  public inline function error(e:#if hscriptPos ErrorDef #else Error #end,
-    rethrow = false):Null<Dynamic>
-  {
-    #if hscriptPos var e = new Error(e, curExpr?.pmin ?? 0, curExpr?.pmax ?? 0, curExpr?.origin ?? 'unknown', curExpr?.line ?? 0); #end
-    if (rethrow) this.rethrow(e)
-    else
-      throw e;
-    return null;
   }
 
   inline function rethrow(e:Dynamic)
@@ -1912,68 +3417,6 @@ class Interp
     return null;
   }
 
-
-  /**
-   * Tries to resolve the type of an imported class, which will end up in `cls`, `enm` or `abs`.
-   * @param importedClass The import to resolve.
-   * @param ignoreEnums Whether to skip resolving enums. Used when resolving a `using` import.
-   * @return `false` if this import was blacklisted, otherwise always `true`.
-   */
-  static function resolveImportedClass(importedClass:ClassImport, ignoreEnums:Bool = false):Bool
-  {
-    // The path without the possibly included module name, which resolve methods disregard.
-    final modulelessPath:String = importedClass.pkg.slice(0, -1).concat([importedClass.name]).join('.');
-    for (fullPath in [importedClass.fullPath, modulelessPath])
-    {
-      if (PolymodScriptClass.importOverrides.exists(fullPath))
-      {
-        if (PolymodScriptClass.backwardsCompatibilityImports.exists(fullPath))
-        {
-          // This import alias is a backwards compatibility import, notify the user that they should change the class to the provided one.
-          backwardsCompatibilityImport(fullPath);
-        }
-
-        // importOverrides can exist but be null (if it was set to null).
-        // If so, that means the class is blacklisted.
-        importedClass.cls = PolymodScriptClass.importOverrides.get(fullPath) ?? return false;
-        break;
-      }
-      else if (PolymodScriptClass.abstractClassImpls.exists(fullPath))
-      {
-        // We used a macro to map each abstract to its implementation.
-        importedClass.abs = PolymodScriptClass.abstractClassImpls.get(fullPath);
-        break;
-      }
-      else if (PolymodScriptClass.typedefs.exists(fullPath))
-      {
-        importedClass.cls = PolymodScriptClass.typedefs.get(fullPath);
-        break;
-      }
-      else if (!PolymodScriptClass.interfaceImpls.exists(fullPath)) // Base interfaces can be resolved, we don't want that.
-      {
-        var resultCls:Class<Dynamic> = Type.resolveClass(fullPath);
-        #if POLYMOD_CPPIA
-        if (resultCls != null && PolymodCppiaClassReference.isInactiveCppiaClass(fullPath)) resultCls = null;
-        #end
-        if (resultCls != null)
-        {
-          importedClass.cls = resultCls;
-          break;
-        }
-
-        if (ignoreEnums) continue;
-        // If the class is not found, try to find it as an enum.
-        var resultEnm:Enum<Dynamic> = Type.resolveEnum(fullPath);
-        if (resultEnm != null)
-        {
-          importedClass.enm = resultEnm;
-          break;
-        }
-      }
-    }
-
-    return true;
-  }
 
   public function expr(e:Expr):Null<Dynamic>
   {
@@ -3600,910 +5043,6 @@ class Interp
     return v;
   }
 
-  inline function isHScriptedClass(o:Dynamic):Bool
-  {
-    return Std.isOfType(o, HScriptedClass) || (o != null && o._asc != null);
-  }
-
-  public function registerModules(module:Array<ModuleDecl>, ?origin:String = "hscript"):Void
-  {
-    var isImportFile:Bool = (new haxe.io.Path(origin).file == "import");
-
-    var pkg:Array<String> = null;
-    var imports:Map<String, ClassImport> = [];
-    var importsToValidate:Map<String, ClassImport> = [];
-    var usings:Map<String, ClassImport> = [];
-    var usingsToValidate:Map<String, ClassImport> = [];
-
-    // Don't add the default imports to import.hx since they're added to other script classes anyway.
-    if (!isImportFile)
-    {
-      for (importPath in PolymodScriptClass.defaultImports.keys())
-      {
-        var splitPath = importPath.split(".");
-        var clsName = splitPath[splitPath.length - 1];
-
-        imports.set(clsName, {
-          name: clsName,
-          pkg: splitPath.slice(0, splitPath.length - 1),
-          fullPath: importPath,
-          cls: PolymodScriptClass.defaultImports.get(importPath),
-        });
-      }
-    }
-
-    for (decl in module)
-    {
-      switch (decl)
-      {
-        case DPackage(path):
-          pkg = path;
-        case DImport(path, star, name):
-          if (star)
-          {
-            if (path.length == 0) continue; // Disallow wildcards imports with no package.
-            if ((importsToValidate.get(path.join('.'))?.wildcard) ?? false) continue; // Don't add duplicate wildcards.
-
-            var wildcardImport:ClassImport =
-            {
-              name: null,
-              pkg: null,
-              fullPath: path.join('.'),
-              wildcard: star
-            }
-
-            if (isImportFile)
-            {
-              registerImportForPackage(pkg, wildcardImport);
-              continue;
-            }
-
-            // We'll leave this as an import to be validated later.
-            importsToValidate.set(wildcardImport.fullPath, wildcardImport);
-          }
-          else
-          {
-            var clsName:String = name != null ? name : path[path.length - 1];
-
-            if (imports.exists(clsName))
-            {
-              if (imports.get(clsName) == null)
-              {
-                Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Scripted class ${clsName} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
-              }
-              else
-              {
-                Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Scripted class ${clsName} has already been imported.', SCRIPT_RUNTIME);
-              }
-              continue;
-            }
-
-            var importedClass:ClassImport =
-            {
-              name: clsName,
-              pkg: path.slice(0, path.length - 1),
-              fullPath: path.join(".")
-            };
-
-            if (_scriptEnumDescriptors.exists(importedClass.fullPath))
-            {
-              // do nothing
-            }
-            else
-            {
-              if (resolveImportedClass(importedClass) && importedClass.cls == null && importedClass.enm == null && importedClass.abs == null)
-              {
-                if (isImportFile)
-                {
-                  registerImportForPackage(pkg, importedClass);
-                  continue;
-                }
-
-                // Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import class ${importedClass.fullPath}', SCRIPT_RUNTIME);
-                // this could be a scripted class or enum that hasn't been registered yet
-                importsToValidate.set(importedClass.name, importedClass);
-                continue;
-              }
-            }
-
-            if (isImportFile)
-            {
-              registerImportForPackage(pkg, importedClass);
-              continue;
-            }
-
-            // Polymod.debug('Imported class ${importedClass.name} from ${importedClass.fullPath}');
-            imports.set(importedClass.name, importedClass);
-          }
-        case DUsing(path):
-          var clsName = path.join('.');
-
-          if (usings.exists(clsName))
-          {
-            if (usings.get(clsName) == null)
-            {
-              Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Scripted class ${clsName} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
-            }
-            else
-            {
-              Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Scripted class ${clsName} has already been used.', SCRIPT_RUNTIME);
-            }
-            continue;
-          }
-
-          var importedClass:ClassImport = {
-            name: clsName,
-            pkg: path.slice(0, path.length - 1),
-            fullPath: path.join("."),
-            cls: null,
-            enm: null,
-            abs: null
-          };
-
-          if (!_scriptEnumDescriptors.exists(importedClass.fullPath))
-          {
-            if (resolveImportedClass(importedClass, true) && importedClass.cls == null && importedClass.enm == null && importedClass.abs == null)
-            {
-              if (isImportFile)
-              {
-                registerImportForPackage(pkg, importedClass, true);
-                continue;
-              }
-
-              // this could be a scripted class that hasn't been registered yet
-              usingsToValidate.set(importedClass.name, importedClass);
-              continue;
-            }
-          }
-
-          if (isImportFile)
-          {
-            registerImportForPackage(pkg, importedClass, true);
-            continue;
-          }
-
-          usings.set(importedClass.name, importedClass);
-        case DClass(c):
-          if (isImportFile) continue;
-
-          var instanceFields = [];
-          var staticFields = [];
-          for (f in c.fields)
-          {
-            if (f.access.contains(AStatic))
-            {
-              staticFields.push(f);
-            }
-            else
-            {
-              instanceFields.push(f);
-            }
-          }
-
-          var classDecl:ClassDecl = {
-            imports: imports,
-            importsToValidate: importsToValidate,
-            usings: usings,
-            usingsToValidate: usingsToValidate,
-            pkg: pkg,
-            name: c.name,
-            params: c.params,
-            meta: c.meta,
-            isPrivate: c.isPrivate,
-            extend: c.extend,
-            implement: c.implement,
-            fields: instanceFields,
-            isExtern: c.isExtern,
-            staticFields: staticFields,
-          };
-          registerScriptClassBlacklist(classDecl);
-          registerScriptClass(classDecl);
-        case DInterface(i):
-          if (isImportFile) continue;
-
-          var interfaceDecl:InterfaceDecl =
-          {
-            imports: imports,
-            importsToValidate: importsToValidate,
-            name: i.name,
-            params: i.params,
-            meta: i.meta,
-            isPrivate: i.isPrivate,
-            pkg: pkg,
-            extend: i.extend,
-            isExtern: i.isExtern,
-            fields: i.fields,
-          }
-          registerScriptInterface(interfaceDecl);
-        case DEnum(e):
-          if (isImportFile) continue;
-
-          if (pkg != null)
-          {
-            imports.set(e.name, {
-              name: e.name,
-              pkg: pkg,
-              fullPath: pkg.join(".") + "." + e.name,
-              cls: null,
-              enm: null,
-            });
-          }
-
-          var enumDecl:EnumDecl = {
-            pkg: pkg,
-            name: e.name,
-            meta: e.meta,
-            params: e.params,
-            isPrivate: e.isPrivate,
-            fields: e.fields,
-          };
-
-          registerScriptEnum(enumDecl);
-        case DTypedef(_):
-      }
-    }
-  }
-
-  public function addModule(moduleContents:String, ?origin:String = "hscript")
-  {
-    var parser = new Parser();
-    var decls = parser.parseModule(moduleContents, origin);
-    registerModules(decls, origin);
-  }
-
-  public function validateClassMetadata():Void
-  {
-    var clsDecl:ClassDecl = getClassDecl();
-    var clsName:String = getClassFullyQualifiedName();
-
-    var clsMeta = clsDecl.meta ?? [];
-    for (meta in clsMeta)
-    {
-      switch (meta.name)
-      {
-        case ':allow', ':access':
-          // These metadata will control class private field access without an error being thrown.
-          var listToUse:Map<String, ClassAccessControl> = meta.name == ':allow' ? allowMetadataControlList : accessMetadataControlList;
-
-          var accessData:ClassAccessControl = listToUse.get(clsName) ?? {cls: null, fields: null};
-          var accessControl:AccessControl = parseAccessMetadata(clsDecl, meta);
-
-          if (accessData.cls != null)
-          {
-            // Append any interface packs.
-            if (accessControl.interfacePackage != null)
-            {
-              accessData.cls.interfacePackage ??= [];
-              for (pack in accessControl.interfacePackage)
-              {
-                accessData.cls.interfacePackage.push(pack);
-              }
-            }
-
-            // Append any general packages.
-            if (accessControl.pkg != null)
-            {
-              accessData.cls.pkg ??= [];
-              for (pack in accessControl.pkg)
-              {
-                accessData.cls.pkg.push(pack);
-              }
-            }
-
-            if (accessControl.access != null)
-            {
-              // Append the access control to the main one.
-              for (clsName => fields in accessControl.access)
-              {
-                accessData.cls.access ??= [];
-                var fieldsList:Array<String> = accessData.cls.access.get(clsName) ?? [];
-                if (fields != null)
-                {
-                  for (f in fields)
-                  {
-                    if (!fieldsList.contains(f))
-                      fieldsList.push(f);
-                  }
-                  accessData.cls.access.set(clsName, fieldsList);
-                }
-                else
-                {
-                  accessData.cls.access.set(clsName, null);
-                }
-              }
-            }
-          }
-          else
-          {
-            accessData.cls = accessControl;
-          }
-          listToUse.set(clsName, accessData);
-        case ':deprecation':
-          var message:String = new Printer().exprToString(meta.params[0]);
-          _deprecatedTypes.set(clsName, message);
-      }
-    }
-
-    // Handle metadata for fields.
-    var clsFields:Array<FieldDecl> = clsDecl.fields.concat(clsDecl.staticFields).filter((f) -> f.meta.length > 0);
-    for (field in clsFields)
-    {
-      var fieldMeta = field.meta ?? [];
-      for (meta in fieldMeta)
-      {
-        switch (meta.name)
-        {
-          case ':allow', ':access':
-            switch (field.kind)
-            {
-              case KVar(v):
-                // @:access metadata is invalid for class variables.
-                if (meta.name == ':access') continue;
-              default:
-            }
-            var listToUse:Map<String, ClassAccessControl> = meta.name == ':allow' ? allowMetadataControlList : accessMetadataControlList;
-
-            var accessData:ClassAccessControl = listToUse.get(clsName) ?? {cls: null, fields: null};
-            var accessControl:AccessControl = parseAccessMetadata(clsDecl, meta);
-
-            if (accessData.fields != null)
-            {
-              // Append any general packages.
-              if (accessControl.pkg != null)
-              {
-                var fieldAccessData = accessData.fields.get(field.name) ?? {access: null, pkg: null, interfacePackage: null};
-                var fieldPkgControl = fieldAccessData.pkg ?? new Array<String>();
-
-                for (pack in accessControl.pkg)
-                {
-                  fieldPkgControl.push(pack);
-                }
-                fieldAccessData.pkg = fieldPkgControl;
-                accessData.fields.set(field.name, fieldAccessData);
-              }
-
-              // Append the access control to this fields access control data.
-              if (accessControl.access != null)
-              {
-                var fieldAccessData = accessData.fields.get(field.name) ?? {access: null, pkg: null, interfacePackage: null};
-                var fieldAccessControl = fieldAccessData.access ?? new Map<String, Array<String>>();
-                for (cls => fields in accessControl.access)
-                {
-                  var fieldsList:Array<String> = fieldAccessControl.get(cls) ?? new Array<String>();
-                  if (fields != null)
-                  {
-                    for (f in fields)
-                    {
-                      if (!fieldsList.contains(f))
-                        fieldsList.push(f);
-                    }
-                    fieldAccessControl.set(cls, fieldsList);
-                  }
-                  else
-                  {
-                    fieldAccessControl.set(cls, null);
-                  }
-                  fieldAccessData.access = fieldAccessControl;
-                  accessData.fields.set(field.name, fieldAccessData);
-                }
-              }
-            }
-            else
-            {
-              accessData.fields = new Map<String, AccessControl>();
-              accessData.fields.set(field.name, accessControl);
-            }
-            listToUse.set(clsName, accessData);
-        case ':deprecation':
-          var message:String = new Printer().exprToString(meta.params[0]);
-          var fields:Map<String, String> = _deprecatedFields.get(clsName) ?? [];
-
-          fields.set(field.name, message);
-          _deprecatedFields.set(clsName, fields);
-        }
-      }
-    }
-  }
-
-  public function parseAccessMetadata(clsDecl:ClassDecl, meta:{name:String, params:Array<Expr>}):AccessControl
-  {
-    var expr = meta.params[0];
-    var classPackageExpr:String = new Printer().exprToString(expr);
-    var path:Array<String> = classPackageExpr.split('.');
-    if (path.length == 1)
-    {
-      // We're dealing with an imported class.
-      // Classes with no package are auto-imported so this should be fine to check.
-      var clsPack:String = clsDecl.imports.get(classPackageExpr)?.fullPath ?? classPackageExpr;
-      if (PolymodStaticInterfaceReference.tryBuild(clsPack) != null)
-      {
-        // We're dealing with an interface package.
-        return {interfacePackage: [clsPack]};
-      }
-      else
-      {
-        // Attempt to resolve the class, and if it fails, this access control is for a package.
-        var cls:Null<Dynamic> = resolveDottedPath(classPackageExpr);
-        if (cls != null)
-        {
-          return {access: [clsPack => null]};
-        }
-        else
-        {
-          return {pkg: [clsPack]};
-        }
-      }
-    }
-    else
-    {
-      // We're dealing with a multi-dotted package that could potentially also be a field.
-      // Class metadata don't have very strict syntax in regular Haxe.
-
-      // Try to see if we can resolve the class first.
-      var cls:Null<Dynamic> = resolveDottedPath(classPackageExpr);
-      if (cls != null)
-      {
-        if (cls is PolymodStaticInterfaceReference)
-        {
-          // We're dealing with an interface package.
-          return {interfacePackage: [classPackageExpr]};
-        }
-        else
-        {
-          // Regular class path.
-          return {access: [classPackageExpr => null]};
-        }
-      }
-      else
-      {
-        var clsField:String = path[path.length - 1];
-        var clsPack:String = path.slice(0, -1).join('.');
-
-        // Check for imports just in case the resolved class isn't dotted anymore.
-        clsPack = clsDecl.imports.get(clsPack)?.fullPath ?? clsPack;
-
-        cls = resolveDottedPath(clsPack);
-        if (cls != null)
-        {
-          // Regular class path.
-          return {access: [clsPack => [clsField]]};
-        }
-        else
-        {
-          // We're most likely dealing with a regular package.
-          return {pkg: [classPackageExpr]};
-        }
-      }
-    }
-    return null;
-  }
-
-  public static function validateInterfaceImports():Void
-  {
-    // Mostly the same with `validateImports` except we don't need to check for using.
-    for (path => inter in _scriptInterfaceDescriptors)
-    {
-      // Automatically import interfaces classes with the same package or a parent package.
-      var interfaceList:Array<String> = [for (key in PolymodScriptClass.interfaceImpls.keys()) key].concat([for (key in _scriptInterfaceDescriptors.keys()) key]);
-      for (fullInterfacePath in interfaceList)
-      {
-        var fullPathSplit:Array<String> = fullInterfacePath.split('.');
-        var interfaceName:String = fullPathSplit[fullPathSplit.length - 1];
-        var interfacePkg:Null<Array<String>> = fullPathSplit.length == 1 ? null : fullPathSplit.slice(0, -1);
-
-        var interfaceImport:ClassImport =
-        {
-          name: interfaceName,
-          pkg: interfacePkg,
-          fullPath: fullInterfacePath,
-        }
-
-        if ((interfacePkg?.length ?? 0) == 0)
-        {
-          inter.imports.set(interfaceName, interfaceImport);
-          continue;
-        }
-
-        if (interfacePkg != null && fullInterfacePath.indexOf(interfacePkg.join('.')) == 0)
-        {
-          inter.imports.set(interfaceName, interfaceImport);
-        }
-      }
-
-      // Now we need to import scripted classes.
-      for (cls in _scriptClassDescriptors)
-      {
-        var clsPath:String = Util.getFullClassName(cls);
-        var classImport:ClassImport =
-        {
-          name: cls.name,
-          pkg: cls.pkg,
-          fullPath: clsPath
-        }
-
-        if ((cls.pkg?.length ?? 0) == 0)
-        {
-          inter.imports.set(cls.name, classImport);
-          continue;
-        }
-
-        var hasPackage:Bool = cls.pkg != null && cls.pkg.length > 0;
-        var fullPackage:String = hasPackage ? cls.pkg.join(".") + "." : "";
-        if (hasPackage && clsPath.indexOf(fullPackage) == 0)
-        {
-          inter.imports.set(cls.name, classImport);
-        }
-      }
-
-      // Import classes from the import.hx files.
-      var pkg:String = inter.pkg?.join(".") ?? "";
-
-      for (key => imps in _scriptClassImports)
-      {
-        if (!pkg.startsWith(key) && key.length != 0) continue;
-
-        for (imp in imps)
-        {
-          if (imp.wildcard)
-          {
-            for (name => clsImport in importWildcard(inter.imports, imp))
-            {
-              inter.imports.set(name, clsImport);
-            }
-          }
-          else
-            inter.imports.set(imp.name, imp);
-        }
-      }
-
-      // Add validated imports.
-      for (key => imp in inter.importsToValidate)
-      {
-        if (imp.wildcard)
-        {
-          for (name => clsImport in importWildcard(inter.imports, imp))
-          {
-            inter.imports.set(name, clsImport);
-          }
-          continue;
-        }
-
-        if (PolymodScriptClass.interfaceImpls.exists(imp.fullPath) || _scriptInterfaceDescriptors.exists(imp.fullPath) || _scriptClassDescriptors.exists(imp.fullPath)
-        || _scriptEnumDescriptors.exists(imp.fullPath))
-        {
-          inter.imports.set(key, imp);
-          continue;
-        }
-
-        Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not import ${imp.fullPath}. Check to ensure the module exists and is spelled correctly.', SCRIPT_RUNTIME);
-      }
-    }
-
-    // Re-iterate through the interfaces to validate that any extends are properly imported.
-    // We don't have an Interp inside interfaces so we have to do this.
-    for (path => inter in _scriptInterfaceDescriptors)
-    {
-      if (inter.extend.length == 0) continue;
-
-      var interfacePath:String = path;
-
-      for (extend in inter.extend)
-      {
-        var superClassPath:String = new Printer().typeToString(extend);
-        var baseInterfaceName:String = superClassPath;
-
-        switch (extend)
-        {
-          case CTPath(path, params):
-            if (params != null && params.length > 0)
-            {
-              Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not extend ${superClassPath}, do not include type parameters in super class name.', SCRIPT_RUNTIME);
-
-              _scriptInterfaceDescriptors.remove(interfacePath);
-              break;
-            }
-            baseInterfaceName = path[path.length - 1];
-
-            // The full package was used for the interface.
-            // Check to see if said interface exists.
-            if (path.length > 1)
-            {
-              if (!PolymodScriptClass.interfaceImpls.exists(superClassPath) && !_scriptInterfaceDescriptors.exists(superClassPath))
-              {
-                Polymod.error(SCRIPTED_CLASS_NOT_REGISTERED, 'Could not import ${superClassPath}. Check to ensure the module exists and is spelled correctly.', SCRIPT_RUNTIME);
-                _scriptInterfaceDescriptors.remove(interfacePath);
-                break;
-              }
-            }
-            else
-            {
-              // Check to see if it's been properly imported.
-              var interfaceImport:ClassImport = inter.imports.get(baseInterfaceName);
-
-              // Interface isn't imported.
-              if (interfaceImport == null)
-              {
-                Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Interface $superClassPath has not been defined.', SCRIPT_RUNTIME);
-                _scriptInterfaceDescriptors.remove(interfacePath);
-                break;
-              }
-            }
-          default:
-        }
-      }
-    }
-    PolymodStaticInterfaceReference.cacheScriptedInterfaces();
-  }
-
-  public static function validateImports():Void
-  {
-    function tryImport(cls:ClassDecl, clsImport:ClassImport):Void
-    {
-      if (PolymodScriptClass.blacklistedScriptClasses.contains(clsImport.fullPath))
-      {
-        // Set as `null` so it's registered as blacklisted.
-        cls.imports.set(clsImport.name, null);
-      }
-      else
-      {
-        cls.imports.set(clsImport.name, clsImport);
-      }
-    }
-
-    for (cls in _scriptClassDescriptors)
-    {
-      var clsPath = Util.getFullClassName(cls);
-
-      // Automatically import classes with the same package or a parent package.
-      // First scripted classes.
-      for (imp in _scriptClassDescriptors)
-      {
-        if (cls == imp) continue;
-
-        var classImport =
-        {
-          name: imp.name,
-          pkg: imp.pkg,
-          fullPath: Util.getFullClassName(imp)
-        }
-
-        if ((imp.pkg?.length ?? 0) == 0)
-        {
-          tryImport(cls, classImport);
-          continue;
-        }
-
-        var hasPackage:Bool = cls.pkg != null && cls.pkg.length > 0;
-        var fullPackage:String = hasPackage ? cls.pkg.join(".") + "." : "";
-        if (hasPackage && clsPath.indexOf(fullPackage) == 0)
-        {
-          tryImport(cls, classImport);
-        }
-      }
-
-      // Now import interfaces.
-      // Populate list of interfaces to validate.
-      var interfaceList:Array<String> = [for (key in PolymodScriptClass.interfaceImpls.keys()) key].concat([for (key in _scriptInterfaceDescriptors.keys()) key]);
-      for (fullInterfacePath in interfaceList)
-      {
-        var fullPathSplit:Array<String> = fullInterfacePath.split('.');
-        var interfaceName:String = fullPathSplit[fullPathSplit.length - 1];
-        var interfacePkg:Null<Array<String>> = fullPathSplit.length == 1 ? null : fullPathSplit.slice(0, -1);
-
-        var interfaceImport:ClassImport =
-        {
-          name: interfaceName,
-          pkg: interfacePkg,
-          fullPath: fullInterfacePath,
-        }
-
-        if ((interfacePkg?.length ?? 0) == 0)
-        {
-          cls.imports.set(interfaceName, interfaceImport);
-          continue;
-        }
-
-        if (interfacePkg != null && fullInterfacePath.indexOf(interfacePkg.join('.')) == 0)
-        {
-          cls.imports.set(interfaceName, interfaceImport);
-        }
-      }
-
-      // Import classes from the import.hx files.
-      var pkg:String = cls.pkg?.join(".") ?? "";
-
-      for (key => imps in _scriptClassImports)
-      {
-        if (!pkg.startsWith(key) && key.length != 0) continue;
-
-        for (imp in imps)
-        {
-          if (imp.wildcard)
-          {
-            for (name => clsImport in importWildcard(cls.imports, imp))
-            {
-              cls.imports.set(name, clsImport);
-            }
-          }
-          else
-            tryImport(cls, imp);
-        }
-      }
-
-      for (key => uses in _scriptClassUsings)
-      {
-        if (!pkg.startsWith(key) && key.length != 0) continue;
-
-        for (use in uses) cls.usings.set(use.name, use);
-      }
-
-      // Add the scripted imports.
-      for (key => imp in cls.importsToValidate)
-      {
-        if (imp.wildcard)
-        {
-          for (name => clsImport in importWildcard(cls.imports, imp))
-          {
-            cls.imports.set(name, clsImport);
-          }
-          continue;
-        }
-
-        if (PolymodScriptClass.interfaceImpls.exists(imp.fullPath) || _scriptInterfaceDescriptors.exists(imp.fullPath) ||
-          _scriptClassDescriptors.exists(imp.fullPath) || _scriptEnumDescriptors.exists(imp.fullPath))
-        {
-          tryImport(cls, imp);
-          continue;
-        }
-
-        #if POLYMOD_CPPIA
-        // A compiled class has no descriptor, so check the cppia registry too.
-        if (PolymodCppiaClassReference.hasCppiaClass(imp.fullPath))
-        {
-          cls.imports.set(key, imp);
-          continue;
-        }
-        #end
-
-        Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not import ${imp.fullPath}. Check to ensure the module exists and is spelled correctly.', SCRIPT_RUNTIME);
-      }
-
-      // Add the scripted usings.
-      for (key => use in cls.usingsToValidate)
-      {
-        if (_scriptClassDescriptors.exists(use.fullPath))
-        {
-          cls.usings.set(key, use);
-          continue;
-        }
-
-        Polymod.error(
-          SCRIPTED_CLASS_UNRESOLVED_IMPORT,
-          'Could not use ${use.fullPath}. Check to ensure the module exists and is spelled correctly.',
-          SCRIPT_RUNTIME
-        );
-      }
-
-      // Check if the scripted classes extend the right type.
-      if (cls.extend == null) continue;
-
-      var superClassPath:String = new Printer().typeToString(cls.extend);
-      if (!cls.imports.exists(superClassPath))
-      {
-        switch (cls.extend)
-        {
-          case CTPath(path, params):
-            if (params != null && params.length > 0)
-            {
-              Polymod.error(
-                SCRIPTED_CLASS_UNRESOLVED_IMPORT,
-                'Could not extend ${superClassPath}, do not include type parameters in super class name.',
-                SCRIPT_RUNTIME
-              );
-            }
-
-          default:
-            // Other error handling?
-        }
-
-        // Default
-        Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not extend ${superClassPath}. Make sure the type to extend has been imported.', SCRIPT_RUNTIME);
-      }
-      else
-      {
-        switch (cls.extend)
-        {
-          case CTPath(_, params):
-            cls.extend = CTPath(cls.imports.get(superClassPath).fullPath.split('.'), params);
-          case _:
-        }
-      }
-    }
-    validateInterfaceImports();
-  }
-
-  static function importWildcard(importList:Map<String, ClassImport>, wildcardImport:ClassImport):Map<String, ClassImport>
-  {
-    var pack:String = wildcardImport.fullPath;
-    var classesToImport:Array<String> = [];
-
-    if (PolymodScriptClass.baseClassesByPackage.exists(pack))
-      classesToImport = classesToImport.concat(PolymodScriptClass.baseClassesByPackage.get(pack));
-
-    if (PolymodScriptClass.scriptClassesByPackage.exists(pack))
-      classesToImport = classesToImport.concat(PolymodScriptClass.scriptClassesByPackage.get(pack));
-
-    if (classesToImport.length == 0)
-      return [];
-
-    var validImports:Map<String, ClassImport> = [];
-    for (clsName in classesToImport)
-    {
-      var name:String = clsName.substr(pack.length + 1);
-
-      if (importList.exists(name))
-      {
-        if (importList.get(name) == null)
-        {
-          Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Scripted class ${name} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
-        }
-        else
-        {
-          Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Scripted class ${name} has already been imported.', SCRIPT_RUNTIME);
-        }
-        continue;
-      }
-
-      var classImport:ClassImport = {
-        name: name,
-        pkg: pack.split('.'),
-        fullPath: clsName,
-        cls: null,
-        abs: null,
-        enm: null,
-      }
-
-      if (resolveImportedClass(classImport) && classImport.cls == null && classImport.enm == null && classImport.abs == null)
-      {
-        // Check if this is a scripted class.
-        if (_scriptClassDescriptors.exists(classImport.fullPath) || _scriptEnumDescriptors.exists(classImport.fullPath))
-        {
-          if (PolymodScriptClass.blacklistedScriptClasses.contains(classImport.fullPath) && !_scriptEnumDescriptors.exists(classImport.fullPath))
-          {
-            validImports.set(classImport.name, null);
-            continue;
-          }
-          validImports.set(classImport.name, classImport);
-          continue;
-        }
-      }
-      validImports.set(classImport.name, classImport);
-    }
-    return validImports;
-  }
-
-  /**
-   * Warns the user that the given import of `path` is used for backwards compatibility.
-   * @param path The path to alert the user of.
-   */
-  public static function backwardsCompatibilityImport(path:String):Void
-  {
-    // Don't throw a warning if this is already a default import.
-    if (PolymodScriptClass.defaultImports.exists(path))
-      return;
-
-    // This import alias is a backwards compatibility import, notify the user that they should change the class to the provided one.
-    var backwardsCompatInfo = PolymodScriptClass.backwardsCompatibilityImports.get(path);
-    if (backwardsCompatInfo != null)
-    {
-      var newClassName:String = Type.getClassName(backwardsCompatInfo.cls);
-      var infoMessage:String = backwardsCompatInfo.info.message ?? 'Please import and adjust your script to use $newClassName instead.';
-      var message:String = 'Scripted class ${path} has been changed since ${backwardsCompatInfo.info.version}.\nWhile this import can be used, read the below to help with migration:\n$infoMessage';
-
-      Polymod.warning(SCRIPTED_CLASS_BACKWARDS_COMPATIBILITY_IMPORT, message, SCRIPT_RUNTIME);
-    }
-  }
-
   /**
    * Checks to see if the given class is deprecated and warns the user if so.
    * @param cls The class to check. If this is deprecated as well it'll thrown an error.
@@ -4542,316 +5081,6 @@ class Interp
     fields.push(f);
 
     _cachedDeprecatedFields.set(cls, fields);
-  }
-
-  /**
-   * Validates the minimum argument requirement by using the rightmost required argument index
-   * and ensures the param count is matching the actual length of the given arguments.
-   * Throws an error if validation fails.
-   *
-   * @param param The function parameters
-   * @param args The given arguments
-   * @param name The function name
-   */
-  public function validateArgumentCount(params:Array<Argument>, args:Array<Dynamic>, name:Null<String>):Void
-  {
-    // getters/setters have null given arguments it seems, so we return early
-    if (args == null) return;
-
-    var minParams = 0;
-    //    var maxAllowed = params.length;
-
-    for (i in 0...params.length)
-    {
-      var p = params[i];
-      if (!p.opt && p.value == null) minParams = i + 1;
-    }
-
-    final funcName:String = (name != null) ? " for function '" + name + "'" : "";
-    if (args.length < minParams)
-    {
-      error(EInvalidArgCount(funcName, minParams, args.length));
-    }
-    //    else if (args.length > maxAllowed)
-    //    {
-    //      // Manual return for `new` as parameter count shouldn't matter here
-    //      if (name == "new") return;
-    //      error(EExceedArgsCount(funcName, maxAllowed, args.length));
-    //    }
-  }
-
-  private inline function buildScriptClassStaticFunction(clsName:String, fieldName:String):Dynamic
-  {
-    return Reflect.makeVarArgs(function(args:Array<Dynamic>):Dynamic
-    {
-      return callScriptClassStaticFunction(clsName, fieldName, args);
-    });
-  }
-
-  public function hasScriptClassStaticField(clsName:String, fieldName:String):Bool
-  {
-    // Every scripted class has these functions, so we force the check to return true.
-    if (['scriptInit', 'listScriptClasses'].contains(fieldName)) return true;
-
-    var imports:Map<String, ClassImport> = [];
-
-    var cls:Null<ClassDecl> = _scriptClassDescriptors.get(clsName);
-    if (cls != null)
-    {
-      imports = cls.imports;
-
-      // TODO: Optimize with a cache?
-      for (f in cls.staticFields)
-      {
-        if (f.name == fieldName)
-        {
-          // ALWAYS true regardless if it's a function.
-          return true;
-        }
-      }
-    }
-    else
-    {
-      Polymod.error(SCRIPTED_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.', SCRIPT_RUNTIME);
-      return false;
-    }
-
-    return false;
-  }
-
-  public function hasScriptClassStaticFunction(clsName:String, fnName:String):Bool
-  {
-    // Every scripted class has these functions, so we force the check to return true.
-    if (["scriptInit", "listScriptClasses"].contains(fnName)) return true;
-
-    var imports:Map<String, ClassImport> = [];
-
-    var cls:Null<ClassDecl> = _scriptClassDescriptors.get(clsName);
-    if (cls != null)
-    {
-      imports = cls.imports;
-
-      // TODO: Optimize with a cache?
-      for (f in cls.staticFields)
-      {
-        if (f.name == fnName)
-        {
-          switch (f.kind)
-          {
-            case KFunction(func):
-              return true;
-            case _:
-          }
-        }
-      }
-    }
-    else
-    {
-      Polymod.error(SCRIPTED_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.', SCRIPT_RUNTIME);
-      return false;
-    }
-
-    return false;
-  }
-
-  public function getScriptClassStaticField(clsName:String, fieldName:String):Null<Dynamic>
-  {
-    var prefixedName = clsName + '#' + fieldName;
-    var fieldDecl = getScriptClassStaticFieldDecl(clsName, fieldName);
-
-    if (fieldDecl != null)
-    {
-      switch (fieldDecl.kind)
-      {
-        case KFunction(fn):
-          if (!this.variables.exists(prefixedName))
-          {
-            var result = buildScriptClassStaticFunction(clsName, fieldName);
-            this.variables.set(prefixedName, result);
-            return result;
-          }
-          return this.variables.get(prefixedName);
-
-        case KVar(v):
-          if (v.get != null)
-          {
-            switch (v.get)
-            {
-              case 'get':
-                var getterFunc = 'get_${fieldName}';
-                final getName = '${clsName}#$getterFunc';
-                if (hasScriptClassStaticFunction(clsName, getterFunc))
-                {
-                  if (_propTrack.exists(getName))
-                  {
-                    return this.variables.get(prefixedName);
-                  }
-                  else
-                  {
-                    _propTrack.set(getName, true);
-                    var result = callScriptClassStaticFunction(clsName, getterFunc, []);
-                    _propTrack.remove(getName);
-                    return result;
-                  }
-                }
-                else
-                {
-                  throw 'Could not resolve getter for property ${prefixedName}';
-                }
-
-              case 'default':
-                if (!this.variables.exists(prefixedName))
-                {
-                  var result = this.expr(v.expr);
-                  this.variables.set(prefixedName, result);
-                  return result;
-                }
-                return this.variables.get(prefixedName);
-
-              default:
-                throw 'Could not resolve getter for property ${prefixedName}';
-            }
-          }
-          else if (this.variables.exists(prefixedName))
-          {
-            return this.variables.get(prefixedName);
-          }
-          else if (v.expr != null)
-          {
-            var result = this.expr(v.expr);
-            this.variables.set(prefixedName, result);
-            return result;
-          }
-          else
-          {
-            throw 'Could not resolve field declaration for ${prefixedName}';
-          }
-
-        default:
-          throw 'Could not resolve field kind for ${prefixedName}';
-      }
-    }
-    else
-    {
-      error(EInvalidAccess(fieldName));
-      return null;
-    }
-  }
-
-  public function setScriptClassStaticField(clsName:String, fieldName:String, value:Dynamic):Null<Dynamic>
-  {
-    var prefixedName = clsName + '#' + fieldName;
-    var fieldDecl = getScriptClassStaticFieldDecl(clsName, fieldName);
-    if (fieldDecl != null)
-    {
-      switch (fieldDecl.kind)
-      {
-        case KFunction(fn):
-          if (fn.isdynamic)
-          {
-            if (Reflect.isFunction(value))
-            {
-              this.functions.set(prefixedName, value);
-              return value;
-            }
-            else
-            {
-              throw 'Cannot assign non-function value to dynamic function "${fieldName}"';
-            }
-          }
-          else
-          {
-            throw 'Cannot override non-dynamic function "${fieldName}"';
-          }
-        case KVar(v):
-          if (v.isfinal)
-          {
-            throw 'Cannot override final static field ${prefixedName}';
-          }
-          if (v.set != null)
-          {
-            switch (v.set)
-            {
-              case 'set':
-                var setterFunc = 'set_${fieldName}';
-                final setName = '${clsName}#$setterFunc';
-                if (hasScriptClassStaticFunction(clsName, setterFunc))
-                {
-                  if (!_propTrack.exists(setName))
-                  {
-                    _propTrack.set(setName, true);
-                    var out = callScriptClassStaticFunction(clsName, setterFunc, [value]);
-                    _propTrack.remove(setName);
-                    return (out == null) ? value : out;
-                  }
-                  else
-                  {
-                    this.variables.set(prefixedName, value);
-                    return value;
-                  }
-                }
-                else
-                {
-                  throw 'Could not resolve setter for property ${prefixedName}';
-                }
-
-              case 'never':
-                throw 'Cannot assign to property ${prefixedName}';
-
-              case 'null':
-                throw 'Cannot assign to property ${prefixedName}';
-
-              case 'default':
-                this.variables.set(prefixedName, value);
-                return value;
-              default:
-                throw 'Could not resolve setter for property ${prefixedName}';
-            }
-          }
-          else
-          {
-            this.variables.set(prefixedName, value);
-            return value;
-          }
-      }
-    }
-    else
-    {
-      error(EInvalidAccess(fieldName));
-      return null;
-    }
-  }
-
-  /**
-   * Retrieve a static field declaration of a scripted class.
-   * @param clsName The full classpath of the scripted class.
-   * @param fieldName The name of the field to retrieve.
-   * @return The value of the field.
-   */
-  public function getScriptClassStaticFieldDecl(clsName:String, fieldName:String):Null<FieldDecl>
-  {
-    if (_scriptClassDescriptors.exists(clsName))
-    {
-      var cls = _scriptClassDescriptors.get(clsName);
-      var staticFields = cls.staticFields;
-
-      // TODO: Optimize with a cache?
-      for (f in staticFields)
-      {
-        if (f.name == fieldName)
-        {
-          return f;
-        }
-      }
-
-      // Fallthrough.
-      return null;
-    }
-    else
-    {
-      Polymod.error(SCRIPTED_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.', SCRIPT_RUNTIME);
-      return null;
-    }
   }
 }
 
