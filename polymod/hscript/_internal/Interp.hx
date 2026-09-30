@@ -1008,11 +1008,6 @@ class Interp
     map.get(impFilePkg).push(imp);
   }
 
-
-  /**
-   * STATIC FIELD FUNCTION HELPERS
-   */
-
   public function addModule(moduleContents:String, ?origin:String = "hscript")
   {
     var parser = new Parser();
@@ -1314,6 +1309,11 @@ class Interp
     }
     _scriptPersistentFields.clear();
   }
+
+
+  /**
+   * STATIC FUNCTION HELPERS
+   */
 
   /**
    * Builds a usable native function object that's able to be called for a scripted static function.
@@ -1765,6 +1765,10 @@ class Interp
   }
 
 
+  /**
+   * INSTANCE FUNCTIONS
+   */
+
   public function new(targetCls:Class<Dynamic>, proxy:PolymodAbstractScriptClass)
   {
     locals = new Map();
@@ -1778,9 +1782,7 @@ class Interp
     this.targetCls = targetCls;
   }
 
-
-  public inline function error(e:#if hscriptPos ErrorDef #else Error #end,
-    rethrow = false):Null<Dynamic>
+  public inline function error(e:#if hscriptPos ErrorDef #else Error #end, rethrow = false):Null<Dynamic>
   {
     #if hscriptPos var e = new Error(e, curExpr?.pmin ?? 0, curExpr?.pmax ?? 0, curExpr?.origin ?? 'unknown', curExpr?.line ?? 0); #end
     if (rethrow) this.rethrow(e)
@@ -1789,11 +1791,51 @@ class Interp
     return null;
   }
 
+  /**
+   * Creates an object describing the current position info of the current expression.
+   * @return PosInfos
+   */
+  public function posInfos():PosInfos
+  {
+    #if hscriptPos
+    if (curExpr != null) return cast {
+      fileName: curExpr.origin,
+      lineNumber: curExpr.line
+    };
+    #end
+    return cast {
+      fileName: "hscript",
+      lineNumber: 0
+    };
+  }
+
+  /**
+   * Rethrows the given error.
+   * @param e The error to throw.
+   */
+  inline function rethrow(e:Dynamic)
+  {
+    #if hl
+    hl.Api.rethrow(e);
+    #else
+    throw e;
+    #end
+  }
+
+  /**
+   * Checks whether the given object is a scripted class.
+   * This either means that it implements `HScriptedClass` or is an extendable class.
+   * @param o The object to check whether it's scripted.
+   * @return Bool
+   */
   inline function isHScriptedClass(o:Dynamic):Bool
   {
     return Std.isOfType(o, HScriptedClass) || (o != null && o._asc != null);
   }
 
+  /**
+   * Checks through all of the metadata for the interpreter to further initialize and make sure the metadata is satisfied.
+   */
   public function validateClassMetadata():Void
   {
     var clsDecl:ClassDecl = getClassDecl();
@@ -1960,6 +2002,12 @@ class Interp
     }
   }
 
+  /**
+   * Parses the given access control (`@:access`, `@:allow`) given the specified metadata field.
+   * @param clsDecl The class declaration to parse access control metadata for.
+   * @param meta The metadata to parse.
+   * @return AccessControl
+   */
   public function parseAccessMetadata(clsDecl:ClassDecl, meta:{name:String, params:Array<Expr>}):AccessControl
   {
     var expr = meta.params[0];
@@ -2048,39 +2096,12 @@ class Interp
   }
 
   /**
-   * Resets the local variable scope of this interpreter.
+   * Instantiates a new type given the `cl` string and arguments.
+   * Called while evaluating an expression.
+   * @param cl The name of the string to instantiate.
+   * @param args The arguments to use while constructing said type.
+   * @return Dynamic
    */
-  private function resetVariables()
-  {
-    variables = new Map<String, Dynamic>();
-    variables.set("null", null);
-    variables.set("true", true);
-    variables.set("false", false);
-    variables.set("trace", Reflect.makeVarArgs(function(el)
-    {
-      var inf = posInfos();
-      var v = el.shift();
-      if (el.length > 0) inf.customParams = el;
-      haxe.Log.trace(Std.string(v), inf);
-    }));
-
-    variables.set("Math", #if hl polymod.hscript._internal.HLWrapperMacro.HLMath #else Math #end);
-    variables.set("Std", #if hl polymod.hscript._internal.HLWrapperMacro.HLStd #else Std #end);
-
-    variables.set("Array", Array);
-    variables.set("Bool", Bool);
-    variables.set("Dynamic", Dynamic);
-    variables.set("Float", Float);
-    variables.set("Int", Int);
-    variables.set("String", String);
-
-    if (defaultVariables == null)
-    {
-      defaultVariables = variables.copy();
-    }
-  }
-
-
   function cnew(cl:String, args:Array<Dynamic>):Dynamic
   {
     if (defaultVariables.exists(cl))
@@ -2171,24 +2192,42 @@ class Interp
   }
 
   /**
-   * Creates an object describing the current position info of the current expression.
-   * @return PosInfos
+   * Resets the local variable scope of this interpreter.
    */
-  public function posInfos():PosInfos
+  private function resetVariables()
   {
-    #if hscriptPos
-    if (curExpr != null) return cast {
-      fileName: curExpr.origin,
-      lineNumber: curExpr.line
-    };
-    #end
-    return cast {
-      fileName: "hscript",
-      lineNumber: 0
-    };
+    variables = new Map<String, Dynamic>();
+    variables.set("null", null);
+    variables.set("true", true);
+    variables.set("false", false);
+    variables.set("trace", Reflect.makeVarArgs(function(el)
+    {
+      var inf = posInfos();
+      var v = el.shift();
+      if (el.length > 0) inf.customParams = el;
+      haxe.Log.trace(Std.string(v), inf);
+    }));
+
+    variables.set("Math", #if hl polymod.hscript._internal.HLWrapperMacro.HLMath #else Math #end);
+    variables.set("Std", #if hl polymod.hscript._internal.HLWrapperMacro.HLStd #else Std #end);
+
+    variables.set("Array", Array);
+    variables.set("Bool", Bool);
+    variables.set("Dynamic", Dynamic);
+    variables.set("Float", Float);
+    variables.set("Int", Int);
+    variables.set("String", String);
+
+    if (defaultVariables == null)
+    {
+      defaultVariables = variables.copy();
+    }
   }
 
-  function initOps()
+  /**
+   * Initializes all default operators for this interpreter.
+   */
+  private function initOps()
   {
     var me = this;
     binops = new Map();
@@ -2521,6 +2560,13 @@ class Interp
     }
   }
 
+  /**
+   * Executes the given scripted function expression.
+   * @param fn The function declaration to execute.
+   * @param fnName The name of the function.
+   * @param args The list of arguments to use for this function.
+   * @return The return value of the function.
+   */
   public function executeFunction(fn:FunctionDecl, fnName:String, args:Array<Dynamic>):Dynamic
   {
     var oldDepth:Int = this.depth;
@@ -2560,6 +2606,11 @@ class Interp
     return result;
   }
 
+  /**
+   * Executes the given expression object.
+   * @param expr The expression to execute.
+   * @return The return value of the expression.
+   */
   public function execute(expr:Expr):Null<Dynamic>
   {
     // If this function is being called (and not executeEx),
@@ -2584,6 +2635,11 @@ class Interp
     this.currentFunction = null;
   }
 
+  /**
+   * Extension of `execute` to further execute an expression.
+   * @param expr The expression to execute.
+   * @return The return value of the expression.
+   */
   public function executeEx(expr:Expr):Dynamic
   {
     // Directly call execute (assume error handling happens higher).
@@ -2654,7 +2710,7 @@ class Interp
    *
    * @param param The function parameters
    * @param args The given arguments
-   * @param name The function name
+   * @param name The name of the function to validate.
    */
   public function validateArgumentCount(params:Array<Argument>, args:Array<Dynamic>, name:Null<String>):Void
   {
@@ -2683,520 +2739,12 @@ class Interp
     //    }
   }
 
-  function setVar(id:String, v:Dynamic):Dynamic
-  {
-    if (_proxy != null && _proxy.superHasField(id))
-    {
-      if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
-      {
-        var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
-        return superClass.fieldWrite(id, v);
-      }
-      else
-      {
-        set(_proxy.superClass, id, v);
-        return v;
-      }
-    }
 
-    if (_proxy != null && _proxy.fieldExists(id) || variables.exists(id))
-    {
-      // Fallback to setting in local scope.
-      variables.set(id, v);
-      return v;
-    }
-
-    error(EUnknownVariable(id));
-    return null;
-  }
-
-  function assign(e1:Expr, e2:Expr):Dynamic
-  {
-    return assignValue(e1, expr(e2));
-  }
-
-  function assignValue(e1:Expr, v:Dynamic, _abstractInlineAssign:Bool = false):Null<Dynamic>
-  {
-    switch (Tools.expr(e1))
-    {
-      case EIdent(id):
-        // Make sure setting superclass fields directly works.
-        // Also ensures property functions are accounted for.
-        if (_proxy != null)
-        {
-          if (_proxy.superHasField(id))
-          {
-            if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
-            {
-              var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
-              return superClass.fieldWrite(id, v);
-            }
-
-            // Directly assign the value.
-            // This is needed because `assignValue` may sometimes be called from the constructor.
-            PolymodAbstractScriptClass.setClassObjectField(_proxy.superClass, id, v);
-            return v;
-          }
-          else
-          {
-            @:privateAccess
-            {
-              var decl = _proxy.findVar(id);
-
-              if (decl != null)
-              {
-                switch (decl.set)
-                {
-                  case "set":
-                    // Allow assigning to "null" only for local fields.
-                    final setName = 'set_$id';
-                    if (_propTrack.exists(setName))
-                    {
-                      switch (decl.get)
-                      {
-                        case 'get':
-                          var field = _proxy.findField(id);
-                          var hasIsVar = false;
-                          for (m in field?.meta ?? [])
-                          {
-                            if (m.name == ':isVar')
-                            {
-                              hasIsVar = true;
-                              break;
-                            }
-                          }
-                          if (!hasIsVar) return error(EPropVarNotReal(id));
-                        default:
-                      }
-                    }
-                    else
-                    {
-                      _propTrack.set(setName, true);
-                      var out = _proxy.callFunction(setName, [v]);
-                      _propTrack.remove(setName);
-                      return (out == null) ? v : out;
-                    }
-
-                  case "never":
-                    error(EInvalidPropSet(id));
-                    return null;
-
-                  case "null":
-                    // If the property setter is "null", it can only be assigned on local fields.
-                    // Thankfully, this is a local field!
-                    // So we can just fallthrough to the default case.
-                }
-
-                if ((decl.isfinal ?? false) && decl.expr != null)
-                {
-                  error(EInvalidFinalSet(id));
-                  return null;
-                }
-              }
-              else
-              {
-                var fnDecl = _proxy.findFunction(id);
-                if (fnDecl != null)
-                {
-                  if (fnDecl.isdynamic)
-                  {
-                    if (!Reflect.isFunction(v))
-                    {
-                      error(EInvalidAccess(id));
-                      return null;
-                    }
-
-                    this.functions.set(id, v);
-                    return v;
-                  }
-                  else
-                  {
-                    error(EInvalidAccess(id));
-                    return null;
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        var l = locals.get(id);
-        if (l != null && l.isfinal && l.r != null)
-        {
-          return error(EInvalidAccess(id));
-        }
-
-        if (l == null)
-        {
-          // Check if we're assigning the value of a static field inside the class itself.
-          // We check inside here to make sure we aren't overriding a local variable.
-          var fullClassName:String = getClassFullyQualifiedName();
-          if (PolymodScriptClass.hasScriptClassStaticField(fullClassName, id))
-          {
-            return PolymodScriptClass.setScriptClassStaticField(fullClassName, id, v);
-          }
-
-          // Fallback to just setting the var.
-          setVar(id, v);
-        }
-        else
-          l.r = v;
-      case EField(e0, id):
-        // Make sure setting superclass fields works when using this.
-        // Also ensures property functions are accounted for.
-        switch (Tools.expr(e0))
-        {
-          case EIdent(id0):
-            if (id0 == "this")
-            {
-              if (_proxy != null && _proxy.superHasField(id))
-              {
-                if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
-                {
-                  var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
-                  return superClass.fieldWrite(id, v);
-                }
-
-                // Directly assign the value.
-                // This is needed because `assignValue` may sometimes be called from the constructor.
-                PolymodAbstractScriptClass.setClassObjectField(_proxy.superClass, id, v);
-                return v;
-              }
-            }
-            else
-            {
-              // Check if we are setting a final. If so, throw an error.
-              @:privateAccess
-              if (_proxy != null && _proxy._c != null)
-              {
-                if (_proxy._c.imports.exists(id0))
-                {
-                  var imp:ClassImport = _proxy._c.imports.get(id0);
-                  var finals:Array<String> = PolymodFinalMacro.getFinals(imp.fullPath);
-
-                  if (finals.contains(id))
-                  {
-                    error(EInvalidFinalSet(id));
-                    return null;
-                  }
-
-                  var privates:Array<String> = PolymodFinalMacro.getPrivateProperties(imp.fullPath);
-
-                  if (privates.contains(id))
-                  {
-                    error(EInvalidPropSet(id));
-                    return null;
-                  }
-                }
-              }
-            }
-          default:
-            // Do nothing
-        }
-
-        // Fallback to field set
-        v = set(fieldTarget(e0), id, v);
-      case EArray(e, index):
-        var arr:Dynamic = expr(e);
-        var index:Dynamic = expr(index);
-        if (isMap(arr))
-        {
-          setMapValue(arr, index, v);
-        }
-        else
-        {
-          arr[index] = v;
-        }
-
-      default:
-        if (!_abstractInlineAssign)
-        {
-          error(EInvalidOp("="));
-        }
-    }
-    return v;
-  }
-
-  function assignOp(op, fop:Dynamic->Dynamic->Dynamic)
-  {
-    var me = this;
-    binops.set(op, function(e1, e2) return me.evalAssignOp(op, fop, e1, e2));
-  }
-
-  function evalAssignOp(op, fop, e1, e2):Dynamic
-  {
-    var v:Dynamic = null;
-
-    switch (Tools.expr(e1))
-    {
-      case EIdent(id):
-        @:privateAccess
-        {
-          if (_proxy != null)
-          {
-            var decl = _proxy.findVar(id);
-            if (decl != null)
-            {
-              var value = switch (decl.get)
-              {
-                case "never":
-                  error(EInvalidPropGet(id));
-                default:
-                  expr(e1);
-              }
-
-              v = fop(value, expr(e2));
-
-              switch (decl.set)
-              {
-                case "set":
-                  final setName = 'set_$id';
-                  if (_propTrack.exists(setName))
-                  {
-                    switch (decl.get)
-                    {
-                      case 'get':
-                        var field = _proxy.findField(id);
-                        var hasIsVar = false;
-                        for (m in field?.meta ?? [])
-                        {
-                          if (m.name == ':isVar')
-                          {
-                            hasIsVar = true;
-                            break;
-                          }
-                        }
-                        if (!hasIsVar) return error(EPropVarNotReal(id));
-                      default:
-                    }
-                  }
-                  else
-                  {
-                    _propTrack.set(setName, true);
-                    var r = _proxy.callFunction(setName, [v]);
-                    _propTrack.remove(setName);
-                    return r;
-                  }
-                // Fallback
-                case "never":
-                  error(EInvalidPropSet(id));
-                  return v;
-              }
-            }
-          }
-        }
-
-        // Fallback to local variable
-        var l = locals.get(id);
-        v = fop(expr(e1), expr(e2));
-        if (l != null && l.isfinal && l.r != null)
-        {
-          return error(EInvalidAccess(id));
-        }
-        if (l == null) setVar(id, v)
-        else
-          l.r = v;
-      case EField(e, f):
-        var obj = fieldTarget(e);
-        v = fop(get(obj, f), expr(e2));
-        v = set(obj, f, v);
-      case EArray(e, index):
-        var arr:Dynamic = expr(e);
-        var index:Dynamic = expr(index);
-        if (isMap(arr))
-        {
-          v = fop(getMapValue(arr, index), expr(e2));
-          setMapValue(arr, index, v);
-        }
-        else
-        {
-          v = fop(arr[index], expr(e2));
-          arr[index] = v;
-        }
-      default:
-        return error(EInvalidOp(op));
-    }
-    return v;
-  }
-
-  function increment(e:Expr, prefix:Bool, delta:Int):Dynamic
-  {
-    #if hscriptPos
-    curExpr = e;
-    #end
-
-    switch (Tools.expr(e))
-    {
-      case EIdent(id):
-        @:privateAccess
-        {
-          if (_proxy != null)
-          {
-            var decl = _proxy.findVar(id);
-            if (decl != null)
-            {
-              var v = switch (decl.get)
-              {
-                case "never":
-                  error(EInvalidPropGet(id));
-                default:
-                  expr(e);
-              }
-
-              if (prefix) v += delta;
-
-              switch (decl.set)
-              {
-                case "set":
-                  final setName = 'set_$id';
-                  if (_propTrack.exists(setName))
-                  {
-                    switch (decl.get)
-                    {
-                      case 'get':
-                        var field = _proxy.findField(id);
-                        var hasIsVar = false;
-                        for (m in field?.meta ?? [])
-                        {
-                          if (m.name == ':isVar')
-                          {
-                            hasIsVar = true;
-                            break;
-                          }
-                        }
-                        if (!hasIsVar) return error(EPropVarNotReal(id));
-                      default:
-                    }
-                  }
-                  else
-                  {
-                    _propTrack.set(setName, true);
-                    var r = _proxy.callFunction(setName, [prefix ? v : (v + delta)]);
-                    _propTrack.remove(setName);
-                    return r;
-                  }
-                case "never":
-                  return error(EInvalidPropSet(id));
-              }
-            }
-          }
-        }
-
-        var l = locals.get(id);
-        var v:Dynamic = (l == null) ? resolve(id) : l.r;
-        if (l != null && l.isfinal && l.r != null) return error(EInvalidFinalSet(id));
-        if (prefix)
-        {
-          v += delta;
-          if (l == null) setVar(id, v)
-          else
-            l.r = v;
-        }
-        else if (l == null) setVar(id, v + delta)
-        else
-          l.r = v + delta;
-        return v;
-      case EField(e, f):
-        var obj = fieldTarget(e);
-        var v:Dynamic = get(obj, f);
-        if (prefix)
-        {
-          v += delta;
-          set(obj, f, v);
-        }
-        else
-          set(obj, f, v + delta);
-        return v;
-      case EArray(e, index):
-        var arr:Dynamic = expr(e);
-        var index:Dynamic = expr(index);
-        if (isMap(arr))
-        {
-          var v = getMapValue(arr, index);
-          if (prefix)
-          {
-            v += delta;
-            setMapValue(arr, index, v);
-          }
-          else
-          {
-            setMapValue(arr, index, v + delta);
-          }
-          return v;
-        }
-        else
-        {
-          var v = arr[index];
-          if (prefix)
-          {
-            v += delta;
-            arr[index] = v;
-          }
-          else
-            arr[index] = v + delta;
-          return v;
-        }
-      default:
-        return error(EInvalidOp((delta > 0) ? "++" : "--"));
-    }
-  }
-
-  function exprReturn(e):Null<Dynamic>
-  {
-    try
-    {
-      return expr(e);
-    }
-    catch (e:Stop)
-    {
-      switch (e)
-      {
-        case SBreak:
-          throw "Invalid break";
-        case SContinue:
-          throw "Invalid continue";
-        case SReturn:
-          var v = returnValue;
-          returnValue = null;
-          return v;
-      }
-    }
-    return null;
-    // catch (err:Expr.Error)
-    // {
-    // 	#if hscriptPos
-    // 	throw err;
-    // 	#else
-    // 	throw err;
-    // 	#end
-    // }
-  }
-
-  function duplicate<T>(h:Map<String, T>)
-  {
-    var h2 = new Map();
-    for (k in h.keys()) h2.set(k, h.get(k));
-    return h2;
-  }
-
-  function restore(old:Int)
-  {
-    while (declared.length > old)
-    {
-      var d = declared.pop();
-      locals.set(d.n, d.old);
-    }
-  }
-
-  inline function rethrow(e:Dynamic)
-  {
-    #if hl
-    hl.Api.rethrow(e);
-    #else
-    throw e;
-    #end
-  }
-
+  /**
+   * Tries to fetch the value of the given field/type under `id`
+   * @param id The name of the field/type to try fetching.
+   * @return Null<Dynamic>.
+   */
   function resolve(id:String):Null<Dynamic>
   {
     _nextCallObject = null;
@@ -3417,7 +2965,577 @@ class Interp
     return null;
   }
 
+  /**
+   * Get the value of `f` field from object `o`.
+   * @param o The class object that contains the field.
+   * @param f The name of the field to retrieve the value from.
+   * @return Null<Dynamic>
+   */
+  function get(o:Dynamic, f:String):Null<Dynamic>
+  {
+    if (o == null) error(ENullObjectReference(f));
 
+    // Backwards compatibility for scripts using HScriptedClass.init
+    // isHScriptedClass(o) only works with class instances
+    // so we look for a specific field to double-check the type
+    if ((f == 'init' || f == 'scriptInit') && o._isHScriptedClass)
+    {
+      return Reflect.makeVarArgs((args:Array<Dynamic>) -> return o.scriptInit(args[0], args.slice(1)));
+    }
+
+    var oCls:String = Util.getTypeNameOf(o);
+    #if hl oCls = oCls.replace('$', ''); #end
+
+    #if POLYMOD_STRICT_SYNTAX
+    if (!checkPrivateAccess(o, f))
+    {
+      error(EPrivateField(f));
+      return null;
+    }
+    #end
+
+    // Check if the field is a blacklisted static field.
+    if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
+    {
+      error(EBlacklistedField(f));
+      return null;
+    }
+
+    // Check for script class blacklisted fields.
+    var oScriptCls:Null<String> = Util.getScriptClassName(o);
+    if (
+      oScriptCls != null
+      &&
+      ((PolymodScriptClass.blacklistedScriptClassStaticFields.get(oScriptCls)?.contains(f) ?? false)
+        || (PolymodScriptClass.blacklistedScriptClassInstanceFields.get(oScriptCls)?.contains(f) ?? false)
+      )
+    )
+    {
+      error(EBlacklistedField(f));
+      return null;
+    }
+
+    checkTypeForDeprecation(oScriptCls);
+    checkFieldForDeprecation(oScriptCls, f);
+
+    // If not, check if it is a blacklisted instance field.
+    if (oCls.length > 0 && oCls != 'Object')
+    {
+      if (PolymodScriptClass.blacklistedInstanceFieldsOf(oCls).contains(f))
+      {
+        error(EBlacklistedField(f));
+        return null;
+      }
+    }
+
+    // Otherwise, we assume the field is fine to use.
+    if (Std.isOfType(o, PolymodStaticAbstractReference))
+    {
+      var ref:PolymodStaticAbstractReference = cast(o, PolymodStaticAbstractReference);
+
+      return ref.getField(f);
+    }
+    else if (Std.isOfType(o, PolymodStaticClassReference))
+    {
+      var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
+
+      return ref.getField(f);
+    }
+    else if (Std.isOfType(o, PolymodScriptClass))
+    {
+      var proxy:PolymodAbstractScriptClass = cast(o, PolymodScriptClass);
+      if (proxy.fieldExists(f))
+      {
+        return proxy.fieldRead(f);
+      }
+      else if (proxy.superClass != null && proxy.superHasField(f))
+      {
+        if (Std.isOfType(proxy.superClass, PolymodScriptClass))
+        {
+          var superClass:PolymodAbstractScriptClass = cast(proxy.superClass, PolymodScriptClass);
+          return superClass.fieldRead(f);
+        }
+
+        return Reflect.getProperty(proxy.superClass, f);
+      }
+      else
+      {
+        try
+        {
+          return proxy.resolveField(f);
+        }
+        catch (e:Dynamic)
+        {
+        }
+
+        // If we're here, the field doesn't exist on the proxy.
+        error(EUnknownVariable(f));
+      }
+    }
+    else if (isHScriptedClass(o))
+    {
+      if (o.scriptGet != null)
+      {
+        return o.scriptGet(f);
+      }
+
+      error(EInvalidScriptedVarGet(f));
+    }
+    #if (hl && haxe4)
+    else if (Std.isOfType(o, Enum))
+    {
+      try
+      {
+        return (o : Enum<Dynamic>).createByName(f);
+      }
+      catch (e)
+      {
+        error(EInvalidAccess(f));
+      }
+    }
+    #end
+
+    #if js
+    if (Std.isOfType(o, Class) && Reflect.hasField(o, f))
+    {
+      return untyped o[f];
+    }
+    #end
+
+    // Default behavior
+    #if hl
+    // On HL, hasField on properties returns true but Reflect.field
+    // might return null so we have to check if a getter exists too.
+    // This happens mostly when the programmer mistakenly makes the field access (get, null) instead of (get, never)
+    return Reflect.getProperty(o, f);
+    #else
+    if (Reflect.hasField(o, f))
+    {
+      return Reflect.field(o, f);
+    }
+    else
+    {
+      try
+      {
+        return Reflect.getProperty(o, f);
+      }
+      catch (e:Dynamic)
+      {
+        return Reflect.field(o, f);
+      }
+    }
+    #end
+  }
+
+  /**
+   * Given an object with an `f` field name, assign a value to it.
+   * @param o The object with `f` field.
+   * @param f The name of the field contained within `o`
+   * @param v The value to assign the object field to.
+   * @return Null<Dynamic>
+   */
+  function set(o:Dynamic, f:String, v:Dynamic):Null<Dynamic>
+  {
+    if (o == null) error(ENullObjectReference(f));
+
+    var oCls:String = Util.getTypeNameOf(o);
+    #if hl oCls = oCls.replace('$', ''); #end
+
+    #if POLYMOD_STRICT_SYNTAX
+    if (!checkPrivateAccess(o, f))
+    {
+      error(EPrivateField(f));
+      return null;
+    }
+    #end
+
+    // Check if the field is a blacklisted static field.
+    if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
+    {
+      Polymod.error(SCRIPTED_CLASS_BLACKLISTED_FIELD, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
+      return null;
+    }
+
+    // If not, check if it is a blacklisted instance field.
+    if (oCls.length > 0 && oCls != 'Object')
+    {
+      if (PolymodScriptClass.blacklistedInstanceFieldsOf(oCls).contains(f))
+      {
+        Polymod.error(SCRIPTED_CLASS_BLACKLISTED_FIELD, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
+        return null;
+      }
+    }
+
+    // Check for script class blacklisted.
+    var oScriptCls:Null<String> = Util.getScriptClassName(o);
+    if (
+      oScriptCls != null
+      &&
+      ((PolymodScriptClass.blacklistedScriptClassStaticFields.get(oScriptCls)?.contains(f) ?? false)
+        || (PolymodScriptClass.blacklistedScriptClassInstanceFields.get(oScriptCls)?.contains(f) ?? false)
+      )
+    )
+    {
+      error(EBlacklistedField(f));
+      return null;
+    }
+
+    // Otherwise, we assume the field is fine to use.
+    if (Std.isOfType(o, PolymodStaticAbstractReference))
+    {
+      var ref:PolymodStaticAbstractReference = cast(o, PolymodStaticAbstractReference);
+
+      try
+      {
+        return ref.setField(f, v);
+      }
+      catch (e:Dynamic)
+      {
+        error(EInvalidAccess(f));
+      }
+    }
+    else if (Std.isOfType(o, PolymodStaticClassReference))
+    {
+      var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
+
+      try
+      {
+        return ref.setField(f, v);
+      }
+      catch (e:Dynamic)
+      {
+        error(EInvalidAccess(f));
+      }
+    }
+    else if (Std.isOfType(o, PolymodScriptClass))
+    {
+      var proxy:PolymodAbstractScriptClass = cast(o, PolymodScriptClass);
+      if (proxy.fieldExists(f))
+      {
+        return proxy.fieldWrite(f, v);
+      }
+      else if (proxy.superClass != null && proxy.superHasField(f))
+      {
+        if (Std.isOfType(proxy.superClass, PolymodScriptClass))
+        {
+          var superClass:PolymodAbstractScriptClass = cast(proxy.superClass, PolymodScriptClass);
+          return superClass.fieldWrite(f, v);
+        }
+
+        set(proxy.superClass, f, v);
+      }
+      else
+      {
+        error(EUnknownVariable(f));
+      }
+      return v;
+    }
+    else if (isHScriptedClass(o))
+    {
+      if (o.scriptSet != null)
+      {
+        return o.scriptSet(f, v);
+      }
+
+      error(EInvalidScriptedVarSet(f));
+    }
+
+    #if js
+    if (Std.isOfType(o, Class) && Reflect.hasField(o, f))
+    {
+      untyped o[f] = v;
+      return v;
+    }
+    #end
+
+    try
+    {
+      PolymodAbstractScriptClass.setClassObjectField(o, f, v);
+    }
+    catch (e)
+    {
+      if (e.message.startsWith('Cannot set final '))
+      {
+        error(EInvalidFinalSet(f));
+      }
+      else if (e.message.startsWith('Cannot set private '))
+      {
+        error(EInvalidPropSet(f));
+      }
+      else
+      {
+        error(EInvalidAccess(f));
+      }
+    }
+    return v;
+  }
+
+  /**
+   * Checks to see if we're able to access the field `f` from class object `o`
+   * @param o The class object containing the field `f`
+   * @param f The name of the field to check if we have access to.
+   * @return Whether we have access to field `f`
+   */
+  function checkPrivateAccess(o:Dynamic, f:String):Bool
+  {
+    // If we're in a private access block, automatically allow it.
+    if (inPrivateAccess && !inNoPrivateAccess) return true;
+
+    if (checkAccessControl(o, f)) return true;
+
+    // First, script classes.
+    if (Std.isOfType(o, PolymodStaticClassReference))
+    {
+      var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
+
+      // We are retrieving this field within the same script class context.
+      if (o.cls == getClassDecl()) return true;
+
+      var field:Null<FieldDecl> = PolymodScriptClass.scriptInterp.getScriptClassStaticFieldDecl(ref.getFullyQualifiedName(), f);
+      if (field != null && field.access.contains(APrivate))
+      {
+        return false;
+      }
+    }
+    else if (Std.isOfType(o, PolymodScriptClass))
+    {
+      var ref:PolymodAbstractScriptClass = cast(o, PolymodAbstractScriptClass);
+
+      if (ref.fullyQualifiedName == getClassFullyQualifiedName()) return true;
+
+      // If this script class shares the same superclasses with this class we're in (inheritance) then we can access it if the field is any of those.
+      var superClasses:Array<String> = PolymodScriptClass.getSuperClasses(getClassDecl()) ?? [];
+      var inheritatedSuperClasses:Array<String> = [ref.fullyQualifiedName]
+        .concat(PolymodScriptClass.getSuperClasses(ref._c))
+        .filter((superCls:String) -> return superClasses.contains(superCls));
+
+      var superClass:Dynamic = ref.superClass;
+      while (superClass != null)
+      {
+        if (Std.isOfType(superClass, PolymodScriptClass))
+        {
+          var scriptCls:PolymodScriptClass = cast(superClass, PolymodScriptClass);
+          if (inheritatedSuperClasses.contains(scriptCls.fullyQualifiedName))
+          {
+            var fieldDecl = scriptCls.findField(f);
+            if (fieldDecl != null && fieldDecl.access.contains(APrivate))
+            {
+              return true;
+            }
+          }
+          superClass = superClass.superClass;
+        }
+        else
+        {
+          var superClsName:String = Util.getTypeNameOf(superClass);
+          if (inheritatedSuperClasses.contains(superClsName))
+          {
+            if (PolymodFinalMacro.getPrivateFieldsOf(superClsName).contains(f))
+            {
+              return true;
+            }
+          }
+          superClass = Type.getSuperClass(superClass);
+        }
+      }
+
+      // Regular check the script class itself has within the script class itself.
+      var fieldDecl:Null<FieldDecl> = ref.findField(f);
+      if (fieldDecl != null && fieldDecl.access.contains(APrivate))
+      {
+        return false;
+      }
+    }
+    else if (Std.isOfType(o, PolymodStaticAbstractReference))
+    {
+      // Abstracts can't have private instance fields.
+      return true;
+    }
+    else
+    {
+      // We're checking for fields from within a regular class.
+      var superClasses:Array<String> = PolymodScriptClass.getSuperClasses(getClassDecl()) ?? [];
+      var inheritatedSuperClasses:Array<String> = [Util.getTypeNameOf(
+        o
+      )].concat(Util.getSuperClasses(o) ?? []).filter((superCls:String) -> return superClasses.contains(superCls));
+
+      for (cls in inheritatedSuperClasses)
+      {
+        if (PolymodFinalMacro.getPrivateFields(cls).contains(f))
+        {
+          return true;
+        }
+      }
+
+      // Check from within the class itself.
+      if (PolymodFinalMacro.getPrivateFieldsOf(o).contains(f))
+      {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Checks to see if the given class object field has access control related to this scripted class.
+   * @param o The class object containing `f`
+   * @param f The name of the field.
+   * @return Bool
+   */
+  function checkAccessControl(o:Dynamic, f:String):Bool
+  {
+    var objClsName:Null<String> = Util.getScriptClassName(o) ?? Util.getTypeNameOf(o);
+    var objPack:String = (objClsName.split('.').slice(0, -1).join('.')) ?? '';
+    var clsName:String = getClassFullyQualifiedName();
+    var clsPack:String = getClassDecl()?.pkg?.join('.') ?? '';
+
+    // Let's go through the @:allow & @:access list and see if this class has access to this class.
+    // A field will be allowed of use if the class is allowed, or the field itself from the class is allowed (If the value is `null`).
+    var accessList:Null<ClassAccessControl> = accessMetadataControlList.get(clsName);
+
+    if (accessList != null)
+    {
+      // First, class metadata for `@:access`.
+      if (accessList.cls != null)
+      {
+        // Check for if this class has access to a package from its @:access metadata list.
+        for (pkg in accessList.cls.pkg ?? [])
+        {
+          if (pkg == objPack) return true;
+        }
+
+        // Check if the general class metadata is allowing for this field to be accessed.
+        var clsAccessList = accessList.cls.access ?? [];
+        if (clsAccessList.exists(objClsName) && clsAccessList.get(objClsName) == null || clsAccessList.get(objClsName).contains(f)) return true;
+      }
+
+      // Next, check for field metadata for `@:access`.
+      if ((accessList.fields?.exists(this.currentFunction) != null) ?? false)
+      {
+        var funcAccessControl:AccessControl = accessList.fields.get(this.currentFunction);
+
+        for (pkg in funcAccessControl.pkg ?? [])
+        {
+          if (pkg == objPack) return true;
+        }
+
+        var fieldsAccessList = funcAccessControl.access ?? [];
+        if (fieldsAccessList.exists(objClsName))
+        {
+          // Check if the general class metadata is allowing for this field to be accessed.
+          if (fieldsAccessList.get(objClsName) == null || fieldsAccessList.get(objClsName).contains(f)) return true;
+        }
+      }
+    }
+
+    // Check the @:allow metadata list now.
+    // We check through the object class as that's the one that'll have the data for us.
+    var allowList:Null<ClassAccessControl> = allowMetadataControlList.get(objClsName);
+    if (allowList != null)
+    {
+      // Check class metadata for `@:allow` first.
+      if (allowList.cls != null)
+      {
+        // If this class implements one of the interfaces here, it's allowed.
+        if (allowList.cls.interfacePackage != null)
+        {
+          var implementedInterfaces:Array<String> = PolymodScriptClass.classesExtendingInterfaces.get(clsName) ?? [];
+          for (interfacePack in allowList.cls.interfacePackage)
+          {
+            if (implementedInterfaces.contains(interfacePack)) return true;
+          }
+        }
+
+        // Check for same parent packages.
+        for (pkg in allowList.cls.pkg ?? [])
+        {
+          if (pkg == clsPack) return true;
+        }
+
+        // Check if the following class we're trying to access has allowed our function or class to be accessed.
+        if (allowList.cls.access?.exists(clsName) ?? false)
+        {
+          var allowList = allowList.cls.access.get(clsName);
+          if (allowList == null || allowList.contains(this.currentFunction)) return true;
+        }
+      }
+
+      // Check the allow list for the field itself we're accessing.
+      if (allowList.fields?.exists(f) ?? false)
+      {
+        var fieldAccessControl:AccessControl = allowList.fields.get(f);
+
+        // Likewise, check to see if we're dealing with an access control interface, package, or general class/field access.
+        if (fieldAccessControl.interfacePackage != null)
+        {
+          var implementedInterfaces:Array<String> = PolymodScriptClass.classesExtendingInterfaces.get(clsName) ?? [];
+          for (interfacePack in fieldAccessControl.interfacePackage)
+          {
+            if (implementedInterfaces.contains(interfacePack)) return true;
+          }
+        }
+
+        for (pkg in fieldAccessControl.pkg ?? [])
+        {
+          if (pkg == clsPack) return true;
+        }
+
+        var fieldAllowList:Map<String, Array<String>> = fieldAccessControl.access ?? [];
+        if (fieldAllowList.exists(clsName) && (fieldAllowList.get(clsName) == null || fieldAllowList.get(clsName).contains(this.currentFunction)))
+        {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Checks to see if the given class is deprecated and warns the user if so.
+   * @param cls The class to check. If this is deprecated as well it'll thrown an error.
+   */
+  function checkTypeForDeprecation(cls:String):Void
+  {
+    if (!_deprecatedTypes.exists(cls) || _cachedDeprecatedTypes.contains(cls))
+      return;
+
+    var message:String = _deprecatedTypes.get(cls);
+
+    Polymod.warning(SCRIPTED_CLASS_FIELD_DEPRECATED, 'Type $cls is deprecated\n$message', SCRIPT_RUNTIME);
+
+    _cachedDeprecatedTypes.push(cls);
+  }
+
+  /**
+   * Checks to see if the given class is deprecated and warns the user if so.
+   * @param cls The class to check. If this is deprecated as well it'll thrown an error.
+   * @param f The field to check.
+   */
+  function checkFieldForDeprecation(cls:String, f:String):Void
+  {
+    if (!_deprecatedFields.get(cls)?.exists(f) ?? false)
+      return;
+
+    // If we've already warned the user the field has been deprecated, don't warn them again.
+    if (_cachedDeprecatedFields.get(cls).contains(f))
+      return;
+
+    var message:String = _deprecatedFields.get(cls).get(f);
+
+    Polymod.warning(SCRIPTED_CLASS_FIELD_DEPRECATED, 'Field $f is deprecated\n$message', SCRIPT_RUNTIME);
+
+    var fields = _cachedDeprecatedFields.get(cls) ?? [];
+    fields.push(f);
+
+    _cachedDeprecatedFields.set(cls, fields);
+  }
+
+  /**
+   * Evaluates a given expression and returns a value from it.
+   * @param e The expression to evaluate.
+   * @return The return value after evaluating the expression.
+   */
   public function expr(e:Expr):Null<Dynamic>
   {
     #if hscriptPos
@@ -4119,6 +4237,42 @@ class Interp
   }
 
   /**
+   * Returns the value from the given expression.
+   * @param e The expression to get the value from.
+   * @return Null<Dynamic>
+   */
+  function exprReturn(e):Null<Dynamic>
+  {
+    try
+    {
+      return expr(e);
+    }
+    catch (e:Stop)
+    {
+      switch (e)
+      {
+        case SBreak:
+          throw "Invalid break";
+        case SContinue:
+          throw "Invalid continue";
+        case SReturn:
+          var v = returnValue;
+          returnValue = null;
+          return v;
+      }
+    }
+    return null;
+    // catch (err:Expr.Error)
+    // {
+    // 	#if hscriptPos
+    // 	throw err;
+    // 	#else
+    // 	throw err;
+    // 	#end
+    // }
+  }
+
+  /**
    * Parse an expression, but optionally utilizing additional provided type information.
    * @param e The expression to parse.
    * @param t The explicit type of the expression, if provided.
@@ -4208,6 +4362,24 @@ class Interp
     return this.expr(e);
   }
 
+  /**
+   * Creates an array based on a given list of expression values.
+   * @param entries The list of expressions.
+   * @return The newly created array.
+   */
+  function exprArray(entries:Array<Expr>):Dynamic
+  {
+    // Create an Array<Dynamic>
+    var a = new Array();
+    for (e in entries) a.push(expr(e));
+    return a;
+  }
+
+  /**
+   * Creates a map given a list of expression values.
+   * @param entries The expressions to create the map from.
+   * @return The returning map.
+   */
   function exprMap(entries:Array<Expr>):Dynamic
   {
     if (entries.length == 0) return makeMap([], []);
@@ -4236,39 +4408,541 @@ class Interp
     return makeMap(keys, values);
   }
 
-  function makeMapEmpty(keyType:CType):Dynamic
+  /**
+   * Attempts to retrieve the identifier name from the given expression.
+   * @param e The expression to get the identifier of.
+   * @return Null<String>
+   */
+  function getIdent(e:Expr):Null<String>
   {
-    switch (keyType)
+    switch (Tools.expr(e))
     {
-      case CTPath(path, params):
-        if (path.length > 0)
-        {
-          var last = path[path.length - 1];
-          switch (last)
-          {
-            case "Int":
-              return new Map<Int, Dynamic>();
-            case "String":
-              return new Map<String, Dynamic>();
-            default:
-              // TODO: Properly handle distinguishing Enum maps from Object maps.
-              return new Map<
-                {}, Dynamic>();
-          }
-        }
+      case EIdent(v):
+        return v;
       default:
-        // Whatever.
-        error(ECustom('Invalid key type for empty map initialization (${new Printer().typeToString(keyType)}).'));
+        return null;
     }
-    return makeMap([], []);
   }
 
-  function exprArray(entries:Array<Expr>):Dynamic
+  /**
+   * Sets the value of the given variable.
+   * @param id The name of the variable to set the value of.
+   * @param v The value itself to set the variable to.
+   * @return The value itself.
+   */
+  function setVar(id:String, v:Dynamic):Dynamic
   {
-    // Create an Array<Dynamic>
-    var a = new Array();
-    for (e in entries) a.push(expr(e));
-    return a;
+    if (_proxy != null && _proxy.superHasField(id))
+    {
+      if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
+      {
+        var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
+        return superClass.fieldWrite(id, v);
+      }
+      else
+      {
+        set(_proxy.superClass, id, v);
+        return v;
+      }
+    }
+
+    if (_proxy != null && _proxy.fieldExists(id) || variables.exists(id))
+    {
+      // Fallback to setting in local scope.
+      variables.set(id, v);
+      return v;
+    }
+
+    error(EUnknownVariable(id));
+    return null;
+  }
+
+  /**
+   * Assigns the given expression using the other given expression. (`=`)
+   * @param e1 The first expression that'll be set.
+   * @param e2 The expression of the value itself.
+   * @return The value itself that was assigned.
+   */
+  function assign(e1:Expr, e2:Expr):Dynamic
+  {
+    return assignValue(e1, expr(e2));
+  }
+
+  /**
+   * Assigns an expression to the given value.
+   * @param e1 The expression that should have its value assigned.
+   * @param v The value itself to assign from.
+   * @param _abstractInlineAssign Whether we're calling this function from an abstract inline function.
+   * @return Null<Dynamic>
+   */
+  function assignValue(e1:Expr, v:Dynamic, _abstractInlineAssign:Bool = false):Null<Dynamic>
+  {
+    switch (Tools.expr(e1))
+    {
+      case EIdent(id):
+        // Make sure setting superclass fields directly works.
+        // Also ensures property functions are accounted for.
+        if (_proxy != null)
+        {
+          if (_proxy.superHasField(id))
+          {
+            if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
+            {
+              var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
+              return superClass.fieldWrite(id, v);
+            }
+
+            // Directly assign the value.
+            // This is needed because `assignValue` may sometimes be called from the constructor.
+            PolymodAbstractScriptClass.setClassObjectField(_proxy.superClass, id, v);
+            return v;
+          }
+          else
+          {
+            @:privateAccess
+            {
+              var decl = _proxy.findVar(id);
+
+              if (decl != null)
+              {
+                switch (decl.set)
+                {
+                  case "set":
+                    // Allow assigning to "null" only for local fields.
+                    final setName = 'set_$id';
+                    if (_propTrack.exists(setName))
+                    {
+                      switch (decl.get)
+                      {
+                        case 'get':
+                          var field = _proxy.findField(id);
+                          var hasIsVar = false;
+                          for (m in field?.meta ?? [])
+                          {
+                            if (m.name == ':isVar')
+                            {
+                              hasIsVar = true;
+                              break;
+                            }
+                          }
+                          if (!hasIsVar) return error(EPropVarNotReal(id));
+                        default:
+                      }
+                    }
+                    else
+                    {
+                      _propTrack.set(setName, true);
+                      var out = _proxy.callFunction(setName, [v]);
+                      _propTrack.remove(setName);
+                      return (out == null) ? v : out;
+                    }
+
+                  case "never":
+                    error(EInvalidPropSet(id));
+                    return null;
+
+                  case "null":
+                    // If the property setter is "null", it can only be assigned on local fields.
+                    // Thankfully, this is a local field!
+                    // So we can just fallthrough to the default case.
+                }
+
+                if ((decl.isfinal ?? false) && decl.expr != null)
+                {
+                  error(EInvalidFinalSet(id));
+                  return null;
+                }
+              }
+              else
+              {
+                var fnDecl = _proxy.findFunction(id);
+                if (fnDecl != null)
+                {
+                  if (fnDecl.isdynamic)
+                  {
+                    if (!Reflect.isFunction(v))
+                    {
+                      error(EInvalidAccess(id));
+                      return null;
+                    }
+
+                    this.functions.set(id, v);
+                    return v;
+                  }
+                  else
+                  {
+                    error(EInvalidAccess(id));
+                    return null;
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        var l = locals.get(id);
+        if (l != null && l.isfinal && l.r != null)
+        {
+          return error(EInvalidAccess(id));
+        }
+
+        if (l == null)
+        {
+          // Check if we're assigning the value of a static field inside the class itself.
+          // We check inside here to make sure we aren't overriding a local variable.
+          var fullClassName:String = getClassFullyQualifiedName();
+          if (PolymodScriptClass.hasScriptClassStaticField(fullClassName, id))
+          {
+            return PolymodScriptClass.setScriptClassStaticField(fullClassName, id, v);
+          }
+
+          // Fallback to just setting the var.
+          setVar(id, v);
+        }
+        else
+          l.r = v;
+      case EField(e0, id):
+        // Make sure setting superclass fields works when using this.
+        // Also ensures property functions are accounted for.
+        switch (Tools.expr(e0))
+        {
+          case EIdent(id0):
+            if (id0 == "this")
+            {
+              if (_proxy != null && _proxy.superHasField(id))
+              {
+                if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
+                {
+                  var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
+                  return superClass.fieldWrite(id, v);
+                }
+
+                // Directly assign the value.
+                // This is needed because `assignValue` may sometimes be called from the constructor.
+                PolymodAbstractScriptClass.setClassObjectField(_proxy.superClass, id, v);
+                return v;
+              }
+            }
+            else
+            {
+              // Check if we are setting a final. If so, throw an error.
+              @:privateAccess
+              if (_proxy != null && _proxy._c != null)
+              {
+                if (_proxy._c.imports.exists(id0))
+                {
+                  var imp:ClassImport = _proxy._c.imports.get(id0);
+                  var finals:Array<String> = PolymodFinalMacro.getFinals(imp.fullPath);
+
+                  if (finals.contains(id))
+                  {
+                    error(EInvalidFinalSet(id));
+                    return null;
+                  }
+
+                  var privates:Array<String> = PolymodFinalMacro.getPrivateProperties(imp.fullPath);
+
+                  if (privates.contains(id))
+                  {
+                    error(EInvalidPropSet(id));
+                    return null;
+                  }
+                }
+              }
+            }
+          default:
+            // Do nothing
+        }
+
+        // Fallback to field set
+        v = set(fieldTarget(e0), id, v);
+      case EArray(e, index):
+        var arr:Dynamic = expr(e);
+        var index:Dynamic = expr(index);
+        if (isMap(arr))
+        {
+          setMapValue(arr, index, v);
+        }
+        else
+        {
+          arr[index] = v;
+        }
+
+      default:
+        if (!_abstractInlineAssign)
+        {
+          error(EInvalidOp("="));
+        }
+    }
+    return v;
+  }
+
+  /**
+   * Assigns this interpreter to the given operator.
+   * @param op The string operator sign.
+   * @param fop THe function to call when this interpreter calls this operator.
+   */
+  function assignOp(op, fop:Dynamic->Dynamic->Dynamic)
+  {
+    var me = this;
+    binops.set(op, function(e1, e2) return me.evalAssignOp(op, fop, e1, e2));
+  }
+
+  /**
+   * Helper function for evaluating operator functions.
+   * @param op The operator sign to use.
+   * @param fop The function for this operator.
+   * @param e1 The expression that is to have its value assigned.
+   * @param e2 The expression of the value itself.
+   * @return Dynamic
+   */
+  function evalAssignOp(op, fop, e1, e2):Dynamic
+  {
+    var v:Dynamic = null;
+
+    switch (Tools.expr(e1))
+    {
+      case EIdent(id):
+        @:privateAccess
+        {
+          if (_proxy != null)
+          {
+            var decl = _proxy.findVar(id);
+            if (decl != null)
+            {
+              var value = switch (decl.get)
+              {
+                case "never":
+                  error(EInvalidPropGet(id));
+                default:
+                  expr(e1);
+              }
+
+              v = fop(value, expr(e2));
+
+              switch (decl.set)
+              {
+                case "set":
+                  final setName = 'set_$id';
+                  if (_propTrack.exists(setName))
+                  {
+                    switch (decl.get)
+                    {
+                      case 'get':
+                        var field = _proxy.findField(id);
+                        var hasIsVar = false;
+                        for (m in field?.meta ?? [])
+                        {
+                          if (m.name == ':isVar')
+                          {
+                            hasIsVar = true;
+                            break;
+                          }
+                        }
+                        if (!hasIsVar) return error(EPropVarNotReal(id));
+                      default:
+                    }
+                  }
+                  else
+                  {
+                    _propTrack.set(setName, true);
+                    var r = _proxy.callFunction(setName, [v]);
+                    _propTrack.remove(setName);
+                    return r;
+                  }
+                // Fallback
+                case "never":
+                  error(EInvalidPropSet(id));
+                  return v;
+              }
+            }
+          }
+        }
+
+        // Fallback to local variable
+        var l = locals.get(id);
+        v = fop(expr(e1), expr(e2));
+        if (l != null && l.isfinal && l.r != null)
+        {
+          return error(EInvalidAccess(id));
+        }
+        if (l == null) setVar(id, v)
+        else
+          l.r = v;
+      case EField(e, f):
+        var obj = fieldTarget(e);
+        v = fop(get(obj, f), expr(e2));
+        v = set(obj, f, v);
+      case EArray(e, index):
+        var arr:Dynamic = expr(e);
+        var index:Dynamic = expr(index);
+        if (isMap(arr))
+        {
+          v = fop(getMapValue(arr, index), expr(e2));
+          setMapValue(arr, index, v);
+        }
+        else
+        {
+          v = fop(arr[index], expr(e2));
+          arr[index] = v;
+        }
+      default:
+        return error(EInvalidOp(op));
+    }
+    return v;
+  }
+
+  /**
+   * Increments the given expression by `delta`
+   * @param e The expression to assign to.
+   * @param prefix Whether to add to the already existing value or set it.
+   * @param delta The value used to increment.
+   * @return Dynamic
+   */
+  function increment(e:Expr, prefix:Bool, delta:Int):Dynamic
+  {
+    #if hscriptPos
+    curExpr = e;
+    #end
+
+    switch (Tools.expr(e))
+    {
+      case EIdent(id):
+        @:privateAccess
+        {
+          if (_proxy != null)
+          {
+            var decl = _proxy.findVar(id);
+            if (decl != null)
+            {
+              var v = switch (decl.get)
+              {
+                case "never":
+                  error(EInvalidPropGet(id));
+                default:
+                  expr(e);
+              }
+
+              if (prefix) v += delta;
+
+              switch (decl.set)
+              {
+                case "set":
+                  final setName = 'set_$id';
+                  if (_propTrack.exists(setName))
+                  {
+                    switch (decl.get)
+                    {
+                      case 'get':
+                        var field = _proxy.findField(id);
+                        var hasIsVar = false;
+                        for (m in field?.meta ?? [])
+                        {
+                          if (m.name == ':isVar')
+                          {
+                            hasIsVar = true;
+                            break;
+                          }
+                        }
+                        if (!hasIsVar) return error(EPropVarNotReal(id));
+                      default:
+                    }
+                  }
+                  else
+                  {
+                    _propTrack.set(setName, true);
+                    var r = _proxy.callFunction(setName, [prefix ? v : (v + delta)]);
+                    _propTrack.remove(setName);
+                    return r;
+                  }
+                case "never":
+                  return error(EInvalidPropSet(id));
+              }
+            }
+          }
+        }
+
+        var l = locals.get(id);
+        var v:Dynamic = (l == null) ? resolve(id) : l.r;
+        if (l != null && l.isfinal && l.r != null) return error(EInvalidFinalSet(id));
+        if (prefix)
+        {
+          v += delta;
+          if (l == null) setVar(id, v)
+          else
+            l.r = v;
+        }
+        else if (l == null) setVar(id, v + delta)
+        else
+          l.r = v + delta;
+        return v;
+      case EField(e, f):
+        var obj = fieldTarget(e);
+        var v:Dynamic = get(obj, f);
+        if (prefix)
+        {
+          v += delta;
+          set(obj, f, v);
+        }
+        else
+          set(obj, f, v + delta);
+        return v;
+      case EArray(e, index):
+        var arr:Dynamic = expr(e);
+        var index:Dynamic = expr(index);
+        if (isMap(arr))
+        {
+          var v = getMapValue(arr, index);
+          if (prefix)
+          {
+            v += delta;
+            setMapValue(arr, index, v);
+          }
+          else
+          {
+            setMapValue(arr, index, v + delta);
+          }
+          return v;
+        }
+        else
+        {
+          var v = arr[index];
+          if (prefix)
+          {
+            v += delta;
+            arr[index] = v;
+          }
+          else
+            arr[index] = v + delta;
+          return v;
+        }
+      default:
+        return error(EInvalidOp((delta > 0) ? "++" : "--"));
+    }
+  }
+
+  /**
+   * Given a map, return the map itself cloned.
+   * @param h The map to clone.
+   */
+  function duplicate<T>(h:Map<String, T>)
+  {
+    var h2 = new Map();
+    for (k in h.keys()) h2.set(k, h.get(k));
+    return h2;
+  }
+
+  /**
+   * Restores any `declared` variables to being local variables.
+   * @param old The length of the old amount of local variables.
+   */
+  function restore(old:Int)
+  {
+    while (declared.length > old)
+    {
+      var d = declared.pop();
+      locals.set(d.n, d.old);
+    }
   }
 
   /**
@@ -4346,17 +5020,6 @@ class Interp
     if (cls != null) return cls;
 
     return Type.resolveEnum(path);
-  }
-
-  function getIdent(e:Expr):Null<String>
-  {
-    switch (Tools.expr(e))
-    {
-      case EIdent(v):
-        return v;
-      default:
-        return null;
-    }
   }
 
   function doWhileLoop(econd, e)
@@ -4547,540 +5210,31 @@ class Interp
     return null;
   }
 
-  function checkPrivateAccess(o:Dynamic, f:String):Bool
+  function makeMapEmpty(keyType:CType):Dynamic
   {
-    // If we're in a private access block, automatically allow it.
-    if (inPrivateAccess && !inNoPrivateAccess)
-      return true;
-
-    if (checkAccessControl(o, f))
-      return true;
-
-    // First, script classes.
-    if (Std.isOfType(o, PolymodStaticClassReference))
+    switch (keyType)
     {
-      var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
-
-      // We are retrieving this field within the same script class context.
-      if (o.cls == getClassDecl())
-        return true;
-
-      var field:Null<FieldDecl> = PolymodScriptClass.scriptInterp.getScriptClassStaticFieldDecl(ref.getFullyQualifiedName(), f);
-      if (field != null && field.access.contains(APrivate))
-      {
-        return false;
-      }
-    }
-    else if (Std.isOfType(o, PolymodScriptClass))
-    {
-      var ref:PolymodAbstractScriptClass = cast(o, PolymodAbstractScriptClass);
-
-      if (ref.fullyQualifiedName == getClassFullyQualifiedName())
-        return true;
-
-      // If this script class shares the same superclasses with this class we're in (inheritance) then we can access it if the field is any of those.
-      var superClasses:Array<String> = PolymodScriptClass.getSuperClasses(getClassDecl()) ?? [];
-      var inheritatedSuperClasses:Array<String> = [ref.fullyQualifiedName].concat(PolymodScriptClass.getSuperClasses(ref._c)).filter((superCls:String) -> return superClasses.contains(superCls));
-
-      var superClass:Dynamic = ref.superClass;
-      while (superClass != null)
-      {
-        if (Std.isOfType(superClass, PolymodScriptClass))
+      case CTPath(path, params):
+        if (path.length > 0)
         {
-          var scriptCls:PolymodScriptClass = cast(superClass, PolymodScriptClass);
-          if (inheritatedSuperClasses.contains(scriptCls.fullyQualifiedName))
+          var last = path[path.length - 1];
+          switch (last)
           {
-            var fieldDecl = scriptCls.findField(f);
-            if (fieldDecl != null && fieldDecl.access.contains(APrivate))
-            {
-              return true;
-            }
-          }
-          superClass = superClass.superClass;
-        }
-        else
-        {
-          var superClsName:String = Util.getTypeNameOf(superClass);
-          if (inheritatedSuperClasses.contains(superClsName))
-          {
-            if (PolymodFinalMacro.getPrivateFieldsOf(superClsName).contains(f))
-            {
-              return true;
-            }
-          }
-          superClass = Type.getSuperClass(superClass);
-        }
-      }
-
-      // Regular check the script class itself has within the script class itself.
-      var fieldDecl:Null<FieldDecl> = ref.findField(f);
-      if (fieldDecl != null && fieldDecl.access.contains(APrivate))
-      {
-        return false;
-      }
-    }
-    else if (Std.isOfType(o, PolymodStaticAbstractReference))
-    {
-      // Abstracts can't have private instance fields.
-      return true;
-    }
-    else
-    {
-      // We're checking for fields from within a regular class.
-      var superClasses:Array<String> = PolymodScriptClass.getSuperClasses(getClassDecl()) ?? [];
-      var inheritatedSuperClasses:Array<String> = [Util.getTypeNameOf(o)].concat(Util.getSuperClasses(o) ?? []).filter((superCls:String) -> return superClasses.contains(superCls));
-
-      for (cls in inheritatedSuperClasses)
-      {
-        if (PolymodFinalMacro.getPrivateFields(cls).contains(f))
-        {
-          return true;
-        }
-      }
-
-      // Check from within the class itself.
-      if (PolymodFinalMacro.getPrivateFieldsOf(o).contains(f))
-      {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  function checkAccessControl(o:Dynamic, f:String):Bool
-  {
-    var objClsName:Null<String> = Util.getScriptClassName(o) ?? Util.getTypeNameOf(o);
-    var objPack:String = (objClsName.split('.').slice(0, -1).join('.')) ?? '';
-    var clsName:String = getClassFullyQualifiedName();
-    var clsPack:String = getClassDecl()?.pkg?.join('.') ?? '';
-
-    // Let's go through the @:allow & @:access list and see if this class has access to this class.
-    // A field will be allowed of use if the class is allowed, or the field itself from the class is allowed (If the value is `null`).
-    var accessList:Null<ClassAccessControl> = accessMetadataControlList.get(clsName);
-
-    if (accessList != null)
-    {
-      // First, class metadata for `@:access`.
-      if (accessList.cls != null)
-      {
-        // Check for if this class has access to a package from its @:access metadata list.
-        for (pkg in accessList.cls.pkg ?? [])
-        {
-          if (pkg == objPack) return true;
-        }
-
-        // Check if the general class metadata is allowing for this field to be accessed.
-        var clsAccessList = accessList.cls.access ?? [];
-        if (clsAccessList.exists(objClsName) && clsAccessList.get(objClsName) == null || clsAccessList.get(objClsName).contains(f))
-          return true;
-      }
-
-      // Next, check for field metadata for `@:access`.
-      if ((accessList.fields?.exists(this.currentFunction) != null) ?? false)
-      {
-        var funcAccessControl:AccessControl = accessList.fields.get(this.currentFunction);
-
-        for (pkg in funcAccessControl.pkg ?? [])
-        {
-          if (pkg == objPack) return true;
-        }
-
-        var fieldsAccessList = funcAccessControl.access ?? [];
-        if (fieldsAccessList.exists(objClsName))
-        {
-          // Check if the general class metadata is allowing for this field to be accessed.
-          if (fieldsAccessList.get(objClsName) == null || fieldsAccessList.get(objClsName).contains(f))
-            return true;
-        }
-      }
-    }
-
-    // Check the @:allow metadata list now.
-    // We check through the object class as that's the one that'll have the data for us.
-    var allowList:Null<ClassAccessControl> = allowMetadataControlList.get(objClsName);
-    if (allowList != null)
-    {
-      // Check class metadata for `@:allow` first.
-      if (allowList.cls != null)
-      {
-        // If this class implements one of the interfaces here, it's allowed.
-        if (allowList.cls.interfacePackage != null)
-        {
-          var implementedInterfaces:Array<String> = PolymodScriptClass.classesExtendingInterfaces.get(clsName) ?? [];
-          for (interfacePack in allowList.cls.interfacePackage)
-          {
-            if (implementedInterfaces.contains(interfacePack))
-              return true;
+            case "Int":
+              return new Map<Int, Dynamic>();
+            case "String":
+              return new Map<String, Dynamic>();
+            default:
+              // TODO: Properly handle distinguishing Enum maps from Object maps.
+              return new Map<
+                {}, Dynamic>();
           }
         }
-
-        // Check for same parent packages.
-        for (pkg in allowList.cls.pkg ?? [])
-        {
-          if (pkg == clsPack) return true;
-        }
-
-        // Check if the following class we're trying to access has allowed our function or class to be accessed.
-        if (allowList.cls.access?.exists(clsName) ?? false)
-        {
-          var allowList = allowList.cls.access.get(clsName);
-          if (allowList == null || allowList.contains(this.currentFunction))
-            return true;
-        }
-      }
-
-      // Check the allow list for the field itself we're accessing.
-      if (allowList.fields?.exists(f) ?? false)
-      {
-        var fieldAccessControl:AccessControl = allowList.fields.get(f);
-
-        // Likewise, check to see if we're dealing with an access control interface, package, or general class/field access.
-        if (fieldAccessControl.interfacePackage != null)
-        {
-          var implementedInterfaces:Array<String> = PolymodScriptClass.classesExtendingInterfaces.get(clsName) ?? [];
-          for (interfacePack in fieldAccessControl.interfacePackage)
-          {
-            if (implementedInterfaces.contains(interfacePack))
-              return true;
-          }
-        }
-
-        for (pkg in fieldAccessControl.pkg ?? [])
-        {
-          if (pkg == clsPack) return true;
-        }
-
-        var fieldAllowList:Map<String, Array<String>> = fieldAccessControl.access ?? [];
-        if (fieldAllowList.exists(clsName) && (fieldAllowList.get(clsName) == null || fieldAllowList.get(clsName).contains(this.currentFunction)))
-        {
-          return true;
-        }
-      }
+      default:
+        // Whatever.
+        error(ECustom('Invalid key type for empty map initialization (${new Printer().typeToString(keyType)}).'));
     }
-    return false;
-  }
-
-  function get(o:Dynamic, f:String):Null<Dynamic>
-  {
-    if (o == null) error(ENullObjectReference(f));
-
-    // Backwards compatibility for scripts using HScriptedClass.init
-    // isHScriptedClass(o) only works with class instances
-    // so we look for a specific field to double-check the type
-    if ((f == 'init' || f == 'scriptInit') && o._isHScriptedClass)
-    {
-      return Reflect.makeVarArgs((args:Array<Dynamic>) -> return o.scriptInit(args[0], args.slice(1)));
-    }
-
-    var oCls:String = Util.getTypeNameOf(o);
-    #if hl oCls = oCls.replace('$', ''); #end
-
-    #if POLYMOD_STRICT_SYNTAX
-    if (!checkPrivateAccess(o, f))
-    {
-      error(EPrivateField(f));
-      return null;
-    }
-    #end
-
-    // Check if the field is a blacklisted static field.
-    if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
-    {
-      error(EBlacklistedField(f));
-      return null;
-    }
-
-    // Check for script class blacklisted fields.
-    var oScriptCls:Null<String> = Util.getScriptClassName(o);
-    if (oScriptCls != null && ((PolymodScriptClass.blacklistedScriptClassStaticFields.get(oScriptCls)?.contains(f) ?? false)
-      || (PolymodScriptClass.blacklistedScriptClassInstanceFields.get(oScriptCls)?.contains(f) ?? false)))
-    {
-      error(EBlacklistedField(f));
-      return null;
-    }
-
-    checkTypeForDeprecation(oScriptCls);
-    checkFieldForDeprecation(oScriptCls, f);
-
-    // If not, check if it is a blacklisted instance field.
-    if (oCls.length > 0 && oCls != 'Object')
-    {
-      if (PolymodScriptClass.blacklistedInstanceFieldsOf(oCls).contains(f))
-      {
-        error(EBlacklistedField(f));
-        return null;
-      }
-    }
-
-    // Otherwise, we assume the field is fine to use.
-    if (Std.isOfType(o, PolymodStaticAbstractReference))
-    {
-      var ref:PolymodStaticAbstractReference = cast(o, PolymodStaticAbstractReference);
-
-      return ref.getField(f);
-    }
-    else if (Std.isOfType(o, PolymodStaticClassReference))
-    {
-      var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
-
-      return ref.getField(f);
-    }
-    else if (Std.isOfType(o, PolymodScriptClass))
-    {
-      var proxy:PolymodAbstractScriptClass = cast(o, PolymodScriptClass);
-      if (proxy.fieldExists(f))
-      {
-        return proxy.fieldRead(f);
-      }
-      else if (proxy.superClass != null && proxy.superHasField(f))
-      {
-        if (Std.isOfType(proxy.superClass, PolymodScriptClass))
-        {
-          var superClass:PolymodAbstractScriptClass = cast(proxy.superClass, PolymodScriptClass);
-          return superClass.fieldRead(f);
-        }
-
-        return Reflect.getProperty(proxy.superClass, f);
-      }
-      else
-      {
-        try
-        {
-          return proxy.resolveField(f);
-        }
-        catch (e:Dynamic)
-        {
-        }
-
-        // If we're here, the field doesn't exist on the proxy.
-        error(EUnknownVariable(f));
-      }
-    }
-    else if (isHScriptedClass(o))
-    {
-      if (o.scriptGet != null)
-      {
-        return o.scriptGet(f);
-      }
-
-      error(EInvalidScriptedVarGet(f));
-    }
-    #if (hl && haxe4)
-    else if (Std.isOfType(o, Enum))
-    {
-      try
-      {
-        return (o : Enum<Dynamic>).createByName(f);
-      }
-      catch (e)
-      {
-        error(EInvalidAccess(f));
-      }
-    }
-    #end
-
-    #if js
-    if (Std.isOfType(o, Class) && Reflect.hasField(o, f))
-    {
-      return untyped o[f];
-    }
-    #end
-
-    // Default behavior
-    #if hl
-    // On HL, hasField on properties returns true but Reflect.field
-    // might return null so we have to check if a getter exists too.
-    // This happens mostly when the programmer mistakenly makes the field access (get, null) instead of (get, never)
-    return Reflect.getProperty(o, f);
-    #else
-    if (Reflect.hasField(o, f))
-    {
-      return Reflect.field(o, f);
-    }
-    else
-    {
-      try
-      {
-        return Reflect.getProperty(o, f);
-      }
-      catch (e:Dynamic)
-      {
-        return Reflect.field(o, f);
-      }
-    }
-    #end
-  }
-
-  function set(o:Dynamic, f:String, v:Dynamic):Null<Dynamic>
-  {
-    if (o == null) error(ENullObjectReference(f));
-
-    var oCls:String = Util.getTypeNameOf(o);
-    #if hl oCls = oCls.replace('$', ''); #end
-
-    #if POLYMOD_STRICT_SYNTAX
-    if (!checkPrivateAccess(o, f))
-    {
-      error(EPrivateField(f));
-      return null;
-    }
-    #end
-
-    // Check if the field is a blacklisted static field.
-    if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
-    {
-      Polymod.error(SCRIPTED_CLASS_BLACKLISTED_FIELD, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
-      return null;
-    }
-
-    // If not, check if it is a blacklisted instance field.
-    if (oCls.length > 0 && oCls != 'Object')
-    {
-      if (PolymodScriptClass.blacklistedInstanceFieldsOf(oCls).contains(f))
-      {
-        Polymod.error(SCRIPTED_CLASS_BLACKLISTED_FIELD, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
-        return null;
-      }
-    }
-
-    // Check for script class blacklisted.
-    var oScriptCls:Null<String> = Util.getScriptClassName(o);
-    if (oScriptCls != null && ((PolymodScriptClass.blacklistedScriptClassStaticFields.get(oScriptCls)?.contains(f) ?? false)
-      || (PolymodScriptClass.blacklistedScriptClassInstanceFields.get(oScriptCls)?.contains(f) ?? false)))
-    {
-      error(EBlacklistedField(f));
-      return null;
-    }
-
-    // Otherwise, we assume the field is fine to use.
-    if (Std.isOfType(o, PolymodStaticAbstractReference))
-    {
-      var ref:PolymodStaticAbstractReference = cast(o, PolymodStaticAbstractReference);
-
-      try
-      {
-        return ref.setField(f, v);
-      }
-      catch (e:Dynamic)
-      {
-        error(EInvalidAccess(f));
-      }
-    }
-    else if (Std.isOfType(o, PolymodStaticClassReference))
-    {
-      var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
-
-      try
-      {
-        return ref.setField(f, v);
-      }
-      catch (e:Dynamic)
-      {
-        error(EInvalidAccess(f));
-      }
-    }
-    else if (Std.isOfType(o, PolymodScriptClass))
-    {
-      var proxy:PolymodAbstractScriptClass = cast(o, PolymodScriptClass);
-      if (proxy.fieldExists(f))
-      {
-        return proxy.fieldWrite(f, v);
-      }
-      else if (proxy.superClass != null && proxy.superHasField(f))
-      {
-        if (Std.isOfType(proxy.superClass, PolymodScriptClass))
-        {
-          var superClass:PolymodAbstractScriptClass = cast(proxy.superClass, PolymodScriptClass);
-          return superClass.fieldWrite(f, v);
-        }
-
-        set(proxy.superClass, f, v);
-      }
-      else
-      {
-        error(EUnknownVariable(f));
-      }
-      return v;
-    }
-    else if (isHScriptedClass(o))
-    {
-      if (o.scriptSet != null)
-      {
-        return o.scriptSet(f, v);
-      }
-
-      error(EInvalidScriptedVarSet(f));
-    }
-
-    #if js
-    if (Std.isOfType(o, Class) && Reflect.hasField(o, f))
-    {
-      untyped o[f] = v;
-      return v;
-    }
-    #end
-
-    try
-    {
-      PolymodAbstractScriptClass.setClassObjectField(o, f, v);
-    }
-    catch (e)
-    {
-      if (e.message.startsWith('Cannot set final '))
-      {
-        error(EInvalidFinalSet(f));
-      }
-      else if (e.message.startsWith('Cannot set private '))
-      {
-        error(EInvalidPropSet(f));
-      }
-      else
-      {
-        error(EInvalidAccess(f));
-      }
-    }
-    return v;
-  }
-
-  /**
-   * Checks to see if the given class is deprecated and warns the user if so.
-   * @param cls The class to check. If this is deprecated as well it'll thrown an error.
-   */
-  public function checkTypeForDeprecation(cls:String):Void
-  {
-    if (!_deprecatedTypes.exists(cls) || _cachedDeprecatedTypes.contains(cls))
-      return;
-
-    var message:String = _deprecatedTypes.get(cls);
-
-    Polymod.warning(SCRIPTED_CLASS_FIELD_DEPRECATED, 'Type $cls is deprecated\n$message', SCRIPT_RUNTIME);
-
-    _cachedDeprecatedTypes.push(cls);
-  }
-
-  /**
-   * Checks to see if the given class is deprecated and warns the user if so.
-   * @param cls The class to check. If this is deprecated as well it'll thrown an error.
-   * @param f The field to check.
-   */
-  public function checkFieldForDeprecation(cls:String, f:String):Void
-  {
-    if (!_deprecatedFields.get(cls)?.exists(f) ?? false)
-      return;
-
-    // If we've already warned the user the field has been deprecated, don't warn them again.
-    if (_cachedDeprecatedFields.get(cls).contains(f))
-      return;
-
-    var message:String = _deprecatedFields.get(cls).get(f);
-
-    Polymod.warning(SCRIPTED_CLASS_FIELD_DEPRECATED, 'Field $f is deprecated\n$message', SCRIPT_RUNTIME);
-
-    var fields = _cachedDeprecatedFields.get(cls) ?? [];
-    fields.push(f);
-
-    _cachedDeprecatedFields.set(cls, fields);
+    return makeMap([], []);
   }
 }
 
