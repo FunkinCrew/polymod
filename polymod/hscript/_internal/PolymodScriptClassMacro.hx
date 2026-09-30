@@ -21,6 +21,14 @@ class PolymodScriptClassMacro
    */
   static inline final METADATA_RESOURCE_NAME:String = 'PolymodScriptClassMacro_METADATA';
 
+  static var _metadata:Dynamic = null;
+
+  #if macro
+  static var onGenerateCallbackRegistered:Bool = false;
+  static var onAfterTypingCallbackRegistered:Bool = false;
+  static var packageEntries:Map<String, Array<String>> = [];
+  #end
+
   /**
    * @return An expression containing a map of abstract classes to their implementations
    */
@@ -99,10 +107,6 @@ class PolymodScriptClassMacro
 
 
   #if macro
-  static var onGenerateCallbackRegistered:Bool = false;
-  static var onAfterTypingCallbackRegistered:Bool = false;
-  static var packageEntries:Map<String, Array<String>> = [];
-
   static function onGenerate(allTypes:Array<haxe.macro.Type>)
   {
     packageEntries.clear();
@@ -617,8 +621,6 @@ class PolymodScriptClassMacro
     }
   }
   #end
-
-  static var _metadata:Dynamic = null;
 
   static function fetchMetadata():Dynamic
   {

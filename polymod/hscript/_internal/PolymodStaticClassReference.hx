@@ -64,7 +64,7 @@ class PolymodStaticClassReference
    */
   public function instantiate(?args:Array<Dynamic>, constructor:Bool = true):Null<Dynamic>
   {
-    var asc:PolymodAbstractScriptClass = buildASC(args);
+    var asc:PolymodAbstractScriptClass = buildASC();
 
     if (asc == null)
     {
@@ -114,7 +114,7 @@ class PolymodStaticClassReference
    */
   public function buildASC(?args:Array<Dynamic>):PolymodAbstractScriptClass
   {
-    return new PolymodScriptClass(cls, args);
+    return new PolymodScriptClass(cls);
   }
 
   /**
