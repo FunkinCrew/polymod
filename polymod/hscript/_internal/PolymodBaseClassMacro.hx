@@ -31,6 +31,12 @@ class PolymodBaseClassMacro
   public static final CPPIA_EXTENDABLE_META:String = ':hscriptExtendable';
 
   /**
+   * A metadata added to the root classes which received the `_asc` field.
+   * This lets subclasses check for the field without retrieving the fields of their superclasses.
+   */
+  public static final ASC_ROOT_META:String = ':hscriptAscRoot';
+
+  /**
    * A list of package name prefixes for which this macro should not be executed.
    */
   public static final PACKAGE_FILTERS:Array<String> = ['polymod.', 'hxd.', 'hl.'];
@@ -42,35 +48,26 @@ class PolymodBaseClassMacro
 
   public static function buildBaseClass():Array<Field>
   {
-    var cls:ClassType = null;
-    var pos:Position = Context.currentPos();
+    var localClass:Null<Ref<ClassType>> = Context.getLocalClass();
 
-    try
-    {
-      cls = Context.getLocalClass().get();
-    }
-    catch (e)
-    {
-      // Building wasn't called from a class; skip.
-      return null;
-    }
+    // Building wasn't called from a class; skip.
+    if (localClass == null) return null;
+
+    var cls:ClassType = localClass.get();
+    var pos:Position = Context.currentPos();
 
     // Make sure the macro doesn't run twice on the class.
     if (cls.meta.has(PROCESS_FINISHED_META)) return null;
     cls.meta.add(PROCESS_FINISHED_META, [], pos);
 
-    // Remove `inline` from function calls, since functions pointing towards `_asc` don't have a final return.
-    var fields:Array<Field> = Context.getBuildFields().copy();
-    removeInlinedFunctionCalls(fields);
-
     // Omit being able to extend some classes.
-    if (cls.isInterface || cls.isAbstract || cls.isExtern || cls.isFinal) return fields;
+    if (cls.isInterface || cls.isAbstract || cls.isExtern || cls.isFinal) return null;
 
     // Exclude classes that start with an underscore, as they indicate classes that were created through compilation from parameters.
-    if (cls.name.startsWith('_') || (cls.pack.length > 0 && cls.pack[cls.pack.length - 1].startsWith('_'))) return fields;
+    if (cls.name.startsWith('_') || (cls.pack.length > 0 && cls.pack[cls.pack.length - 1].startsWith('_'))) return null;
 
     // Disallow generic classes, as they mess with this macro.
-    if (!HaxeType.enumEq(cls.kind, KNormal)) return fields;
+    if (!HaxeType.enumEq(cls.kind, KNormal)) return null;
 
     // If a class has type parameters but without any constraints (default values), it wouldn't be possible to extend them on runtime.
     for (param in cls.params)
@@ -81,7 +78,7 @@ class PolymodBaseClassMacro
           switch (classType.kind)
           {
             case KTypeParameter(c) if (c.length == 0):
-              return fields;
+              return null;
             default:
           }
         default:
@@ -89,22 +86,26 @@ class PolymodBaseClassMacro
     }
 
     // Core api classes require type which can't be specified on runtime.
-    if (cls.meta.has(':coreApi')) return fields;
+    if (cls.meta.has(':coreApi')) return null;
 
     // Classes specified to act as anonymous structures shouldn't be extended.
-    if (cls.meta.has(':structInit')) return fields;
+    if (cls.meta.has(':structInit')) return null;
 
     // :nativeGen makes the class get treated as an extern, so it shouldn't be extended.
-    if (cls.meta.has(':nativeGen')) return fields;
+    if (cls.meta.has(':nativeGen')) return null;
 
     var fullClsName:String = formatClassString(cls);
     // Disallow extending certain classes.
     for (filter in PACKAGE_FILTERS)
     {
-      if (fullClsName.indexOf(filter) == 0) return fields;
+      if (fullClsName.indexOf(filter) == 0) return null;
     }
 
-    if (Context.defined('cppia') && !isHostClass(fullClsName) && !cls.meta.has(CPPIA_EXTENDABLE_META)) return fields;
+    if (Context.defined('cppia') && !isHostClass(fullClsName) && !cls.meta.has(CPPIA_EXTENDABLE_META)) return null;
+
+    // Fields are only retrieved once the class is known to be extendable.
+    // Skipped classes return `null` (no changes), which is much cheaper than resubmitting their unchanged fields.
+    var fields:Array<Field> = Context.getBuildFields();
 
     // Check if a class already has one of the fields needed for the scripts before attempting to build fields.
     // We only need to check (and add) instance fields if a class doesn't extend anything, considering extending classes inherit them.
@@ -137,7 +138,7 @@ class PolymodBaseClassMacro
           'PolymodBaseClassMacro: Couldn\'t build hscript fields for the class $fullClsName since it already has the static field ${fld.name}.',
           pos
         );
-        return fields;
+        return null;
       }
       else if (cls.superClass == null && neededInstFields.contains(fld.name))
       {
@@ -145,13 +146,14 @@ class PolymodBaseClassMacro
           'PolymodBaseClassMacro: Couldn\'t build hscript fields for the class $fullClsName since it already has the instance field ${fld.name}.',
           pos
         );
-        return fields;
+        return null;
       }
     }
 
     // Build the hscript needed fields.
     fields = fields.concat(buildBaseClassInstanceFields(cls));
     fields = fields.concat(buildBaseClassStaticFields(cls));
+    if (cls.superClass == null) cls.meta.add(ASC_ROOT_META, [], pos);
 
     // Override the functions now since the `_asc` field was generated.
     overrideBaseFunctions(cls, fields, neededInstFields);
@@ -173,7 +175,7 @@ class PolymodBaseClassMacro
     if (Context.defined('display')) return;
 
     // Don't override anything if the class (or the superclass) doesn't have the _asc field.
-    if (cls.findField('_asc') == null && ![for (f in fields) f.name].contains('_asc')) return;
+    if (!hasAscField(cls)) return;
 
     for (i in 0...fields.length)
     {
@@ -238,50 +240,17 @@ class PolymodBaseClassMacro
             doesReturnVoid = (f.ret.toString() == 'Void');
           }
 
+          var callExpr:Expr = macro polymod.hscript.PolymodScriptBridge.callOn(scriptCls, $v{fields[i].name}, [$a{argExprs}]);
+          var scriptCallExpr:Expr = doesReturnVoid ? callExpr : (macro return cast $callExpr);
+
+          // This is generated for every function of every class, so keep it small; the script lookup happens in the bridge.
+          // The original body goes in an `else` branch with no `return` inside a loop, so the function can still be inlined at call sites.
           var oldPos:haxe.macro.Expr.Position = f.expr.pos;
-          f.expr = useBridge() ? (macro
+          f.expr = macro
             {
-              var skipAscFrom:Null<Array<String>> = _skipAscFrom;
-              if (_asc != null && (skipAscFrom == null || !skipAscFrom.contains($v{fields[i].name})))
-              {
-                var scriptCls:Dynamic = polymod.hscript.PolymodScriptBridge.findScript(_asc, $v{fields[i].name});
-                if (scriptCls != null) $
-                {
-                  doesReturnVoid ? (macro
-                    {
-                      polymod.hscript.PolymodScriptBridge.callOn(scriptCls, $v{fields[i].name}, [$a{argExprs}]);
-                      return;
-                    }) : (macro return cast polymod.hscript.PolymodScriptBridge.callOn(scriptCls, $v{fields[i].name}, [$a{argExprs}]))
-                }
-              }
-
-              // Fallback, call the original function.
-              ${f.expr}
-            }) : (macro
-            {
-              var skipAscFrom:Null<Array<String>> = _skipAscFrom;
-              if (_asc != null && (skipAscFrom == null || !skipAscFrom.contains($v{fields[i].name})))
-              {
-                var cls:Dynamic = _asc;
-                while (cls != null && cls is polymod.hscript._internal.PolymodScriptClass)
-                {
-                  var scriptCls = (cls : polymod.hscript._internal.PolymodScriptClass);
-                  if (scriptCls.hasScriptFunction($v{fields[i].name})) $
-                  {
-                    doesReturnVoid ? (macro
-                      {
-                        scriptCls.callFunction($v{fields[i].name}, [$a{argExprs}]);
-                        return;
-                      }) : (macro return cast scriptCls.callFunction($v{fields[i].name}, [$a{argExprs}]))
-                  }
-
-                  cls = cls.superClass;
-                }
-              }
-
-              // Fallback, call the original function.
-              ${f.expr}
-            });
+              var scriptCls:Dynamic = (_asc == null) ? null : polymod.hscript.PolymodScriptBridge.findOverride(_asc, _skipAscFrom, $v{fields[i].name});
+              if (scriptCls != null) $scriptCallExpr else ${f.expr}
+            };
 
           f.expr.pos = oldPos;
 
@@ -289,6 +258,21 @@ class PolymodBaseClassMacro
           // Do nothing.
       }
     }
+  }
+
+  /**
+   * Checks whether the class has the `_asc` field, either generated for it or inherited from a superclass.
+   * `_asc` is only generated on root classes, which get marked with `ASC_ROOT_META`.
+   * Retrieving the superclass fields instead (like `findField` does) forces them to be typed during this build, which is slow.
+   * @param cls The class to check.
+   */
+  static function hasAscField(cls:ClassType):Bool
+  {
+    var rootCls:ClassType = cls;
+    while (rootCls.superClass != null)
+      rootCls = rootCls.superClass.t.get();
+
+    return rootCls.meta.has(ASC_ROOT_META);
   }
 
   /**
@@ -584,50 +568,12 @@ class PolymodBaseClassMacro
           }
         ],
         ret: macro :Null<$complexType>,
-        expr: useBridge() ? (macro
+        // The whole of this lives in the bridge, so a script names neither the class reference nor the error reporter.
+        // This also keeps the code generated for every class small.
+        expr: macro
         {
-          // The whole of this lives in the bridge, so a script names neither the class
-          // reference nor the error reporter.
-          return cast polymod.hscript.PolymodScriptBridge.instantiate(clsName, $v{underlyingClass}, (cast args) ?? []);
-        }) : (macro
-        {
-          var clsRef = polymod.hscript._internal.PolymodStaticClassReference.tryBuild(clsName);
-
-          if (clsRef == null)
-          {
-            polymod.Polymod.error(
-              SCRIPT_RUNTIME_EXCEPTION,
-              'Could not construct instance of scripted class (${clsName} extends ' + $v{underlyingClass} + ')\nUnknown error building class reference',
-              SCRIPT_RUNTIME
-            );
-            return null;
-          }
-
-          try
-          {
-            var result = clsRef.instantiate((cast args) ?? []);
-            if (result == null)
-            {
-              polymod.Polymod.error(
-                SCRIPT_RUNTIME_EXCEPTION,
-                'Could not construct instance of scripted class (${clsName} extends ' + $v{underlyingClass} + '):\nUnknown error instantiating class',
-                SCRIPT_RUNTIME
-              );
-              return null;
-            }
-
-            return result;
-          }
-          catch (error)
-          {
-            polymod.Polymod.error(
-              SCRIPT_RUNTIME_EXCEPTION,
-              'Could not construct instance of scripted class (${clsName} extends ' + $v{underlyingClass} + '):\n${error}',
-              SCRIPT_RUNTIME
-            );
-            return null;
-          }
-        }),
+          return cast polymod.hscript.PolymodScriptBridge.instantiate(clsName, $v{underlyingClass}, cast args);
+        },
       }),
     }
 
@@ -794,11 +740,6 @@ class PolymodBaseClassMacro
   }
 
   /**
-   * Goes over the function expressions and removes `inline` from them. This is because inlining a function call requires said function
-   * to only have a single return, however due to how script extending works, this is no longer a guarantee.
-   * @param fields  The fields whose function expressions to check and modify.
-   */
-  /**
    * The classes the host binary already carries, read from the `dll_import` file hxcpp is given.
    */
   static var hostClasses:Null<Map<String, Bool>> = null;
@@ -825,33 +766,6 @@ class PolymodBaseClassMacro
     }
 
     return hostClasses.exists(clsName);
-  }
-
-  static function removeInlinedFunctionCalls(fields:Array<Field>):Void
-  {
-    // This is a heavy operation and isn't needed to be done during code completion.
-    if (Context.defined('display')) return;
-
-    function removeInlines(expr:Expr):Expr
-    {
-      return switch (expr.expr)
-      {
-        case EMeta(s, e) if (s.name == ':inline'):
-          e;
-        default:
-          expr.map(removeInlines);
-      }
-    }
-
-    for (fld in fields)
-    {
-      switch (fld.kind)
-      {
-        case FFun(f) if (f.expr != null):
-          f.expr = f.expr.map(removeInlines);
-        default: // Do nothing.
-      }
-    }
   }
 
   /**
