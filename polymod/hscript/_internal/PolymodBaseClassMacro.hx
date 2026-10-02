@@ -59,9 +59,7 @@ class PolymodBaseClassMacro
     if (cls.meta.has(PROCESS_FINISHED_META)) return null;
     cls.meta.add(PROCESS_FINISHED_META, [], pos);
 
-    // Remove `inline` from function calls, since functions pointing towards `_asc` don't have a final return.
     var fields:Array<Field> = Context.getBuildFields().copy();
-    removeInlinedFunctionCalls(fields);
 
     // Omit being able to extend some classes.
     if (cls.isInterface || cls.isAbstract || cls.isExtern || cls.isFinal) return fields;
@@ -761,11 +759,6 @@ class PolymodBaseClassMacro
   }
 
   /**
-   * Goes over the function expressions and removes `inline` from them. This is because inlining a function call requires said function
-   * to only have a single return, however due to how script extending works, this is no longer a guarantee.
-   * @param fields  The fields whose function expressions to check and modify.
-   */
-  /**
    * The classes the host binary already carries, read from the `dll_import` file hxcpp is given.
    */
   static var hostClasses:Null<Map<String, Bool>> = null;
@@ -792,33 +785,6 @@ class PolymodBaseClassMacro
     }
 
     return hostClasses.exists(clsName);
-  }
-
-  static function removeInlinedFunctionCalls(fields:Array<Field>):Void
-  {
-    // This is a heavy operation and isn't needed to be done during code completion.
-    if (Context.defined('display')) return;
-
-    function removeInlines(expr:Expr):Expr
-    {
-      return switch (expr.expr)
-      {
-        case EMeta(s, e) if (s.name == ':inline'):
-          e;
-        default:
-          expr.map(removeInlines);
-      }
-    }
-
-    for (fld in fields)
-    {
-      switch (fld.kind)
-      {
-        case FFun(f) if (f.expr != null):
-          f.expr = f.expr.map(removeInlines);
-        default: // Do nothing.
-      }
-    }
   }
 
   /**
