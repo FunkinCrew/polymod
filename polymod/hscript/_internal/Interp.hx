@@ -76,17 +76,11 @@ class Interp
   public var variables:Map<String, Dynamic>;
   public var functions:Map<String, Dynamic>;
   var currentFunction:Null<String> = null;
-  var locals:Map<String,
-    {r:Dynamic, ?isfinal:Bool}>;
+  var locals:Map<String, LocalVar>;
   var binops:Map<String, Expr->Expr->Dynamic>;
   var depth:Int;
   var inTry:Bool;
-  var declared:Array<
-    {
-      n:String,
-      old:
-        {r:Dynamic, ?isfinal:Bool}
-    }>;
+  var declared:Array<{n:String, old:LocalVar}>;
   var returnValue:Dynamic;
   #if hscriptPos
   var curExpr:Expr;
@@ -1993,10 +1987,6 @@ class Interp
             return s;
         }
       case EIdent(id):
-        // Switch case wildcards are the switch value itself.
-        if (id == '_' && inSwitchCase)
-        return curSwitchValue;
-
         // When resolving a variable, check if it is a property with a getter, and call it if necessary.
         @:privateAccess
         {
@@ -2448,7 +2438,7 @@ class Interp
 
         if (Std.isOfType(val, PolymodEnum))
         {
-          curSwitchValue = val._value;
+          curSwitchValue = val.value;
 
           var old:Int = declared.length;
           var match = false;
@@ -2481,9 +2471,9 @@ class Interp
                   default: null;
                 };
 
-                if (val._value == constName)
+                if (val.value == constName)
                 {
-                  eVal = Reflect.callMethod(val, expr(e), val._args);
+                  eVal = Reflect.callMethod(val, expr(e), val.args);
                   if (eVal is PolymodEnum)
                   {
                     for (i => p in params)
@@ -2498,7 +2488,7 @@ class Interp
                             }
                           });
                           locals.set(n, {
-                            r: val._args[i]
+                            r: val.args[i]
                           });
                         default:
                       }
@@ -2511,7 +2501,7 @@ class Interp
 
                   eVal = expr(v);
 
-                  if (eVal is PolymodEnum && val._value == eVal._value)
+                  if (eVal is PolymodEnum && val.value == eVal.value)
                   {
                     match = true;
                     break;
@@ -2525,7 +2515,7 @@ class Interp
 
                   eVal = expr(v);
 
-                  if (eVal is PolymodEnum && val._value == eVal._value)
+                  if (eVal is PolymodEnum && val.value == eVal.value)
                   {
                     match = true;
                     break;
@@ -2619,6 +2609,45 @@ class Interp
                   }
 
                 default:
+                  // Further evaluation for wildcards and custom case pattern checking.
+                  switch (Tools.expr(v))
+                  {
+                    case EIdent(v):
+                      // We'll be setting a local variable that's the same as the switch value.
+                      if (val is Array && v != '_')
+                      {
+                        // Throw an error as to match errors with wildcards you HAVE to use `_`
+                        error(ECustom('Cannot bind matched tuple to variable "$v", use "_" instead'));
+                        return null;
+                      }
+                      locals.set(v, {r: val});
+                    case EArrayDecl(_), EObject(_):
+                      // We call a separate function for handling these.
+                      // There's a chance we have an array inside this array so we do this to allow for recursion.
+                      var matchVal = evalSwitchObject(v, val);
+                      if (matchVal.match)
+                      {
+                        // We have an array match!
+                        // Make sure to add all of the possible wildcards into the local scope temporarily.
+                        for (k => local in matchVal.locals)
+                        {
+                          declared.push({
+                            n: k,
+                            old: locals.get(k),
+                          });
+
+                          locals.set(k, {r: local.r, isfinal: local.isfinal ?? false});
+                        }
+                        match = true;
+                        break;
+                      }
+                      else
+                      {
+                        // We were declaring local vars while evaluating, make sure to restore.
+                        restore(old);
+                      }
+                    default:
+                  }
                   var caseVal = expr(v);
                   if ((caseVal is Bool && caseVal) || caseVal == val)
                   {
@@ -2631,6 +2660,8 @@ class Interp
             {
               inSwitchCase = false;
               val = expr(c.expr);
+
+              restore(old);
               break;
             }
           }
@@ -2826,6 +2857,98 @@ class Interp
     var a = new Array();
     for (e in entries) a.push(expr(e));
     return a;
+  }
+
+  function evalSwitchObject(e:Expr, val:Dynamic, ?localBindings:Map<String, LocalVar>):{match:Bool, ?locals:Map<String, LocalVar>}
+  {
+    var isObject:Bool = false;
+    var arrayExpr:Array<Expr> = [];
+    var objects:Array<{name:String, e:Expr}> = [];
+    var length:Int = 0;
+
+    switch (Tools.expr(e))
+    {
+      case EArrayDecl(entries):
+        arrayExpr = entries.copy();
+        length = entries.length;
+
+        if (!(val is Array && val.length == entries.length))
+          return {match: false};
+      case EObject(fl):
+        isObject = true;
+        objects = fl.copy();
+        length = fl.length;
+
+        if (!Reflect.isObject(val))
+          return {match: false, locals: []};
+      default:
+    }
+
+    // Ditto above but instead for named objects.
+    var localBounds:Map<String, LocalVar> = [];
+    for (k => v in localBindings ?? [])
+      localBounds.set(k, v);
+
+    function setLocalVar(name:String, v:Dynamic):Void
+    {
+      if (localBounds.exists(name))
+      {
+        error(ECustom('Variable "$v" is bound multiple times'));
+      }
+      else if (name != '_')
+      {
+        // This is a bound wildcard variable.
+        // We'll add it to the local scope for if the user continues to use it inside the match case.
+        localBounds.set(name, {r: v});
+        locals.set(name, {r: v});
+      }
+    }
+
+    for (i in 0...length)
+    {
+      var indexVal:Dynamic = null;
+      var e:Expr = null;
+      if (isObject)
+      {
+        var name:String = objects[i].name;
+        indexVal = Reflect.field(val, name);
+        e = objects[i].e;
+      }
+      else
+      {
+        indexVal = val[i];
+        e = arrayExpr[i];
+      }
+      switch (Tools.expr(e))
+      {
+        case EIdent(v):
+          setLocalVar(v, indexVal);
+        case EArrayDecl(entries):
+          var result = evalSwitchObject(e, indexVal, localBounds);
+          if (!result.match)
+            return {match: false}
+
+          // Retrieve the local var bindings from the array val.
+          for (k => v in result.locals ?? [])
+            setLocalVar(k, v.r);
+
+        case EObject(fl):
+          var result = evalSwitchObject(e, indexVal, localBounds);
+          if (!result.match)
+            return {match: false};
+
+          // Retrieve the local var bindings from the object val.
+          for (k => v in result.locals ?? [])
+            setLocalVar(k, v.r);
+
+        default:
+          if (indexVal != expr(e))
+          {
+            return {match: false};
+          }
+      }
+    }
+    return {match: true, locals: localBounds};
   }
 
   /**
@@ -4855,6 +4978,11 @@ class Interp
   }
 }
 
+typedef LocalVar =
+{
+  var r:Dynamic;
+  var ?isfinal:Bool;
+}
 private class ArrayIterator<T>
 {
   var a:Array<T>;
