@@ -31,6 +31,12 @@ class PolymodBaseClassMacro
   public static final CPPIA_EXTENDABLE_META:String = ':hscriptExtendable';
 
   /**
+   * A metadata added to the root classes which received the `_asc` field.
+   * This lets subclasses check for the field without retrieving the fields of their superclasses.
+   */
+  public static final ASC_ROOT_META:String = ':hscriptAscRoot';
+
+  /**
    * A list of package name prefixes for which this macro should not be executed.
    */
   public static final PACKAGE_FILTERS:Array<String> = ['polymod.', 'hxd.', 'hl.'];
@@ -147,6 +153,7 @@ class PolymodBaseClassMacro
     // Build the hscript needed fields.
     fields = fields.concat(buildBaseClassInstanceFields(cls));
     fields = fields.concat(buildBaseClassStaticFields(cls));
+    if (cls.superClass == null) cls.meta.add(ASC_ROOT_META, [], pos);
 
     // Override the functions now since the `_asc` field was generated.
     overrideBaseFunctions(cls, fields, neededInstFields);
@@ -168,7 +175,7 @@ class PolymodBaseClassMacro
     if (Context.defined('display')) return;
 
     // Don't override anything if the class (or the superclass) doesn't have the _asc field.
-    if (cls.findField('_asc') == null && ![for (f in fields) f.name].contains('_asc')) return;
+    if (!hasAscField(cls)) return;
 
     for (i in 0...fields.length)
     {
@@ -251,6 +258,21 @@ class PolymodBaseClassMacro
           // Do nothing.
       }
     }
+  }
+
+  /**
+   * Checks whether the class has the `_asc` field, either generated for it or inherited from a superclass.
+   * `_asc` is only generated on root classes, which get marked with `ASC_ROOT_META`.
+   * Retrieving the superclass fields instead (like `findField` does) forces them to be typed during this build, which is slow.
+   * @param cls The class to check.
+   */
+  static function hasAscField(cls:ClassType):Bool
+  {
+    var rootCls:ClassType = cls;
+    while (rootCls.superClass != null)
+      rootCls = rootCls.superClass.t.get();
+
+    return rootCls.meta.has(ASC_ROOT_META);
   }
 
   /**
