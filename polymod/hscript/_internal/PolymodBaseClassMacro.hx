@@ -42,33 +42,26 @@ class PolymodBaseClassMacro
 
   public static function buildBaseClass():Array<Field>
   {
-    var cls:ClassType = null;
-    var pos:Position = Context.currentPos();
+    var localClass:Null<Ref<ClassType>> = Context.getLocalClass();
 
-    try
-    {
-      cls = Context.getLocalClass().get();
-    }
-    catch (e)
-    {
-      // Building wasn't called from a class; skip.
-      return null;
-    }
+    // Building wasn't called from a class; skip.
+    if (localClass == null) return null;
+
+    var cls:ClassType = localClass.get();
+    var pos:Position = Context.currentPos();
 
     // Make sure the macro doesn't run twice on the class.
     if (cls.meta.has(PROCESS_FINISHED_META)) return null;
     cls.meta.add(PROCESS_FINISHED_META, [], pos);
 
-    var fields:Array<Field> = Context.getBuildFields().copy();
-
     // Omit being able to extend some classes.
-    if (cls.isInterface || cls.isAbstract || cls.isExtern || cls.isFinal) return fields;
+    if (cls.isInterface || cls.isAbstract || cls.isExtern || cls.isFinal) return null;
 
     // Exclude classes that start with an underscore, as they indicate classes that were created through compilation from parameters.
-    if (cls.name.startsWith('_') || (cls.pack.length > 0 && cls.pack[cls.pack.length - 1].startsWith('_'))) return fields;
+    if (cls.name.startsWith('_') || (cls.pack.length > 0 && cls.pack[cls.pack.length - 1].startsWith('_'))) return null;
 
     // Disallow generic classes, as they mess with this macro.
-    if (!HaxeType.enumEq(cls.kind, KNormal)) return fields;
+    if (!HaxeType.enumEq(cls.kind, KNormal)) return null;
 
     // If a class has type parameters but without any constraints (default values), it wouldn't be possible to extend them on runtime.
     for (param in cls.params)
@@ -79,7 +72,7 @@ class PolymodBaseClassMacro
           switch (classType.kind)
           {
             case KTypeParameter(c) if (c.length == 0):
-              return fields;
+              return null;
             default:
           }
         default:
@@ -87,22 +80,26 @@ class PolymodBaseClassMacro
     }
 
     // Core api classes require type which can't be specified on runtime.
-    if (cls.meta.has(':coreApi')) return fields;
+    if (cls.meta.has(':coreApi')) return null;
 
     // Classes specified to act as anonymous structures shouldn't be extended.
-    if (cls.meta.has(':structInit')) return fields;
+    if (cls.meta.has(':structInit')) return null;
 
     // :nativeGen makes the class get treated as an extern, so it shouldn't be extended.
-    if (cls.meta.has(':nativeGen')) return fields;
+    if (cls.meta.has(':nativeGen')) return null;
 
     var fullClsName:String = formatClassString(cls);
     // Disallow extending certain classes.
     for (filter in PACKAGE_FILTERS)
     {
-      if (fullClsName.indexOf(filter) == 0) return fields;
+      if (fullClsName.indexOf(filter) == 0) return null;
     }
 
-    if (Context.defined('cppia') && !isHostClass(fullClsName) && !cls.meta.has(CPPIA_EXTENDABLE_META)) return fields;
+    if (Context.defined('cppia') && !isHostClass(fullClsName) && !cls.meta.has(CPPIA_EXTENDABLE_META)) return null;
+
+    // Fields are only retrieved once the class is known to be extendable.
+    // Skipped classes return `null` (no changes), which is much cheaper than resubmitting their unchanged fields.
+    var fields:Array<Field> = Context.getBuildFields();
 
     // Check if a class already has one of the fields needed for the scripts before attempting to build fields.
     // We only need to check (and add) instance fields if a class doesn't extend anything, considering extending classes inherit them.
@@ -135,7 +132,7 @@ class PolymodBaseClassMacro
           'PolymodBaseClassMacro: Couldn\'t build hscript fields for the class $fullClsName since it already has the static field ${fld.name}.',
           pos
         );
-        return fields;
+        return null;
       }
       else if (cls.superClass == null && neededInstFields.contains(fld.name))
       {
@@ -143,7 +140,7 @@ class PolymodBaseClassMacro
           'PolymodBaseClassMacro: Couldn\'t build hscript fields for the class $fullClsName since it already has the instance field ${fld.name}.',
           pos
         );
-        return fields;
+        return null;
       }
     }
 
