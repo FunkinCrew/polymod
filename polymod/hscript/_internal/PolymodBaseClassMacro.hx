@@ -238,50 +238,17 @@ class PolymodBaseClassMacro
             doesReturnVoid = (f.ret.toString() == 'Void');
           }
 
+          var callExpr:Expr = macro polymod.hscript.PolymodScriptBridge.callOn(scriptCls, $v{fields[i].name}, [$a{argExprs}]);
+          var scriptCallExpr:Expr = doesReturnVoid ? callExpr : (macro return cast $callExpr);
+
+          // This is generated for every function of every class, so keep it small; the script lookup happens in the bridge.
+          // The original body goes in an `else` branch with no `return` inside a loop, so the function can still be inlined at call sites.
           var oldPos:haxe.macro.Expr.Position = f.expr.pos;
-          f.expr = useBridge() ? (macro
+          f.expr = macro
             {
-              var skipAscFrom:Null<Array<String>> = _skipAscFrom;
-              if (_asc != null && (skipAscFrom == null || !skipAscFrom.contains($v{fields[i].name})))
-              {
-                var scriptCls:Dynamic = polymod.hscript.PolymodScriptBridge.findScript(_asc, $v{fields[i].name});
-                if (scriptCls != null) $
-                {
-                  doesReturnVoid ? (macro
-                    {
-                      polymod.hscript.PolymodScriptBridge.callOn(scriptCls, $v{fields[i].name}, [$a{argExprs}]);
-                      return;
-                    }) : (macro return cast polymod.hscript.PolymodScriptBridge.callOn(scriptCls, $v{fields[i].name}, [$a{argExprs}]))
-                }
-              }
-
-              // Fallback, call the original function.
-              ${f.expr}
-            }) : (macro
-            {
-              var skipAscFrom:Null<Array<String>> = _skipAscFrom;
-              if (_asc != null && (skipAscFrom == null || !skipAscFrom.contains($v{fields[i].name})))
-              {
-                var cls:Dynamic = _asc;
-                while (cls != null && cls is polymod.hscript._internal.PolymodScriptClass)
-                {
-                  var scriptCls = (cls : polymod.hscript._internal.PolymodScriptClass);
-                  if (scriptCls.hasScriptFunction($v{fields[i].name})) $
-                  {
-                    doesReturnVoid ? (macro
-                      {
-                        scriptCls.callFunction($v{fields[i].name}, [$a{argExprs}]);
-                        return;
-                      }) : (macro return cast scriptCls.callFunction($v{fields[i].name}, [$a{argExprs}]))
-                  }
-
-                  cls = cls.superClass;
-                }
-              }
-
-              // Fallback, call the original function.
-              ${f.expr}
-            });
+              var scriptCls:Dynamic = (_asc == null) ? null : polymod.hscript.PolymodScriptBridge.findOverride(_asc, _skipAscFrom, $v{fields[i].name});
+              if (scriptCls != null) $scriptCallExpr else ${f.expr}
+            };
 
           f.expr.pos = oldPos;
 
