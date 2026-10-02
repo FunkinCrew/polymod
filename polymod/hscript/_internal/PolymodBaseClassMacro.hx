@@ -568,50 +568,12 @@ class PolymodBaseClassMacro
           }
         ],
         ret: macro :Null<$complexType>,
-        expr: useBridge() ? (macro
+        // The whole of this lives in the bridge, so a script names neither the class reference nor the error reporter.
+        // This also keeps the code generated for every class small.
+        expr: macro
         {
-          // The whole of this lives in the bridge, so a script names neither the class
-          // reference nor the error reporter.
-          return cast polymod.hscript.PolymodScriptBridge.instantiate(clsName, $v{underlyingClass}, (cast args) ?? []);
-        }) : (macro
-        {
-          var clsRef = polymod.hscript._internal.PolymodStaticClassReference.tryBuild(clsName);
-
-          if (clsRef == null)
-          {
-            polymod.Polymod.error(
-              SCRIPT_RUNTIME_EXCEPTION,
-              'Could not construct instance of scripted class (${clsName} extends ' + $v{underlyingClass} + ')\nUnknown error building class reference',
-              SCRIPT_RUNTIME
-            );
-            return null;
-          }
-
-          try
-          {
-            var result = clsRef.instantiate((cast args) ?? []);
-            if (result == null)
-            {
-              polymod.Polymod.error(
-                SCRIPT_RUNTIME_EXCEPTION,
-                'Could not construct instance of scripted class (${clsName} extends ' + $v{underlyingClass} + '):\nUnknown error instantiating class',
-                SCRIPT_RUNTIME
-              );
-              return null;
-            }
-
-            return result;
-          }
-          catch (error)
-          {
-            polymod.Polymod.error(
-              SCRIPT_RUNTIME_EXCEPTION,
-              'Could not construct instance of scripted class (${clsName} extends ' + $v{underlyingClass} + '):\n${error}',
-              SCRIPT_RUNTIME
-            );
-            return null;
-          }
-        }),
+          return cast polymod.hscript.PolymodScriptBridge.instantiate(clsName, $v{underlyingClass}, cast args);
+        },
       }),
     }
 
