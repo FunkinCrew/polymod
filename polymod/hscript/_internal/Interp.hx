@@ -85,8 +85,9 @@ class Interp
   #if hscriptPos
   var curExpr:Expr;
   #end
+  var inSwitchBinop:Bool = false;
   var inSwitchCase:Bool = false;
-  var curSwitchValue:Null<Dynamic>;
+  var curSwitchBinopValue:Null<Dynamic>;
 
   var inPrivateAccess:Bool = false;
   var inNoPrivateAccess:Bool = false;
@@ -1987,6 +1988,13 @@ class Interp
             return s;
         }
       case EIdent(id):
+        if (id == '_' && inSwitchBinop)
+        {
+          // We're currently in a binop switch expression.
+          // There's a chance a right-side function might try using this while evaluating expressions.
+          return curSwitchBinopValue;
+        }
+
         // When resolving a variable, check if it is a property with a getter, and call it if necessary.
         @:privateAccess
         {
@@ -2431,248 +2439,45 @@ class Interp
         return if (expr(econd) == true) expr(e1) else expr(e2);
       case ESwitch(e, cases, def):
         var val:Dynamic = expr(e);
-        var eVal:Dynamic = null;
 
-        var oldSwitchVal = curSwitchValue;
-        curSwitchValue = val;
-
-        if (Std.isOfType(val, PolymodEnum))
+        var old:Int = declared.length;
+        var match = false;
+        for (c in cases)
         {
-          curSwitchValue = val.value;
-
-          var old:Int = declared.length;
-          var match = false;
-          for (c in cases)
+          inSwitchCase = true;
+          for (v in c.values)
           {
-            // Continue to the next case if the guard for this one isn't met.
-            if (c.guard != null && !expr(c.guard))
-              continue;
-
-            inSwitchCase = true;
-            for (v in c.values)
+            if (evalSwitchCase(val, v, e))
             {
-              switch (Tools.expr(v))
-              {
-                case EBinop(op, e1, e2):
-                  if (op == '=>')
-                  {
-                    // We're dealing with a pattern matching case.
-                    if (expr(e1) == expr(e2))
-                    {
-                      match = true;
-                      break;
-                    }
-                  }
-                case ECall(e, params):
-                var constName:String = switch (Tools.expr(e))
-                {
-                  case EField(_, f): f;
-                  case EIdent(id): id;
-                  default: null;
-                };
-
-                if (val.value == constName)
-                {
-                  eVal = Reflect.callMethod(val, expr(e), val.args);
-                  if (eVal is PolymodEnum)
-                  {
-                    for (i => p in params)
-                    {
-                      switch (Tools.expr(p))
-                      {
-                        case EIdent(n):
-                          declared.push({
-                            n: n,
-                            old: {
-                              r: locals.get(n)
-                            }
-                          });
-                          locals.set(n, {
-                            r: val.args[i]
-                          });
-                        default:
-                      }
-                    }
-                    match = true;
-                    break;
-                  }
-                }
-                case EField(_, f):
-
-                  eVal = expr(v);
-
-                  if (eVal is PolymodEnum && val.value == eVal.value)
-                  {
-                    match = true;
-                    break;
-                  }
-                case EIdent(id):
-                  if (id == "_")
-                  {
-                    match = true;
-                    break;
-                  }
-
-                  eVal = expr(v);
-
-                  if (eVal is PolymodEnum && val.value == eVal.value)
-                  {
-                    match = true;
-                    break;
-                  }
-                default:
-              }
-            }
-            if (match)
-            {
-              inSwitchCase = false;
-              val = expr(c.expr);
+              match = true;
               break;
             }
           }
+
+          // Clear these as we shouldn't need this anymore.
+          // `_` is never supposed to be a local wildcard variable in expressions.
+          curSwitchBinopValue = null;
+          locals.remove('_');
+
+          // Continue to the next case if the guard for this one isn't met.
+          // We evaluate later to make sure any wildcard variables don't error.
+          if (c.guard != null && !expr(c.guard))
+            continue;
+
           inSwitchCase = false;
-          curSwitchValue = oldSwitchVal;
-
-          if (!match)
+          if (match)
           {
-            val = def == null ? null : expr(def);
+            val = expr(c.expr);
+
+            restore(old);
+            break;
           }
-          restore(old);
-
-          return val;
         }
-        else
-        {
-          var old:Int = declared.length;
-          var match = false;
-          for (c in cases)
-          {
-            // Continue to the next case if the guard for this one isn't met.
-            if (c.guard != null && !expr(c.guard))
-              continue;
 
-            inSwitchCase = true;
-            for (v in c.values)
-            {
-              switch (Tools.expr(v))
-              {
-                case EBinop(op, e1, e2):
-                  if (op == '=>')
-                  {
-                    // We're dealing with a pattern matching case.
-                    if (expr(e1) == expr(e2))
-                    {
-                      match = true;
-                      break;
-                    }
-                  }
-                case ECall(e, params) if (Reflect.isEnumValue(val)):
-                  var constName:String = switch (Tools.expr(e))
-                  {
-                    case EField(_, f): f;
-                    case EIdent(id): id;
-                    default: null;
-                  };
+        if (!match) val = def == null ? null : expr(def);
+        restore(old);
 
-                  var valConstructor:String = Type.enumConstructor(val);
-
-                  if (valConstructor == constName)
-                  {
-                    var valParams:Array<Dynamic> = Type.enumParameters(val);
-                    eVal = Reflect.callMethod(val, expr(e), valParams);
-
-                    if (Reflect.isEnumValue(eVal) && val == eVal)
-                    {
-                      if (valParams.length == params.length && params.length > 0)
-                      {
-                        for (i => p in params)
-                        {
-                          switch (Tools.expr(p))
-                          {
-                            case EIdent(n):
-                              declared.push({
-                                n: n,
-                                old: {
-                                  r: locals.get(n)
-                                }
-                              });
-                              locals.set(n, {
-                                r: valParams[i]
-                              });
-                            default:
-                          }
-                        }
-                        match = true;
-                        break;
-                      }
-                    }
-                  }
-
-                default:
-                  // Further evaluation for wildcards and custom case pattern checking.
-                  switch (Tools.expr(v))
-                  {
-                    case EIdent(v):
-                      // We'll be setting a local variable that's the same as the switch value.
-                      if (val is Array && v != '_')
-                      {
-                        // Throw an error as to match errors with wildcards you HAVE to use `_`
-                        error(ECustom('Cannot bind matched tuple to variable "$v", use "_" instead'));
-                        return null;
-                      }
-                      locals.set(v, {r: val});
-                    case EArrayDecl(_), EObject(_):
-                      // We call a separate function for handling these.
-                      // There's a chance we have an array inside this array so we do this to allow for recursion.
-                      var matchVal = evalSwitchObject(v, val);
-                      if (matchVal.match)
-                      {
-                        // We have an array match!
-                        // Make sure to add all of the possible wildcards into the local scope temporarily.
-                        for (k => local in matchVal.locals)
-                        {
-                          declared.push({
-                            n: k,
-                            old: locals.get(k),
-                          });
-
-                          locals.set(k, {r: local.r, isfinal: local.isfinal ?? false});
-                        }
-                        match = true;
-                        break;
-                      }
-                      else
-                      {
-                        // We were declaring local vars while evaluating, make sure to restore.
-                        restore(old);
-                      }
-                    default:
-                  }
-                  var caseVal = expr(v);
-                  if ((caseVal is Bool && caseVal) || caseVal == val)
-                  {
-                    match = true;
-                    break;
-                  }
-              }
-            }
-            if (match)
-            {
-              inSwitchCase = false;
-              val = expr(c.expr);
-
-              restore(old);
-              break;
-            }
-          }
-          inSwitchCase = false;
-          curSwitchValue = oldSwitchVal;
-
-          if (!match) val = def == null ? null : expr(def);
-          restore(old);
-
-          return val;
-        }
+        return val;
       case EMeta(name, args, e):
         switch (name)
         {
@@ -2859,6 +2664,193 @@ class Interp
     return a;
   }
 
+  function evalSwitchCase(val:Dynamic, v:Expr, ?valExpr:Expr):Bool
+  {
+    var isScriptEnum:Bool = val is PolymodEnum;
+    var isEnumValue:Bool = Reflect.isEnumValue(val) || isScriptEnum;
+
+    inSwitchBinop = false;
+    switch (Tools.expr(v))
+    {
+      case EParent(e):
+        if (evalSwitchCase(val, e, valExpr))
+          return true;
+      case EVar(v):
+        declared.push({
+          n: v,
+          old: locals.get(v),
+        });
+        locals.set(v, {r: val});
+
+        return true;
+      case EIdent(v) if (v != 'true' && v != 'false'):
+        if (isEnumValue)
+        {
+          // Check to see if this value's constructor is the same.
+          var valConstName:String = isScriptEnum ? val.value : Type.enumConstructor(val);
+          if (valConstName == v)
+          {
+            return true;
+          }
+        }
+
+        if (~/[A-Z]/.match(v.charAt(0)))
+        {
+          // Wildcard expressions need to start lowercase.
+          error(ECustom('pattern variable "$v" must be lower-case or with `var ` prefix'));
+          return false;
+        }
+
+        // We'll be setting a local variable that's the same as the switch value.
+        // This is a wildcard, so it's automatically a match.
+        if (val is Array && v != '_')
+        {
+          // Throw an error as to match errors with wildcards you HAVE to use `_`
+          error(ECustom('Cannot bind matched tuple to variable "$v", use "_" instead'));
+          return false;
+        }
+        else if (v != '_')
+        {
+          declared.push({
+            n: v,
+            old: locals.get(v)
+          });
+        }
+        locals.set(v, {r: val});
+
+        return true;
+      case EField(e, f) if (isScriptEnum):
+        var enumValue:Dynamic = expr(v);
+
+        // Special case checking for scripted enums as native enums should work fine.
+        if (enumValue is PolymodEnum && val.value == enumValue.value)
+          return true;
+      case EArrayDecl(_), EObject(_):
+        // There's a chance we have an array inside this array so we do this to allow for recursion.
+        var matchVal = evalSwitchObject(v, val);
+        if (matchVal.match)
+        {
+          // Make sure to add all of the possible wildcards into the local scope temporarily.
+          for (k => local in matchVal.locals)
+          {
+            if (k != '_')
+            {
+              declared.push({
+                n: k,
+                old: locals.get(k),
+              });
+            }
+            locals.set(k, local);
+          }
+          return true;
+        }
+      case ECall(e, params) if (isEnumValue):
+        var constName:String = switch (Tools.expr(e))
+        {
+          case EField(_, f): f;
+          case EIdent(id): id;
+          default: null;
+        }
+
+        var valConstructor:String = isScriptEnum ? val.value : Type.enumConstructor(val);
+        if (valConstructor == constName)
+        {
+          var enumParams:Array<Dynamic> = null;
+          if (isScriptEnum)
+            enumParams = (cast val : PolymodEnum).args.copy();
+          else
+            enumParams = Type.enumParameters(val);
+
+          // We call a method to double-check that this is an enum, this should return the same value if so.
+          var enumValue:Dynamic = Reflect.callMethod(val, expr(e), enumParams);
+          if ((Reflect.isEnumValue(enumValue) && val == enumValue) || (enumValue is PolymodEnum))
+          {
+            // Iterate through each parameter and check to make sure the values are the same.
+            for (i in 0...params.length)
+            {
+              var paramExpr:Expr = params[i];
+              var valParam:Dynamic = enumParams[i];
+              if (!evalSwitchCase(valParam, paramExpr,))
+              {
+                return false;
+              }
+            }
+            return true;
+          }
+          return false;
+        }
+      case EBinop(op, e1, e2):
+        inSwitchBinop = true;
+
+        // Evaluate the binop expression to get the switch value.
+        curSwitchBinopValue = evalSwitchBinop(e1);
+
+        if (op == '=>')
+        {
+          switch (Tools.expr(e2))
+          {
+            // Wildcard match, automatically return true.
+            case EIdent('_'):
+              return true;
+            default:
+              // We can actually just simply go back to using this since all other cases work well for this!
+              return evalSwitchCase(curSwitchBinopValue, valExpr);
+          }
+        }
+        else
+        {
+          var exprToUse:Expr = switch (Tools.expr(e2))
+          {
+            case EIdent('_'): valExpr;
+            default: e2;
+          }
+
+          var val2:Dynamic = expr(exprToUse);
+          return switch (op)
+          {
+            case '==': evalSwitchCase(curSwitchBinopValue, exprToUse);
+            case '!=': !evalSwitchCase(curSwitchBinopValue, exprToUse);
+            case '<':  curSwitchBinopValue < val2;
+            case '<=': curSwitchBinopValue <= val2;
+            case '>': curSwitchBinopValue > val2;
+            case '>=': curSwitchBinopValue >= val2;
+            default: false;
+          }
+        }
+      default:
+        var caseVal = expr(v);
+        if (caseVal == val)
+          return true;
+    }
+    return false;
+  }
+
+  function evalSwitchBinop(v:Expr):Dynamic
+  {
+    switch (Tools.expr(v))
+    {
+      case EParent(e):
+        return evalSwitchBinop(e);
+      case EBinop(op, e1, e2):
+        if (op == '=>')
+        {
+          // Evaluate the first expression first and set the value.
+          // As `_` will be the result of this incase the next second expression uses it.
+          switch (Tools.expr(e1))
+          {
+            case EBinop(_, _, _):
+              curSwitchBinopValue = evalSwitchBinop(e1);
+            default:
+              curSwitchBinopValue = expr(v);
+          }
+          return evalSwitchBinop(e2);
+        }
+        return expr(v);
+      default:
+        return expr(v);
+    }
+  }
+
   function evalSwitchObject(e:Expr, val:Dynamic, ?localBindings:Map<String, LocalVar>):{match:Bool, ?locals:Map<String, LocalVar>}
   {
     var isObject:Bool = false;
@@ -2900,7 +2892,6 @@ class Interp
         // This is a bound wildcard variable.
         // We'll add it to the local scope for if the user continues to use it inside the match case.
         localBounds.set(name, {r: v});
-        locals.set(name, {r: v});
       }
     }
 
