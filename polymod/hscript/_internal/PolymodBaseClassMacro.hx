@@ -59,52 +59,18 @@ class PolymodBaseClassMacro
     if (cls.meta.has(PROCESS_FINISHED_META)) return null;
     cls.meta.add(PROCESS_FINISHED_META, [], pos);
 
+    // Avoid building all the classes during display
+    // These things are needed for runtime only
+    var extendable:Bool = isExtendable(cls);
+    #if (display || POLYMOD_DISPLAY)
+    if (!extendable) return null;
+    #end
+
     // Remove `inline` from function calls, since functions pointing towards `_asc` don't have a final return.
     var fields:Array<Field> = Context.getBuildFields().copy();
     removeInlinedFunctionCalls(fields);
 
-    // Omit being able to extend some classes.
-    if (cls.isInterface || cls.isAbstract || cls.isExtern || cls.isFinal) return fields;
-
-    // Exclude classes that start with an underscore, as they indicate classes that were created through compilation from parameters.
-    if (cls.name.startsWith('_') || (cls.pack.length > 0 && cls.pack[cls.pack.length - 1].startsWith('_'))) return fields;
-
-    // Disallow generic classes, as they mess with this macro.
-    if (!HaxeType.enumEq(cls.kind, KNormal)) return fields;
-
-    // If a class has type parameters but without any constraints (default values), it wouldn't be possible to extend them on runtime.
-    for (param in cls.params)
-    {
-      switch (param.t)
-      {
-        case TInst(_.get() => classType, params):
-          switch (classType.kind)
-          {
-            case KTypeParameter(c) if (c.length == 0):
-              return fields;
-            default:
-          }
-        default:
-      }
-    }
-
-    // Core api classes require type which can't be specified on runtime.
-    if (cls.meta.has(':coreApi')) return fields;
-
-    // Classes specified to act as anonymous structures shouldn't be extended.
-    if (cls.meta.has(':structInit')) return fields;
-
-    // :nativeGen makes the class get treated as an extern, so it shouldn't be extended.
-    if (cls.meta.has(':nativeGen')) return fields;
-
-    var fullClsName:String = formatClassString(cls);
-    // Disallow extending certain classes.
-    for (filter in PACKAGE_FILTERS)
-    {
-      if (fullClsName.indexOf(filter) == 0) return fields;
-    }
-
-    if (Context.defined('cppia') && !isHostClass(fullClsName) && !cls.meta.has(CPPIA_EXTENDABLE_META)) return fields;
+    if (!extendable) return fields;
 
     // Check if a class already has one of the fields needed for the scripts before attempting to build fields.
     // We only need to check (and add) instance fields if a class doesn't extend anything, considering extending classes inherit them.
@@ -129,6 +95,7 @@ class PolymodBaseClassMacro
       'getScriptClassName'
     ];
 
+    var fullClsName:String = formatClassString(cls);
     for (fld in fields)
     {
       if (fld.access.contains(AStatic) && neededStaticFields.contains(fld.name))
@@ -150,13 +117,68 @@ class PolymodBaseClassMacro
     }
 
     // Build the hscript needed fields.
-    fields = fields.concat(buildBaseClassInstanceFields(cls));
-    fields = fields.concat(buildBaseClassStaticFields(cls));
+    var hscriptFields:Array<Field> = buildBaseClassInstanceFields(cls).concat(buildBaseClassStaticFields(cls));
+
+    // Make all the functions overrides basic empty ones during display
+    // To minimize overhead
+    #if (display || POLYMOD_DISPLAY)
+    emptyFunctionBody(hscriptFields);
+    #end
+
+    fields = fields.concat(hscriptFields);
 
     // Override the functions now since the `_asc` field was generated.
     overrideBaseFunctions(cls, fields, neededInstFields);
 
     return fields;
+  }
+
+  static function isExtendable(cls:ClassType):Bool
+  {
+    // Omit being able to extend some classes.
+    if (cls.isInterface || cls.isAbstract || cls.isExtern || cls.isFinal) return false;
+
+    // Exclude classes that start with an underscore, as they indicate classes that were created through compilation from parameters.
+    if (cls.name.startsWith('_') || (cls.pack.length > 0 && cls.pack[cls.pack.length - 1].startsWith('_'))) return false;
+
+    // Disallow generic classes, as they mess with this macro.
+    if (!HaxeType.enumEq(cls.kind, KNormal)) return false;
+
+    // If a class has type parameters but without any constraints (default values), it wouldn't be possible to extend them on runtime.
+    for (param in cls.params)
+    {
+      switch (param.t)
+      {
+        case TInst(_.get() => classType, params):
+          switch (classType.kind)
+          {
+            case KTypeParameter(c) if (c.length == 0):
+              return false;
+            default:
+          }
+        default:
+      }
+    }
+
+    // Core api classes require type which can't be specified on runtime.
+    if (cls.meta.has(':coreApi')) return false;
+
+    // Classes specified to act as anonymous structures shouldn't be extended.
+    if (cls.meta.has(':structInit')) return false;
+
+    // :nativeGen makes the class get treated as an extern, so it shouldn't be extended.
+    if (cls.meta.has(':nativeGen')) return false;
+
+    var fullClsName:String = formatClassString(cls);
+    // Disallow extending certain classes.
+    for (filter in PACKAGE_FILTERS)
+    {
+      if (fullClsName.indexOf(filter) == 0) return false;
+    }
+
+    if (Context.defined('cppia') && !isHostClass(fullClsName) && !cls.meta.has(CPPIA_EXTENDABLE_META)) return false;
+
+    return true;
   }
 
   /**
@@ -169,8 +191,9 @@ class PolymodBaseClassMacro
   static function overrideBaseFunctions(cls:ClassType, fields:Array<Field>, ?exclude:Array<String>):Void
   {
     // Skip overriding functions during `display` mode. This avoids issues with code completion.
-    // We cannot check using an #if conditional because those are evaluated at parse time.
-    if (Context.defined('display')) return;
+    #if (display || POLYMOD_DISPLAY)
+    return;
+    #end
 
     // Don't override anything if the class (or the superclass) doesn't have the _asc field.
     if (cls.findField('_asc') == null && ![for (f in fields) f.name].contains('_asc')) return;
@@ -302,6 +325,10 @@ class PolymodBaseClassMacro
 
     var buildPos = Context.currentPos();
 
+    // Don't try figuring the asc's value in display
+    // To not exhaust the language server
+    var ascType:ComplexType = #if (display || POLYMOD_DISPLAY) (macro :Null<Dynamic>) #else useBridge() ? (macro :Null<Dynamic>) : (macro :Null<polymod.hscript._internal.PolymodAbstractScriptClass>) #end;
+
     var ascField:Field = {
       name: '_asc',
       doc: 'The AbstractScriptClass instance which any variable or function calls are redirected to internally.',
@@ -316,7 +343,7 @@ class PolymodBaseClassMacro
           pos: buildPos
         }
       ],
-      kind: FieldType.FVar(useBridge() ? (macro :Null<Dynamic>) : (macro :Null<polymod.hscript._internal.PolymodAbstractScriptClass>)),
+      kind: FieldType.FVar(ascType),
       pos: buildPos,
     };
 
@@ -827,10 +854,25 @@ class PolymodBaseClassMacro
     return hostClasses.exists(clsName);
   }
 
+  static function emptyFunctionBody(fields:Array<Field>):Void
+  {
+    for (fld in fields)
+    {
+      switch (fld.kind)
+      {
+        case FFun(f):
+          f.expr = macro throw '';
+        default: // mbappe's special
+      }
+    }
+  }
+
   static function removeInlinedFunctionCalls(fields:Array<Field>):Void
   {
     // This is a heavy operation and isn't needed to be done during code completion.
-    if (Context.defined('display')) return;
+    #if (display || POLYMOD_DISPLAY)
+    return;
+    #end
 
     function removeInlines(expr:Expr):Expr
     {

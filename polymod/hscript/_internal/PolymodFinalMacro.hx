@@ -104,6 +104,10 @@ class PolymodFinalMacro
 
   public static macro function locateAllFinals():Void
   {
+    #if (display || POLYMOD_DISPLAY)
+    return;
+    #end
+
     Context.onAfterTyping((types) -> {
       if (calledBefore) return;
 
@@ -178,16 +182,19 @@ class PolymodFinalMacro
         + 'in ${duration} sec.',
         Context.currentPos());
 
+      classCache.clear();
+
       calledBefore = true;
     });
   }
 
   #if macro
+  static final classCache:Map<String, Array<ClassField>> = [];
+
   static function listAllFieldsOfClassType(classType:Null<ClassType>):Array<ClassField>
   {
     if (classType == null) return [];
 
-    static final classCache:Map<String, Array<ClassField>> = [];
     final clsFullName:String = classType.pack.concat([classType.name]).join('.');
     if (classCache.exists(clsFullName))
     {

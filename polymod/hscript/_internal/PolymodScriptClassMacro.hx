@@ -26,6 +26,7 @@ class PolymodScriptClassMacro
    */
   public static macro function listAbstractImpls():ExprOf<Map<String, AbstractImplEntry>>
   {
+    #if !(display || POLYMOD_DISPLAY)
     if (!onAfterTypingCallbackRegistered)
     {
       onAfterTypingCallbackRegistered = true;
@@ -37,6 +38,7 @@ class PolymodScriptClassMacro
       onGenerateCallbackRegistered = true;
       haxe.macro.Context.onGenerate(onGenerate);
     }
+    #end
 
     return macro polymod.hscript._internal.PolymodScriptClassMacro.fetchAbstractImpls();
   }
@@ -47,11 +49,13 @@ class PolymodScriptClassMacro
    */
   public static macro function listTypedefs():ExprOf<Map<String, Class<Dynamic>>>
   {
+    #if !(display || POLYMOD_DISPLAY)
     if (!onGenerateCallbackRegistered)
     {
       onGenerateCallbackRegistered = true;
       haxe.macro.Context.onGenerate(onGenerate);
     }
+    #end
 
     return macro polymod.hscript._internal.PolymodScriptClassMacro.fetchTypedefs();
   }
@@ -61,11 +65,13 @@ class PolymodScriptClassMacro
    */
   public static macro function listPackagesList():ExprOf<Map<String, Array<String>>>
   {
+    #if !(display || POLYMOD_DISPLAY)
     if (!onGenerateCallbackRegistered)
     {
       onGenerateCallbackRegistered = true;
       haxe.macro.Context.onGenerate(onGenerate);
     }
+    #end
 
     return macro polymod.hscript._internal.PolymodScriptClassMacro.fetchPackagesList();
   }
@@ -75,11 +81,13 @@ class PolymodScriptClassMacro
    */
   public static macro function listInterfaceImpls():ExprOf<Map<String, Array<Dynamic>>>
   {
+    #if !(display || POLYMOD_DISPLAY)
     if (!onGenerateCallbackRegistered)
     {
       onGenerateCallbackRegistered = true;
       haxe.macro.Context.onGenerate(onGenerate);
     }
+    #end
     return macro polymod.hscript._internal.PolymodScriptClassMacro.fetchInterfaceImpls();
   }
 
@@ -89,11 +97,13 @@ class PolymodScriptClassMacro
    */
   public static macro function listClassesExtendingInterfaces():ExprOf<Map<String, Array<String>>>
   {
+    #if !(display || POLYMOD_DISPLAY)
     if (!onGenerateCallbackRegistered)
     {
       onGenerateCallbackRegistered = true;
       haxe.macro.Context.onGenerate(onGenerate);
     }
+    #end
     return macro polymod.hscript._internal.PolymodScriptClassMacro.fetchClassesExtendingInterfaces();
   }
 
