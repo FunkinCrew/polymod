@@ -10,8 +10,9 @@ class PolymodEnum
   private static final _staticUsingFunctionsCache:Map<String, Map<String, Array<Dynamic>->Dynamic>> = [];
 
   private var _e:EnumDecl;
-  private var _value:String;
-  private var _args:Array<Dynamic>;
+
+  public var value:String;
+  public var args:Array<Dynamic>;
 
   public var usingFunctionsCache:Map<String, Array<Dynamic>->Dynamic> = [];
 
@@ -27,7 +28,7 @@ class PolymodEnum
       return;
     }
 
-    this._value = value;
+    this.value = value;
 
     if (args.length != field.args.length)
     {
@@ -35,7 +36,7 @@ class PolymodEnum
       return;
     }
 
-    this._args = args;
+    this.args = args;
 
     buildUsingCache();
   }
@@ -110,8 +111,8 @@ class PolymodEnum
 
   public function toString():String
   {
-    var result:String = '${_e.name}.${_value}';
-    if (_args.length > 0) result += '(${_args.join(',')})';
+    var result:String = '${_e.name}.${value}';
+    if (args.length > 0) result += '(${args.join(',')})';
     return result;
   }
 }

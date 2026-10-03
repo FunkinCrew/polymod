@@ -944,12 +944,16 @@ class Parser
                       switch (expr(e2))
                       {
                         case EIdent(v):
-                          if (!['true', 'false'].contains(v))
+                          if (['true', 'false'].contains(v))
                           {
-                            unexpected(TId(v));
+                            var match = v == 'true' ? true : false;
+                            casesToValidate.push({expr: expr(e1), caseMatch: match, min: pmin(e1), max: pmax(e2)});
                           }
-                          var match = v == 'true' ? true : false;
-                          casesToValidate.push({expr: expr(e1), caseMatch: match, min: pmin(e1), max: pmax(e2)});
+                          else
+                          {
+                            // Otherwise, we're dealing with a wildcard.
+                            wildcard = true;
+                          }
                         default:
                       }
                     }
@@ -968,7 +972,7 @@ class Parser
                         wildcard = true;
                       default:
                     }
-                  case EIdent('_'):
+                  case EIdent(_), EVar(_):
                     wildcard = true;
                   default:
                 }
