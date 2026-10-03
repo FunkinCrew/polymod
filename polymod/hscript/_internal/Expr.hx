@@ -313,6 +313,11 @@ typedef ClassImport =
   var ?abs:PolymodStaticAbstractReference;
 
   /**
+   * Whether this import is a static field.
+   */
+  var ?field:Bool;
+
+  /**
    * Whether this import is a wildcard and we need to validate it for later.
    */
   var ?wildcard:Bool;

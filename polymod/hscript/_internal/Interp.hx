@@ -1233,6 +1233,22 @@ class Interp
           }
         }
 
+        if(getClassDecl() != null)
+        {
+          var importedClass:ClassImport = getClassDecl().imports.get(id);
+          if (importedClass != null && importedClass.field)
+          {
+            var clsName:String = importedClass.pkg.join('.');
+            var ref:Dynamic = importedClass.cls;
+            if (ref == null) ref = importedClass.enm;
+            if (ref == null) ref = PolymodStaticClassReference.tryBuild(clsName);
+            if (ref != null)
+            {
+              return set(ref, id, v);
+            }
+          }
+        }
+
         var l = locals.get(id);
         if (l != null && l.isfinal && l.r != null)
         {
@@ -1749,24 +1765,51 @@ class Interp
       var importedClass:ClassImport = getClassDecl().imports.get(id);
       if (importedClass != null)
       {
-        if (importedClass.cls != null) return importedClass.cls;
-        if (importedClass.enm != null) return importedClass.enm;
-        if (importedClass.abs != null) return importedClass.abs;
+        // Check if it's a static field import
+        if (importedClass.field)
+        {
+          var clsName:String = importedClass.pkg.join('.');
+          var ref:Dynamic = importedClass.cls;
+          if (ref == null) ref = importedClass.enm;
+          if (ref == null) ref = PolymodStaticClassReference.tryBuild(clsName);
+          if (ref != null)
+          {
+            return get(ref, id);
+          }
+          else if (_scriptEnumDescriptors.exists(clsName))
+          {
+            checkTypeForDeprecation(clsName);
+            var enm = _scriptEnumDescriptors.get(clsName);
+            for (fld in enm.fields)
+            {
+              if (fld.name == id)
+              {
+                return fld.args.length > 0 ? Reflect.makeVarArgs((args) -> return new PolymodEnum(enm, id, args)) : new PolymodEnum(enm, id, []);
+              }
+            }
+          }
+        }
+        else
+        {
+          if (importedClass.cls != null) return importedClass.cls;
+          if (importedClass.enm != null) return importedClass.enm;
+          if (importedClass.abs != null) return importedClass.abs;
 
-        var enumResult:Null<String> = PolymodEnum.tryResolve(importedClass.fullPath);
-        if (enumResult != null) return enumResult;
+          var enumResult:Null<String> = PolymodEnum.tryResolve(importedClass.fullPath);
+          if (enumResult != null) return enumResult;
 
-        // Resolve imported scripted interface.
-        var resultInterface = PolymodStaticInterfaceReference.tryBuild(importedClass.fullPath);
-        if (resultInterface != null) return resultInterface;
+          // Resolve imported scripted interface.
+          var resultInterface = PolymodStaticInterfaceReference.tryBuild(importedClass.fullPath);
+          if (resultInterface != null) return resultInterface;
 
-        // Resolve imported scripted classes.
-        var result = PolymodStaticClassReference.tryBuild(importedClass.fullPath);
-        if (result != null) return result;
+          // Resolve imported scripted classes.
+          var result = PolymodStaticClassReference.tryBuild(importedClass.fullPath);
+          if (result != null) return result;
 
-        // If we are here, there is an imported class whose value is null, and it isn't a scripted class.
-        // This means that we are attempting to access a BLACKLISTED module.
-        error(EBlacklistedModule(importedClass.fullPath));
+          // If we are here, there is an imported class whose value is null, and it isn't a scripted class.
+          // This means that we are attempting to access a BLACKLISTED module.
+          error(EBlacklistedModule(importedClass.fullPath));
+        }
       }
     }
 
@@ -1919,11 +1962,14 @@ class Interp
    * @param ignoreEnums Whether to skip resolving enums. Used when resolving a `using` import.
    * @return `false` if this import was blacklisted, otherwise always `true`.
    */
-  static function resolveImportedClass(importedClass:ClassImport, ignoreEnums:Bool = false):Bool
+  static function resolveImportedClass(importedClass:ClassImport, ignoreEnums:Bool = false, isFieldImport:Bool = false):Bool
   {
     // The path without the possibly included module name, which resolve methods disregard.
     final modulelessPath:String = importedClass.pkg.slice(0, -1).concat([importedClass.name]).join('.');
-    for (fullPath in [importedClass.fullPath, modulelessPath])
+    var paths:Array<String> = [importedClass.fullPath, modulelessPath];
+    // If this is a static field import, we only search for the host class
+    paths = isFieldImport ? [importedClass.pkg.join('.')] : paths;
+    for (fullPath in paths)
     {
       if (PolymodScriptClass.importOverrides.exists(fullPath))
       {
@@ -1938,7 +1984,7 @@ class Interp
         importedClass.cls = PolymodScriptClass.importOverrides.get(fullPath) ?? return false;
         break;
       }
-      else if (PolymodScriptClass.abstractClassImpls.exists(fullPath))
+      else if (PolymodScriptClass.abstractClassImpls.exists(fullPath) && !isFieldImport)
       {
         // We used a macro to map each abstract to its implementation.
         importedClass.abs = PolymodScriptClass.abstractClassImpls.get(fullPath);
@@ -3682,17 +3728,67 @@ class Interp
             {
               name: clsName,
               pkg: path.slice(0, path.length - 1),
-              fullPath: path.join(".")
+              fullPath: path.join("."),
+              field: false
             };
 
-            if (_scriptEnumDescriptors.exists(importedClass.fullPath))
-            {
-              // do nothing
-            }
-            else
+            
+            if (!_scriptEnumDescriptors.exists(importedClass.fullPath))
             {
               if (resolveImportedClass(importedClass) && importedClass.cls == null && importedClass.enm == null && importedClass.abs == null)
               {
+                if (path.length > 1)
+                {
+                  // Check if it's a static field import
+                  var clsPath:String = importedClass.pkg.join('.');
+                  if (resolveImportedClass(importedClass, false, true))
+                  {
+                    var ref:Dynamic = importedClass.cls;
+                    if (ref == null) ref = importedClass.enm;
+                    // Check if field or its property getter exists
+                    importedClass.field = Reflect.hasField(ref, importedClass.name) ? true : Reflect.hasField(ref, 'get_${importedClass.name}');
+                    if (importedClass.field)
+                    {
+                      if(PolymodScriptClass.blacklistedStaticFields.get(ref)?.contains(importedClass.name) ?? false)
+                      {
+                        Polymod.error(
+                          SCRIPTED_CLASS_BLACKLISTED_MODULE,
+                          'Could not import static field ${importedClass.name} from class ${clsPath}: field is blacklisted.',
+                          SCRIPT_RUNTIME
+                        );
+                        continue;
+                      }
+
+                      if (isImportFile)
+                      {
+                        registerImportForPackage(pkg, importedClass);
+                        continue;
+                      }
+
+                      imports.set(importedClass.name, importedClass);
+                      continue;
+                    }
+                    else if (ref != null)
+                    {
+                      Polymod.error(
+                        SCRIPTED_CLASS_UNRESOLVED_IMPORT,
+                        'Could not import static field ${importedClass.name}: field does not exist in class ${clsPath}.',
+                        SCRIPT_RUNTIME
+                      );
+                      continue;
+                    }
+                  }
+                  else
+                  {
+                    Polymod.error(
+                      SCRIPTED_CLASS_BLACKLISTED_MODULE,
+                      'Could not import static field ${importedClass.name} from class ${clsPath}: class is blacklisted.',
+                      SCRIPT_RUNTIME
+                    );
+                    continue;
+                  }
+                }
+
                 if (isImportFile)
                 {
                   registerImportForPackage(pkg, importedClass);
@@ -4365,6 +4461,74 @@ class Interp
         }
         #end
 
+        // importing scripts fields
+        if ((imp.pkg?.length ?? 0) > 0 )
+        {
+          var clsPath:String = imp.pkg.join('.');
+
+          if (_scriptClassDescriptors.exists(clsPath))
+          {
+            if (PolymodScriptClass.blacklistedScriptClasses.contains(clsPath))
+            {
+              Polymod.error(
+                SCRIPTED_CLASS_BLACKLISTED_MODULE,
+                'Could not import static field ${imp.name} from scripted class ${clsPath}: scripted class is blacklisted.',
+                SCRIPT_RUNTIME
+              );
+              continue;
+            }
+            else
+            {
+              if (PolymodScriptClass.blacklistedScriptClassStaticFields.get(clsPath)?.contains(imp.name) ?? false)
+              {
+                Polymod.error(
+                  SCRIPTED_CLASS_BLACKLISTED_MODULE,
+                  'Could not import static field ${imp.name} from scripted class ${clsPath}: field is blacklisted.',
+                  SCRIPT_RUNTIME
+                );
+                continue;
+              }
+              else if (PolymodScriptClass.hasScriptClassStaticField(clsPath, imp.name))
+              {
+                imp.field = true;
+                cls.imports.set(key, imp);
+                continue;
+              }
+              else
+              {
+                Polymod.error(
+                  SCRIPTED_CLASS_UNRESOLVED_IMPORT,
+                  'Could not import static field ${imp.name}: field does not exist in scripted class ${clsPath}.',
+                  SCRIPT_RUNTIME
+                );
+                continue;
+              }
+            }
+          }
+          else if (_scriptEnumDescriptors.exists(clsPath))
+          {
+            var enm:EnumDecl = _scriptEnumDescriptors.get(clsPath);
+            for (fld in enm.fields)
+            {
+              if (fld.name == imp.name)
+              {
+                imp.field = true;
+                cls.imports.set(key, imp);
+                break;
+              }
+            }
+
+            if (imp.field) continue;
+
+            Polymod.error(
+              SCRIPTED_CLASS_UNRESOLVED_IMPORT,
+              'Could not import field ${imp.name}: field does not exist in scripted enum ${clsPath}.',
+              SCRIPT_RUNTIME
+            );
+            continue;
+          }
+        }
+
         Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not import ${imp.fullPath}. Check to ensure the module exists and is spelled correctly.', SCRIPT_RUNTIME);
       }
 
@@ -4433,10 +4597,135 @@ class Interp
     if (PolymodScriptClass.scriptClassesByPackage.exists(pack))
       classesToImport = classesToImport.concat(PolymodScriptClass.scriptClassesByPackage.get(pack));
 
-    if (classesToImport.length == 0)
-      return [];
-
     var validImports:Map<String, ClassImport> = [];
+
+    if (classesToImport.length == 0)
+    {
+      // No classes found in package, we assume this is a fields import
+      var classImport:ClassImport = {
+        name: "",
+        pkg: pack.split('.'),
+        fullPath: pack,
+        field: false
+      };
+
+      if (resolveImportedClass(classImport, false, true))
+      {
+        var ref:Dynamic = classImport.cls;
+        if (ref == null) ref = classImport.enm;
+        if (ref == null) ref = classImport.abs?.absImpl;
+        if (ref != null)
+        {
+          var fields:Array<String> = ref is Enum ? Type.getEnumConstructs(ref) : Type.getClassFields(ref);
+
+          // Resolve properties associated with getter methods
+          for (fldName in fields.copy())
+          {
+            if (fldName.indexOf('get_') == 0)
+            {
+              var propName:String = fldName.substr(4);
+              if (!fields.contains(propName)) fields.push(propName);
+            }
+          }
+
+          for (fieldName in fields)
+          {
+            var fieldImport:ClassImport = {
+              name: fieldName,
+              pkg: classImport.pkg,
+              fullPath: '${classImport.fullPath}.${fieldName}',
+              field: true
+            };
+            
+            if (classImport.cls != null) fieldImport.cls = classImport.cls;
+            if (classImport.enm != null) fieldImport.enm = classImport.enm;
+            if (classImport.abs != null) fieldImport.abs = classImport.abs;
+
+            if (importList.exists(fieldName))
+            {
+              Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'field ${fieldName} has already been imported.', SCRIPT_RUNTIME);
+              continue;
+            }
+
+            validImports.set(fieldName, fieldImport);
+          }
+        }
+        else if (_scriptClassDescriptors.exists(classImport.fullPath))
+        {
+          if (PolymodScriptClass.blacklistedScriptClasses.contains(classImport.fullPath))
+          {
+            Polymod.error(
+              SCRIPTED_CLASS_BLACKLISTED_MODULE,
+              'Could not import static fields of ${classImport.fullPath}: scripted class is blacklisted.',
+              SCRIPT_RUNTIME
+            );
+            return [];
+          }
+
+          var cls:ClassDecl = _scriptClassDescriptors.get(classImport.fullPath);
+
+          for (fld in cls.staticFields)
+          {
+            var fieldImport:ClassImport = {
+              name: fld.name,
+              pkg: classImport.pkg,
+              fullPath: '${classImport.fullPath}.${fld.name}',
+              field: true
+            };
+
+            if (importList.exists(fld.name))
+            {
+              Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'script class field ${fld.name} has already been imported.', SCRIPT_RUNTIME);
+              continue;
+            }
+
+            validImports.set(fld.name, fieldImport);
+          }
+        }
+        else if (_scriptEnumDescriptors.exists(classImport.fullPath))
+        {
+          var enm:EnumDecl = _scriptEnumDescriptors.get(classImport.fullPath);
+
+          for (fld in enm.fields)
+          {
+            var fieldImport:ClassImport = {
+              name: fld.name,
+              pkg: classImport.pkg,
+              fullPath: '${classImport.fullPath}.${fld.name}',
+              field: true
+            };
+
+            if (importList.exists(fld.name))
+            {
+              Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'script enum field ${fld.name} has already been imported.', SCRIPT_RUNTIME);
+              continue;
+            }
+
+            validImports.set(fld.name, fieldImport);
+          }
+        }
+        else
+        {
+          Polymod.error(
+            SCRIPTED_CLASS_UNRESOLVED_IMPORT,
+            'Could not find any classes or fields in ${pack}.',
+            SCRIPT_RUNTIME
+          );
+          return [];
+        }
+      }
+      else
+      {
+        Polymod.error(
+          SCRIPTED_CLASS_BLACKLISTED_MODULE,
+          'Could not import static fields of ${classImport.fullPath}: class is blacklisted.',
+          SCRIPT_RUNTIME
+        );
+      }
+
+      return validImports;
+    }
+
     for (clsName in classesToImport)
     {
       var name:String = clsName.substr(pack.length + 1);
