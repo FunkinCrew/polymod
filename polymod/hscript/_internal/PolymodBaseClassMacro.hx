@@ -9,6 +9,7 @@ import Type as HaxeType;
 
 using haxe.macro.Tools;
 using StringTools;
+using Lambda;
 
 /**
  * `PolymodBaseClassMacro` is responsible for adding fields to all classes to make them extendable.
@@ -106,6 +107,9 @@ class PolymodBaseClassMacro
     // Fields are only retrieved once the class is known to be extendable.
     // Skipped classes return `null` (no changes), which is much cheaper than resubmitting their unchanged fields.
     var fields:Array<Field> = Context.getBuildFields();
+
+    var constructorField:Null<Field> = fields.find((fld) -> fld.name == 'new');
+    if (constructorField != null && constructorField.access.contains(AInline)) return null;
 
     // Check if a class already has one of the fields needed for the scripts before attempting to build fields.
     // We only need to check (and add) instance fields if a class doesn't extend anything, considering extending classes inherit them.
