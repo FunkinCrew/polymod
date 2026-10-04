@@ -752,6 +752,8 @@ class Printer
       case EScriptCallThrow(v): 'Script threw an exception:\n$v';
       case EScriptThrow(v): 'User script threw an exception:\n$v';
       case EInvalidAccessorCombination(accessors): 'Invalid modifier combination: ${accessors.join(' + ')}';
+      case EPrivateConstructor(funcName): 'Cannot access private constructor of "$funcName"';
+      case EMultipleBoundVariable(v): 'Variable "$v" is bound multiple times';
       case ECustom(msg): msg;
     };
     #if hscriptPos

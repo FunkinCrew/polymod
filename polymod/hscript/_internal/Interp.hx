@@ -145,7 +145,7 @@ class Interp
       checkTypeForDeprecation(clsRef.getFullyQualifiedName());
       if (clsRef.cls != getClassDecl() && !clsRef.canInstantiate)
       {
-        error(ECustom('Cannot access private constructor of "${clsRef.cls.name}"'));
+        error(EPrivateConstructor(clsRef.cls.name));
         return null;
       }
       return clsRef.instantiate(args);
@@ -182,7 +182,7 @@ class Interp
         var ctorField:Null<FieldDecl> = clsDescriptor.fields.find((f) -> f.name == 'new');
         if (clsDescriptor != getClassDecl() && ctorField?.access.contains(APrivate))
         {
-          error(ECustom('Cannot access private constructor of ${clsRef.cls.name}'));
+          error(EPrivateConstructor(clsRef.cls.name));
           return null;
         }
 
@@ -201,7 +201,7 @@ class Interp
         var ctorField:Null<FieldDecl> = clsDescriptor.fields.find((f) -> f.name == 'new');
         if (clsDescriptor != getClassDecl() && ctorField?.access.contains(APrivate))
         {
-          error(ECustom('Cannot access private constructor of ${clsRef.cls.name}'));
+          error(EPrivateConstructor(clsRef.cls.name));
           return null;
         }
         var proxy:PolymodAbstractScriptClass = new PolymodScriptClass(clsDescriptor, args);
@@ -2697,7 +2697,7 @@ class Interp
         if (~/[A-Z]/.match(v.charAt(0)))
         {
           // Wildcard expressions need to start lowercase.
-          error(ECustom('pattern variable "$v" must be lower-case or with `var ` prefix'));
+          error(ECustom('Pattern variable "$v" must be lower-case or with `var` prefix'));
           return false;
         }
 
@@ -2765,14 +2765,60 @@ class Interp
           var enumValue:Dynamic = Reflect.callMethod(val, expr(e), enumParams);
           if ((Reflect.isEnumValue(enumValue) && val == enumValue) || (enumValue is PolymodEnum))
           {
+            var enumLocals:Map<String, LocalVar> = null;
+
             // Iterate through each parameter and check to make sure the values are the same.
             for (i in 0...params.length)
             {
+              var localVarName:Null<String> = null;
               var paramExpr:Expr = params[i];
-              var valParam:Dynamic = enumParams[i];
-              if (!evalSwitchCase(valParam, paramExpr,))
+              switch (Tools.expr(paramExpr))
               {
+                // Quick check for enum variable capturing.
+                case EBinop('=', e1, e2):
+                  switch (Tools.expr(e1))
+                  {
+                    case EIdent(v) if (!['true', 'false', '_'].contains(v)):
+                      if (enumLocals != null && enumLocals.exists(v))
+                      {
+                        error(EMultipleBoundVariable(v));
+                        return false;
+                      }
+                      localVarName = v;
+                    default:
+                  }
+                  paramExpr = e2;
+                default:
+              }
+
+              var valParam:Dynamic = enumParams[i];
+              if (!evalSwitchCase(valParam, paramExpr))
+              {
+                // Clear since we don't need it anymore.
+                enumLocals?.clear();
+                enumLocals = null;
+                localVarName = null;
+
                 return false;
+              }
+
+              if (localVarName != null)
+              {
+                enumLocals ??= new Map<String, LocalVar>();
+                enumLocals.set(localVarName, {r: valParam});
+              }
+            }
+
+            // If we paramterized any matches, we set them into the local scope now that we know the enum is a match.
+            if (enumLocals != null)
+            {
+              for (k => v in enumLocals)
+              {
+                declared.push({
+                  n: k,
+                  old: locals.get(k),
+                });
+                locals.set(k, v);
               }
             }
             return true;
@@ -2885,7 +2931,7 @@ class Interp
     {
       if (localBounds.exists(name))
       {
-        error(ECustom('Variable "$v" is bound multiple times'));
+        error(EMultipleBoundVariable(v));
       }
       else if (name != '_')
       {

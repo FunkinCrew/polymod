@@ -785,26 +785,33 @@ class Parser
         mk(EIf(cond, e1, e2), p1, (e2 == null) ? tokenMax : pmax(e2));
       case "var":
         var ident = getIdent();
-        var tk = token();
-        var t = null;
-        if (tk == TDoubleDot && allowTypes)
+        if (inSwitchCase)
         {
-          t = parseType();
-          tk = token();
+          // Simply return the expression as the switch case handles `:` and expression parsing.
+          mk(EVar(ident, null, null), p1, tokenMax);
         }
-        var e = null;
-
-        switch (tk)
+        else
         {
-          case TOp("="): e = parseExpr();
-          case TOp(_): unexpected(tk);
-          case TComma | TSemicolon: push(tk);
-          // Above case should be enough but semicolon is not mandatory after }
-          case _ if (t != null): push(tk);
-          default: unexpected(tk);
-        }
+          var tk = token();
+          var t = null;
+          if (tk == TDoubleDot && allowTypes)
+          {
+            t = parseType();
+            tk = token();
+          }
+          var e = null;
 
-        mk(EVar(ident, t, e), p1, (e == null) ? tokenMax : pmax(e));
+          switch (tk)
+          {
+            case TOp("="): e = parseExpr();
+            case TOp(_): unexpected(tk);
+            case TComma | TSemicolon: push(tk);
+            // Above case should be enough but semicolon is not mandatory after }
+            case _ if (t != null): push(tk);
+            default: unexpected(tk);
+          }
+          mk(EVar(ident, t, e), p1, (e == null) ? tokenMax : pmax(e));
+        }
       case "final":
         var ident = getIdent();
         var tk = token();

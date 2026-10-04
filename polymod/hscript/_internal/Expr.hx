@@ -184,6 +184,8 @@ enum Error
   EScriptThrow(v:Dynamic); // Script called "throw"
   EScriptCallThrow(v:Dynamic); // Script called a function which threw
   EInvalidAccessorCombination(accessors:Array<String>);
+  EPrivateConstructor(v:String);
+  EMultipleBoundVariable(v:String);
   // Fallback error type.
   ECustom(msg:String);
 }
