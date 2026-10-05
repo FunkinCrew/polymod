@@ -2445,6 +2445,12 @@ class Parser
                       return TConst(CInt(n));
                   }
                 }
+              case '_'.code:
+                char = readChar();
+                if (![48, 49, 50, 51, 52, 53, 54, 55, 56, 57].contains(char))
+                  unexpected(TId('_')); // Throw an error if the seperator doesn't separate another number.
+                else
+                  readPos--; // Move the position back as the while loop will make the char be re-read again.
               default:
                 this.char = char;
                 var i = Std.int(n);
