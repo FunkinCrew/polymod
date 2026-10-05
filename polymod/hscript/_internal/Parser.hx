@@ -611,7 +611,8 @@ class Parser
         if (a.length == 1 && a[0] != null) switch (expr(a[0]))
         {
           case EFor(_), EWhile(_), EDoWhile(_):
-            var tmp = "__a_" + (uid++);
+            var tmpId:String = getComprId(a[0]);
+            var tmp = '$tmpId${uid++}';
             var e = mk(EBlock([
               mk(EVar(tmp, null, mk(EArrayDecl([]), p1)), p1),
               mapCompr(tmp, a[0]),
@@ -702,6 +703,33 @@ class Parser
     }
   }
 
+  function getComprId(e:Expr):String
+  {
+    return switch (expr(e))
+    {
+      case EFor(v, it, e2):
+        getComprId(e2);
+      case EForGen(it, e2):
+        getComprId(e2);
+      case EWhile(cond, e2):
+        getComprId(e2);
+      case EDoWhile(cond, e2):
+        getComprId(e2);
+      case EIf(cond, e1, e2) if (e2 == null):
+        getComprId(e1);
+      case EBlock([e]):
+        getComprId(e);
+      case EParent(e2):
+        getComprId(e2);
+      case EBinop('=>', e1, e2):
+        '_g';
+      case EIdent(_):
+        '__a_';
+      default:
+        '__a_';
+    }
+  }
+
   function mapCompr(tmp:String, e:Expr)
   {
     if (e == null) return null;
@@ -721,6 +749,8 @@ class Parser
         EBlock([mapCompr(tmp, e)]);
       case EParent(e2):
         EParent(mapCompr(tmp, e2));
+      case EBinop('=>', e1, e2):
+        ECall(mk(EField(mk(EIdent(tmp), pmin(e), pmax(e)), "set"), pmin(e), pmax(e)), [e1, e2]);
       default:
         ECall(mk(EField(mk(EIdent(tmp), pmin(e), pmax(e)), "push"), pmin(e), pmax(e)), [e]);
     }

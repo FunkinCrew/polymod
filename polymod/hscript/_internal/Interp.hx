@@ -2095,7 +2095,16 @@ class Interp
         });
 
         // Evaluate the expression before assigning, applying typing if possible.
-        var result = (expression != null) ? exprWithType(expression, type) : null;
+        var result:Dynamic = null;
+        switch (name)
+        {
+          case _.startsWith('_g') => true:
+            result = this.exprMap([]);
+          case _.startsWith('__a_') => true:
+            result = this.exprArray([]);
+          default:
+            result = (expression != null) ? exprWithType(expression, type) : null;
+        }
 
         locals.set(name, {
           r: result,
