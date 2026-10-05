@@ -1981,7 +1981,7 @@ class Interp
         importedClass.cls = PolymodScriptClass.importOverrides.get(fullPath) ?? return false;
         break;
       }
-      else if (PolymodScriptClass.abstractClassImpls.exists(fullPath) && !isFieldImport)
+      else if (PolymodScriptClass.abstractClassImpls.exists(fullPath))
       {
         // We used a macro to map each abstract to its implementation.
         importedClass.abs = PolymodScriptClass.abstractClassImpls.get(fullPath);
