@@ -2087,9 +2087,7 @@ class Interp
         switch (name)
         {
           case _.startsWith('_g') => true:
-            result = this.exprMap([]);
-          case _.startsWith('__a_') => true:
-            result = this.exprArray([]);
+            result = (expression != null) ? this.exprMap([]) : null;
           default:
             result = (expression != null) ? exprWithType(expression, type) : null;
         }
