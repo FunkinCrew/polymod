@@ -459,7 +459,8 @@ class Interp
     {
       return Reflect.makeVarArgs(function(bindArgs:Array<Dynamic>)
       {
-        return Reflect.callMethod(null, o, args.concat(bindArgs));
+        var newArgs:Array<Dynamic> = buildBindArgs(args, bindArgs);
+        return Reflect.callMethod(null, o, newArgs.concat(bindArgs));
       });
     }
 
@@ -2214,8 +2215,25 @@ class Interp
           default:
         }
 
-        var args = new Array();
-        for (p in params) args.push(expr(p));
+        var args = new Array<Dynamic>();
+        for (p in params)
+        {
+          // We push a special `_` string so it's easily identifiable when using `bind`
+          // We will later evaluate this when the function itself is called.
+          switch (Tools.expr(p))
+          {
+            case EIdent('_'):
+              switch (Tools.expr(e))
+              {
+                case EField(_, 'bind'):
+                  args.push('_');
+                  continue;
+                default:
+              }
+            default:
+          }
+          args.push(expr(p));
+        }
 
         switch (Tools.expr(e))
         {
@@ -5030,6 +5048,23 @@ class Interp
     //      if (name == "new") return;
     //      error(EExceedArgsCount(funcName, maxAllowed, args.length));
     //    }
+  }
+
+  function buildBindArgs(args:Array<Dynamic>, bindArgs:Array<Dynamic>):Array<Dynamic>
+  {
+    if ((args.findIndex((arg) -> arg == '_') == -1) || args.length == 0)
+      return args;
+
+    var funcArgs:Array<Dynamic> = args.copy();
+    for (i in 0...funcArgs.length)
+    {
+      if (funcArgs[i] == '_')
+      {
+        if (bindArgs.length > 0)
+          funcArgs[i] = bindArgs.shift();
+      }
+    }
+    return funcArgs;
   }
 
   private inline function buildScriptClassStaticFunction(clsName:String, fieldName:String):Dynamic
