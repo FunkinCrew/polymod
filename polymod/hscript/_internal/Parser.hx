@@ -926,6 +926,30 @@ class Parser
           {
             case TDot:
               a.push(getIdent());
+            case TOp("<"):
+              if (allowTypes)
+              {
+                var params = [];
+                while (true)
+                {
+                  params.push(parseType());
+                  var t = token();
+                  switch (t)
+                  {
+                    case TComma:
+                      continue;
+                    case TOp(op) if (op == ">" || op.charCodeAt(0) == ">".code):
+                      break;
+                    default:
+                      unexpected(t);
+                      break;
+                  }
+                }
+              }
+              else
+              {
+                unexpected(tk);
+              }
             case TPOpen:
               break;
             default:
