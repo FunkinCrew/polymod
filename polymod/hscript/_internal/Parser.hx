@@ -1611,7 +1611,7 @@ class Parser
           }
         }
         var name = null;
-        if (maybe(TId("as")) && !star)
+        if ((maybe(TId("as")) || maybe(TId("in"))) && !star)
         {
           var t = token();
           switch (t)
