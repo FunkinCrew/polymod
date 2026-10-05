@@ -2049,37 +2049,36 @@ class Interp
           if (_proxy != null)
           {
             var decl = _proxy.findVar(id);
-            switch (decl?.get)
+            if (decl != null)
             {
-              case "get":
-                final getName = 'get_$id';
-                if (_propTrack.exists(getName))
-                {
-                  switch (decl.set)
+              var hasIsVar:Bool = _proxy.findField(id)?.meta.findIndex((m) -> m.name == ':isVar') != -1;
+              switch (decl.get)
+              {
+                case "get":
+                  final getName = 'get_$id';
+                  if (_propTrack.exists(getName))
                   {
-                    case 'set', 'never':
-                      var field = _proxy.findField(id);
-                      var hasIsVar = false;
-                      for (m in field?.meta ?? [])
-                      {
-                        if (m.name == ':isVar')
-                        {
-                          hasIsVar = true;
-                          break;
-                        }
-                      }
-                      if (!hasIsVar)
-                        return error(EPropVarNotReal(id));
-                    default:
+                    switch (decl.set)
+                    {
+                      case 'set', 'never':
+                        if (!hasIsVar)
+                          return error(EPropVarNotReal(id));
+                      default:
+                    }
                   }
-                }
-                else
-                {
-                  _propTrack.set(getName, true);
-                  var result = _proxy.callFunction(getName);
-                  _propTrack.remove(getName);
-                  return result;
-                }
+                  else
+                  {
+                    _propTrack.set(getName, true);
+                    var result = _proxy.callFunction(getName);
+                    _propTrack.remove(getName);
+                    return result;
+                  }
+                case 'never':
+                  if (!hasIsVar)
+                    return error(EPropVarNotReal(id));
+                case 'null':
+
+              }
             }
           }
         }
