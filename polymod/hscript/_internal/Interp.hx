@@ -233,7 +233,31 @@ class Interp
       error(EBlacklistedModule(importedClass.fullPath));
     }
 
-    // Don't try to resolve classes without a valid import.
+    // resolve via dotted path
+    if (!PolymodScriptClass.interfaceImpls.exists(cl))
+    {
+      var ref = resolveDottedPath(cl);
+      if (ref is Class)
+      {
+        return Type.createInstance(ref, args);
+      }
+      else if (ref is PolymodStaticAbstractReference)
+      {
+        try
+        {
+          return ref.instantiate(args);
+        }
+        catch (e)
+        {
+          error(EInvalidModule(cl));
+        }
+      }
+      else if (ref is PolymodStaticClassReference)
+      {
+        return tryBuildClass(ref, args);
+      }
+    }
+
     error(EInvalidModule(cl));
 
     return null;
@@ -1229,7 +1253,7 @@ class Interp
           }
         }
 
-        if(getClassDecl() != null)
+        if (getClassDecl() != null)
         {
           var importedClass:ClassImport = getClassDecl().imports.get(id);
           if (importedClass != null && importedClass.field)
@@ -2129,7 +2153,16 @@ class Interp
           checkTypeForDeprecation(name);
           return PolymodEnum.tryBuild(name, f);
         }
-        return get(fieldTarget(e), f);
+        try 
+        {
+          return get(fieldTarget(e), f);
+        }
+        catch (er:Error)
+        {
+          var ref = resolveDottedPath('${dottedPath(e)}.$f');
+          if (ref == null) throw er;
+          return ref;
+        }
       case EBinop(op, e1, e2):
         var fop = binops.get(op);
         if (fop == null) error(EInvalidOp(op));
