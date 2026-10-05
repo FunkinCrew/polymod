@@ -1776,14 +1776,7 @@ class Interp
           else if (_scriptEnumDescriptors.exists(clsName))
           {
             checkTypeForDeprecation(clsName);
-            var enm = _scriptEnumDescriptors.get(clsName);
-            for (fld in enm.fields)
-            {
-              if (fld.name == fldName)
-              {
-                return fld.args.length > 0 ? Reflect.makeVarArgs((args) -> return new PolymodEnum(enm, id, args)) : new PolymodEnum(enm, id, []);
-              }
-            }
+            return PolymodEnum.tryBuild(clsName, fldName);
           }
         }
         else
@@ -1903,26 +1896,23 @@ class Interp
     if (getClassDecl() != null)
     {
       // Try to resolve enum constructors from imported enums.
-      for (importedClass in getClassDecl().imports)
+      for (imp in getClassDecl().imports)
       {
-        if (importedClass.enm != null)
+        if (imp.enm != null)
         {
-          var enm = importedClass.enm;
+          var enm = imp.enm;
           if (Type.getEnumConstructs(enm).contains(id))
           {
             return get(enm, id);
           }
         }
-        else if (_scriptEnumDescriptors.exists(importedClass.fullPath))
+        else if (_scriptEnumDescriptors.exists(imp.fullPath))
         {
-          var enm = _scriptEnumDescriptors.get(importedClass.fullPath);
-          for (fld in enm.fields)
+          checkTypeForDeprecation(imp.fullPath);
+
+          if (PolymodEnum.getField(_scriptEnumDescriptors.get(imp.fullPath), id) != null)
           {
-            if (fld.name == id)
-            {
-              checkTypeForDeprecation(importedClass.fullPath);
-              return fld.args.length > 0 ? Reflect.makeVarArgs((args) -> return new PolymodEnum(enm, id, args)) : new PolymodEnum(enm, id, []);
-            }
+            return PolymodEnum.tryBuild(imp.fullPath, id);
           }
         }
       }
@@ -1931,14 +1921,11 @@ class Interp
       for (name => enm in _scriptEnumDescriptors)
       {
         if (enm.pkg != getClassDecl().pkg) continue;
+        checkTypeForDeprecation(name);
 
-        for (fld in enm.fields)
+        if (PolymodEnum.getField(enm, id) != null)
         {
-          if (fld.name == id)
-          {
-            checkTypeForDeprecation(name);
-            return fld.args.length > 0 ? Reflect.makeVarArgs((args) -> return new PolymodEnum(enm, id, args)) : new PolymodEnum(enm, id, []);
-          }
+          return PolymodEnum.tryBuild(name, id);
         }
       }
 
@@ -1957,6 +1944,7 @@ class Interp
    * Tries to resolve the type of an imported class, which will end up in `cls`, `enm` or `abs`.
    * @param importedClass The import to resolve.
    * @param ignoreEnums Whether to skip resolving enums. Used when resolving a `using` import.
+   * @param isFieldImport Whether this import points to a static field rather than a module itself.
    * @return `false` if this import was blacklisted, otherwise always `true`.
    */
   static function resolveImportedClass(importedClass:ClassImport, ignoreEnums:Bool = false, isFieldImport:Bool = false):Bool
@@ -2129,17 +2117,10 @@ class Interp
       case EField(e, f):
         var name = dottedPath(e);
         name = getClassDecl().imports.get(name)?.fullPath ?? name;
-        if (name != null && _scriptEnumDescriptors.exists(name))
+        if ( _scriptEnumDescriptors.exists(name))
         {
           checkTypeForDeprecation(name);
-          var enm = _scriptEnumDescriptors.get(name);
-          for (fld in enm.fields)
-          {
-            if (fld.name == f)
-            {
-              return fld.args.length > 0 ? Reflect.makeVarArgs((args) -> return new PolymodEnum(enm, f, args)) : new PolymodEnum(enm, f, []);
-            }
-          }
+          return PolymodEnum.tryBuild(name, f);
         }
         return get(fieldTarget(e), f);
       case EBinop(op, e1, e2):

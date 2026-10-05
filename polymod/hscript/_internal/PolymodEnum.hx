@@ -3,7 +3,6 @@ package polymod.hscript._internal;
 import polymod.util.Util;
 import polymod.hscript._internal.Expr;
 
-@:allow(polymod.Polymod)
 class PolymodEnum
 {
   private static final scriptInterp = new Interp(null, null);
@@ -20,7 +19,7 @@ class PolymodEnum
   {
     this._e = e;
 
-    var field = getField(value);
+    var field = getField(e, value);
 
     if (field == null)
     {
@@ -66,9 +65,48 @@ class PolymodEnum
     return null;
   }
 
+  /**
+   * Instantiates or returns a reference to a `PolymodEnum` constructor.
+   * @param enmName The name of the scripted enum
+   * @param field The target field
+   * @return A `PolymodEnum` instance/constructor, or `null` if the enum is not found
+   */
+  public static function tryBuild(enmName:String, field:String):Dynamic
+  {
+    @:privateAccess
+    if (Interp._scriptEnumDescriptors.exists(enmName))
+    {
+      @:privateAccess
+      var enm = Interp._scriptEnumDescriptors.get(enmName);
+
+      var fld = getField(enm, field);
+
+      if ((fld?.args?.length ?? 0) >= 1)
+      {
+        return Reflect.makeVarArgs((args) -> new PolymodEnum(enm, field, args));
+      }
+
+      return new PolymodEnum(enm, field, []);
+    }
+
+    return null;
+  }
+
   public static function clearScriptedEnums():Void
   {
     scriptInterp.clearScriptEnumDescriptors();
+  }
+
+  private static function getField(e:EnumDecl, name:String):Null<EnumFieldDecl>
+  {
+    for (field in e.fields)
+    {
+      if (field.name == name)
+      {
+        return field;
+      }
+    }
+    return null;
   }
 
   public function buildUsingCache()
@@ -95,18 +133,6 @@ class PolymodEnum
     _staticUsingFunctionsCache.set(fullEnumName, list);
 
     return usingFunctionsCache = list;
-  }
-
-  private function getField(name:String):Null<EnumFieldDecl>
-  {
-    for (field in _e.fields)
-    {
-      if (field.name == name)
-      {
-        return field;
-      }
-    }
-    return null;
   }
 
   public function toString():String
