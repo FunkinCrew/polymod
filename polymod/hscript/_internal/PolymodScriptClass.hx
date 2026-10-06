@@ -756,6 +756,8 @@ class PolymodScriptClass
   // Override version of Std.isOfType so we're able to test for scripted classes.
   public static function isOfType(v:Dynamic, t:Dynamic):Bool
   {
+    if (v == null || t == null) return false;
+
     if (t is String && Interp._scriptEnumDescriptors.exists(t))
     {
       if (v is PolymodEnum)
