@@ -39,7 +39,7 @@ class PolymodBaseClassMacro
   /**
    * A list of package name prefixes for which this macro should not be executed.
    */
-  public static final PACKAGE_FILTERS:Array<String> = ['polymod.', 'hxd.', 'hl.'];
+  public static final PACKAGE_FILTERS:Array<String> = ['polymod.', 'hl.'];
 
   static function useBridge():Bool
   {
@@ -230,6 +230,10 @@ class PolymodBaseClassMacro
                   findValidReturn(ret) ?? cases.filter((c) -> findValidReturn(c?.expr) != null)[0]?.expr;
                 case ETry(expr, catches):
                   findValidReturn(expr) ?? catches.filter((c) -> findValidReturn(c?.expr) != null)[0]?.expr;
+                case EFor(_, expr):
+                  findValidReturn(expr);
+                case EWhile(_, e, _):
+                  findValidReturn(e);
                 default:
                   null;
               }
