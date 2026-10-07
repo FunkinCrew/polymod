@@ -1295,6 +1295,8 @@ class Polymod
    */
   public static function addImportAlias(importAlias:String, importClass:Class<Dynamic>):Void
   {
+    if (PolymodScriptClass.importOverrides.exists(importAlias) && PolymodScriptClass.importOverrides.get(importAlias) == importClass) return;
+
     PolymodScriptClass.importOverrides.set(importAlias, importClass);
     PolymodScriptClass.bumpBlacklistGeneration();
   }
@@ -1334,6 +1336,8 @@ class Polymod
    */
   public static function blacklistStaticFields(parentClass:Class<Dynamic>, fields:Array<String>):Void
   {
+    if (sameFieldList(PolymodScriptClass.blacklistedStaticFields.get(parentClass), fields)) return;
+
     PolymodScriptClass.blacklistedStaticFields.set(parentClass, fields);
     PolymodScriptClass.bumpBlacklistGeneration();
   }
@@ -1345,6 +1349,8 @@ class Polymod
    */
   public static function blacklistInstanceFields(parentClass:Class<Dynamic>, fields:Array<String>):Void
   {
+    if (sameFieldList(PolymodScriptClass.blacklistedInstanceFields.get(Type.getClassName(parentClass)), fields)) return;
+
     PolymodScriptClass.blacklistedInstanceFields.set(Type.getClassName(parentClass), fields);
     PolymodScriptClass.bumpBlacklistGeneration();
   }
@@ -1355,10 +1361,27 @@ class Polymod
    */
   public static function blacklistDynamicFieldNames(fields:Array<String>):Void
   {
-    for (field in fields)
-      PolymodScriptClass.blacklistedDynamicFieldNames.set(field, true);
+    var changed:Bool = false;
 
-    PolymodScriptClass.bumpBlacklistGeneration();
+    for (field in fields)
+    {
+      if (PolymodScriptClass.blacklistedDynamicFieldNames.exists(field)) continue;
+
+      PolymodScriptClass.blacklistedDynamicFieldNames.set(field, true);
+      changed = true;
+    }
+
+    if (changed) PolymodScriptClass.bumpBlacklistGeneration();
+  }
+
+  static function sameFieldList(current:Null<Array<String>>, next:Array<String>):Bool
+  {
+    if (current == null || next == null || current.length != next.length) return false;
+
+    for (i in 0...current.length)
+      if (current[i] != next[i]) return false;
+
+    return true;
   }
 
   /**
