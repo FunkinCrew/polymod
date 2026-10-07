@@ -1158,7 +1158,7 @@ class Interp
       }
       else if (a.value != null)
       {
-        value = this.expr(a.value);
+        value = this.exprWithType(a.value, a.t);
       }
 
       if (declarePrevious)
@@ -2158,14 +2158,7 @@ class Interp
         });
 
         // Evaluate the expression before assigning, applying typing if possible.
-        var result:Dynamic = null;
-        switch (name)
-        {
-          case _.startsWith('_g') => true:
-            result = (expression != null) ? this.exprMap([]) : null;
-          default:
-            result = (expression != null) ? exprWithType(expression, type) : null;
-        }
+        var result:Dynamic = (expression != null) ? exprWithType(expression, type) : null;
 
         locals.set(name, {
           r: result,
@@ -2308,13 +2301,13 @@ class Interp
       case EIf(econd, e1, e2):
         return if (expr(econd) == true) expr(e1) else if (e2 == null) null else expr(e2);
       case EWhile(econd, e):
-        whileLoop(econd, e);
+        whileLoop(econd, expr.bind(e));
         return null;
       case EDoWhile(econd, e):
-        doWhileLoop(econd, e);
+        doWhileLoop(econd, expr.bind(e));
         return null;
       case EFor(v, it, e):
-        forLoop(v, it, e);
+        forLoop(v, it, expr.bind(e));
         return null;
       case EForGen(it, e):
         Tools.getKeyIterator(it, function(vk, vv, it)
@@ -2327,7 +2320,7 @@ class Interp
             error(ECustom("Invalid for expression"));
             return;
           }
-          forKeyValueLoop(vk, vv, it, e);
+          forKeyValueLoop(vk, vv, it, expr.bind(e));
         });
         return null;
       case EBreak:
@@ -2467,19 +2460,12 @@ class Interp
           capturedLocals.set(name, ref); // allow self-recursion
         }
         return newFun;
+      case EComprehension(body, isMap):
+        // Initialize an array (or map) from a comprehension body.
+        return exprCompr(body, isMap);
       case EArrayDecl(arr):
         // Initialize an array (or map) from a declaration.
-        var hasElements = arr.length > 0;
-        var hasMapElements = (hasElements && Tools.expr(arr[0]).match(EBinop("=>", _)));
-
-        if (hasMapElements)
-        {
-          return exprMap(arr);
-        }
-        else
-        {
-          return exprArray(arr);
-        }
+        return exprArrayDecl(arr);
       case EArray(e, index):
         var arr:Dynamic = expr(e);
         var index:Dynamic = expr(index);
@@ -2644,67 +2630,7 @@ class Interp
     {
       case EArrayDecl(arr):
         // Initialize an array (or map) from a declaration.
-        var hasElements = arr.length > 0;
-        var hasMapElements = (hasElements && Tools.expr(arr[0]).match(EBinop("=>", _)));
-        var hasArrayElements = (hasElements && !hasMapElements);
-
-        switch (t)
-        {
-          case CTPath(path, params):
-            if (path.length > 0)
-            {
-              var last = path[path.length - 1];
-              if (last == "Map")
-              {
-                if (!hasElements)
-                {
-                  // Properly handle maps with no keys.
-                  return this.makeMapEmpty(params[0]);
-                }
-                else if (hasMapElements)
-                {
-                  // Properly handle maps with no keys.
-                  return exprMap(arr);
-                }
-                else
-                {
-                  #if hscriptPos
-                  curExpr = e;
-                  #end
-                  var err = 'Invalid expression in map initialization (expected key=>value, got ${Printer.toString(e)})';
-                  error(ECustom(err));
-                }
-              }
-              else if (last == "Array")
-              {
-                if (!hasElements)
-                {
-                  // Create an empty Array<Dynamic>.
-                  return exprArray([]);
-                }
-                if (hasArrayElements)
-                {
-                  // Create an array of elements.
-                  return exprArray(arr);
-                }
-                else
-                {
-                  #if hscriptPos
-                  curExpr = e;
-                  #end
-                  var err = 'Invalid expression in array initialization (expected no key=>value pairs, got ${Printer.toString(e)})';
-                  error(ECustom(err));
-                }
-              }
-              else
-              {
-                // Whatever.
-              }
-            }
-          default:
-            // Whatever.
-        }
-
+        return exprArrayDecl(arr, t);
       default:
         // Whatever.
     }
@@ -2713,10 +2639,8 @@ class Interp
     return this.expr(e);
   }
 
-  function exprMap(entries:Array<Expr>):Dynamic
+  function exprMap(entries:Array<Expr>, ?typeHint:CType):Dynamic
   {
-    if (entries.length == 0) return makeMap([], []);
-
     var keys = [];
     var values = [];
     for (e in entries)
@@ -2738,12 +2662,12 @@ class Interp
       }
     }
 
-    return makeMap(keys, values);
+    return makeMap(keys, values, typeHint);
   }
 
   function makeMapEmpty(keyType:CType):Dynamic
   {
-    switch (keyType)
+    switch (Tools.follow(keyType))
     {
       case CTPath(path, params):
         if (path.length > 0)
@@ -2751,29 +2675,162 @@ class Interp
           var last = path[path.length - 1];
           switch (last)
           {
-            case "Int":
+            case 'Int':
               return new Map<Int, Dynamic>();
-            case "String":
+            case 'String':
               return new Map<String, Dynamic>();
             default:
-              // TODO: Properly handle distinguishing Enum maps from Object maps.
-              return new Map<
-                {}, Dynamic>();
+              var fullPath:String = path.join('.');
+              var obj:Any = resolveDottedPath(fullPath);
+              if (obj is Enum)
+              {
+                return new haxe.ds.EnumValueMap<Dynamic, Dynamic>();
+              }
+              else
+              {
+                return new Map<{}, Dynamic>();
+              }
           }
         }
+      case CTAnon([]):
+        return new Map<{}, Dynamic>();
       default:
         // Whatever.
         error(ECustom('Invalid key type for empty map initialization (${new Printer().typeToString(keyType)}).'));
     }
-    return makeMap([], []);
+    return makeMap([], [], keyType);
   }
 
-  function exprArray(entries:Array<Expr>):Dynamic
+  function exprArrayDecl(entries:Array<Expr>, ?typeHint:CType):Dynamic
   {
-    // Create an Array<Dynamic>
-    var a = new Array();
-    for (e in entries) a.push(expr(e));
-    return a;
+    var hasElements:Bool = entries.length > 0;
+    var hasMapElements:Bool = hasElements && Tools.expr(entries[0]).match(EBinop('=>', _, _));
+
+    if (typeHint != null)
+    {
+      switch (Tools.follow(typeHint))
+      {
+        case CTPath(path, params):
+          if (path.length > 0)
+          {
+            var last:String = path[path.length - 1];
+            if (last == 'Map')
+            {
+              if (!hasElements)
+              {
+                // Properly handle maps with no keys.
+                return makeMapEmpty(params[0]);
+              }
+              else if (hasMapElements)
+              {
+                return exprMap(entries, params[0]);
+              }
+              else
+              {
+                var err:String = 'Invalid expression in map initialization (expected key=>value, got ${Printer.toString(entries[0])})';
+                error(ECustom(err));
+              }
+            }
+            else if (last == 'Array')
+            {
+              if (hasMapElements)
+              {
+                var err:String = 'Invalid expression in array initialization (expected no key=>value pairs, got ${Printer.toString(entries[0])})';
+                error(ECustom(err));
+
+              }
+              else
+              {
+                // Create an array of elements, if any.
+                return exprArray(entries);
+              }
+            }
+          }
+        default:
+      }
+    }
+    else
+    {
+      if (hasMapElements)
+      {
+        return exprMap(entries);
+      }
+      else
+      {
+        return exprArray(entries);
+      }
+    }
+
+    return null;
+  }
+
+  inline function exprArray(entries:Array<Expr>):Array<Dynamic>
+  {
+    return entries.map((e) -> expr(e));
+  }
+
+  function exprCompr(body:Expr, isMap:Bool):Dynamic
+  {
+    var entries:Array<Dynamic> = [];
+    var keys:Array<Dynamic> = [];
+    var values:Array<Dynamic> = [];
+
+    function visitExpr(e:Expr):Void
+    {
+      switch (Tools.expr(e))
+      {
+        case EFor(v, it, e):
+          forLoop(v, it, visitExpr.bind(e));
+        case EWhile(cond, e):
+          whileLoop(cond, visitExpr.bind(e));
+        case EDoWhile(cond, e):
+          doWhileLoop(cond, visitExpr.bind(e));
+        case EForGen(it, e):
+          Tools.getKeyIterator(it, function(vk, vv, it)
+          {
+            if (vk == null)
+            {
+              #if hscriptPos
+              curExpr = it;
+              #end
+              error(ECustom("Invalid for expression"));
+              return;
+            }
+            forKeyValueLoop(vk, vv, it, visitExpr.bind(e));
+          });
+        case EParent(e):
+          visitExpr(e);
+        case EBlock([e]):
+          visitExpr(e);
+        case EMeta(_, _, e):
+          visitExpr(e);
+        case EIf(cond, e1, e2):
+          visitExpr(expr(cond) ? e1 : (e2 ?? return));
+        case EBinop('=>', e1, e2):
+          if (!isMap)
+          {
+            error(ECustom('Invalid mixed comprehension (got key=>value pair in non-map comprehension)'));
+          }
+          keys.push(expr(e1));
+          values.push(expr(e2));
+        default:
+          if (isMap)
+          {
+            error(ECustom('Invalid mixed comprehension (got non key=>value pair in map comprehension)'));
+          }
+          entries.push(expr(e));
+      }
+    }
+
+    visitExpr(body);
+    if (isMap)
+    {
+      return makeMap(keys, values);
+    }
+    else
+    {
+      return entries;
+    }
   }
 
   function evalSwitchCase(val:Dynamic, v:Expr, ?valExpr:Expr):Bool
@@ -3189,22 +3246,22 @@ class Interp
     }
   }
 
-  function doWhileLoop(econd, e)
+  function doWhileLoop(econd:Expr, bodyFn:Void->Void):Void
   {
     var old = declared.length;
     do
     {
-      if (!loopRun(() -> expr(e))) break;
-    } while (expr(econd) == true);
+      if (!loopRun(bodyFn)) break;
+    } while (expr(econd));
     restore(old);
   }
 
-  function whileLoop(econd, e)
+  function whileLoop(econd:Expr, bodyFn:Void->Void):Void
   {
     var old = declared.length;
-    while (expr(econd) == true)
+    while (expr(econd))
     {
-      if (!loopRun(() -> expr(e))) break;
+      if (!loopRun(bodyFn)) break;
     }
     restore(old);
   }
@@ -3255,7 +3312,7 @@ class Interp
     return v;
   }
 
-  function forLoop(n, it, e)
+  function forLoop(n:String, it:Expr, bodyFn:Void->Void):Void
   {
     var old = declared.length;
     declared.push({
@@ -3268,12 +3325,12 @@ class Interp
       locals.set(n, {
         r: it.next()
       });
-      if (!loopRun(() -> expr(e))) break;
+      if (!loopRun(bodyFn)) break;
     }
     restore(old);
   }
 
-  function forKeyValueLoop(vk, vv, it, e)
+  function forKeyValueLoop(vk:String, vv:String, it:Expr, bodyFn:Void->Void):Void
   {
     var old = declared.length;
     declared.push({
@@ -3294,14 +3351,14 @@ class Interp
       locals.set(vv, {
         r: v.value
       });
-      if (!loopRun(() -> expr(e))) break;
+      if (!loopRun(bodyFn)) break;
     }
     restore(old);
   }
 
-  inline function loopRun(f:Void->Void)
+  inline function loopRun(f:Void->Void):Bool
   {
-    var cont = true;
+    var cont:Bool = true;
     try
     {
       f();
@@ -3335,8 +3392,14 @@ class Interp
     cast(map, haxe.Constraints.IMap<Dynamic, Dynamic>).set(key, value);
   }
 
-  function makeMap(keys:Array<Dynamic>, values:Array<Dynamic>):Null<Dynamic>
+  function makeMap(keys:Array<Dynamic>, values:Array<Dynamic>, ?typeHint:CType):Null<Dynamic>
   {
+    if (keys.length != values.length)
+      error(ECustom('The map keys and values must have the same number of elements'));
+
+    if (typeHint != null && keys.length + values.length == 0)
+      return makeMapEmpty(typeHint);
+
     var isAllString:Bool = true;
     var isAllInt:Bool = true;
     var isAllObject:Bool = true;
@@ -3966,7 +4029,6 @@ class Interp
               fullPath: path.join("."),
               field: false
             };
-
 
             if (!_scriptEnumDescriptors.exists(importedClass.fullPath))
             {
@@ -5345,7 +5407,7 @@ class Interp
               case 'default':
                 if (!this.variables.exists(prefixedName))
                 {
-                  var result = this.expr(v.expr);
+                  var result = this.exprWithType(v.expr, v.type);
                   this.variables.set(prefixedName, result);
                   return result;
                 }
@@ -5361,7 +5423,7 @@ class Interp
           }
           else if (v.expr != null)
           {
-            var result = this.expr(v.expr);
+            var result = this.exprWithType(v.expr, v.type);
             this.variables.set(prefixedName, result);
             return result;
           }

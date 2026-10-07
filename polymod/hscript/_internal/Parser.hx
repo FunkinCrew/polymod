@@ -610,15 +610,8 @@ class Parser
         }
         if (a.length == 1 && a[0] != null) switch (expr(a[0]))
         {
-          case EFor(_), EWhile(_), EDoWhile(_):
-            var tmpId:String = getComprId(a[0]);
-            var tmp = '$tmpId${uid++}';
-            var e = mk(EBlock([
-              mk(EVar(tmp, null, mk(EArrayDecl([]), p1)), p1),
-              mapCompr(tmp, a[0]),
-              mk(EIdent(tmp), p1),
-            ]), p1);
-            return parseExprNext(e);
+          case EFor(_), EWhile(_), EDoWhile(_), EForGen(_):
+            return parseExprNext(mk(EComprehension(a[0], isMapCompr(a[0])), p1));
           default:
         }
         return parseExprNext(mk(EArrayDecl(a), p1));
@@ -703,58 +696,38 @@ class Parser
     }
   }
 
-  function getComprId(e:Expr):String
+  function isMapCompr(e:Expr):Bool
   {
     return switch (expr(e))
     {
-      case EFor(v, it, e2):
-        getComprId(e2);
-      case EForGen(it, e2):
-        getComprId(e2);
-      case EWhile(cond, e2):
-        getComprId(e2);
-      case EDoWhile(cond, e2):
-        getComprId(e2);
-      case EIf(cond, e1, e2) if (e2 == null):
-        getComprId(e1);
+      case EFor(_, _, e2):
+        isMapCompr(e2);
+      case EForGen(_, e2):
+        isMapCompr(e2);
+      case EWhile(_, e2):
+        isMapCompr(e2);
+      case EDoWhile(_, e2):
+        isMapCompr(e2);
+      case EIf(_, e1, e2):
+        var m1:Bool = isMapCompr(e1);
+        var m2:Bool = e2 == null ? m1 : isMapCompr(e2);
+        if (m1 != m2)
+        {
+          error(ECustom('Invalid mixed comprehension (had both "${Printer.toString(e1)}" and "${Printer.toString(e2)}").'), pmin(e), pmax(e));
+          return false;
+        }
+        return m1;
       case EBlock([e]):
-        getComprId(e);
+        isMapCompr(e);
       case EParent(e2):
-        getComprId(e2);
-      case EBinop('=>', e1, e2):
-        '_g';
-      case EIdent(_):
-        '__a_';
+        isMapCompr(e2);
+      case EMeta(_, _, e):
+        isMapCompr(e);
+      case EBinop('=>', _, _):
+        true;
       default:
-        '__a_';
+        false;
     }
-  }
-
-  function mapCompr(tmp:String, e:Expr)
-  {
-    if (e == null) return null;
-    var edef = switch (expr(e))
-    {
-      case EFor(v, it, e2):
-        EFor(v, it, mapCompr(tmp, e2));
-      case EForGen(it, e2):
-        EForGen(it, mapCompr(tmp, e2));
-      case EWhile(cond, e2):
-        EWhile(cond, mapCompr(tmp, e2));
-      case EDoWhile(cond, e2):
-        EDoWhile(cond, mapCompr(tmp, e2));
-      case EIf(cond, e1, e2) if (e2 == null):
-        EIf(cond, mapCompr(tmp, e1), null);
-      case EBlock([e]):
-        EBlock([mapCompr(tmp, e)]);
-      case EParent(e2):
-        EParent(mapCompr(tmp, e2));
-      case EBinop('=>', e1, e2):
-        ECall(mk(EField(mk(EIdent(tmp), pmin(e), pmax(e)), "set"), pmin(e), pmax(e)), [e1, e2]);
-      default:
-        ECall(mk(EField(mk(EIdent(tmp), pmin(e), pmax(e)), "push"), pmin(e), pmax(e)), [e]);
-    }
-    return mk(edef, pmin(e), pmax(e));
   }
 
   function makeUnop(op, e)

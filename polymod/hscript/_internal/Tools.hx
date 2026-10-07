@@ -78,6 +78,8 @@ class Tools
       case EArrayDecl(el):
         for (e in el)
           f(e);
+      case EComprehension(e, _):
+        f(e);
       case ENew(_, el):
         for (e in el)
           f(e);
@@ -301,6 +303,7 @@ class Tools
       case EReturn(e): EReturn(if (e != null) f(e) else null);
       case EArray(e, i): EArray(f(e), f(i));
       case EArrayDecl(el): EArrayDecl([for (e in el) f(e)]);
+      case EComprehension(e, isMap): EComprehension(f(e), isMap);
       case ENew(cl, el): ENew(cl, [for (e in el) f(e)]);
       case EThrow(e): EThrow(f(e));
       case ETry(e, catches): ETry(f(e), [for (c in catches) {name: c.name, t: c.t, e: f(c.e)}]);
@@ -359,5 +362,24 @@ class Tools
       default:
     }
     return callb(key, value, it);
+  }
+
+  /**
+   * Follows a `CType` until it hits the innermost one possible, akin to `haxe.macro.TypeTools.follow`.
+   * @param t The `CType` to follow.
+   * @param once Whether this function should call itself recursively.
+   * @return CType
+   */
+  public static function follow(t:CType, once:Bool = false):CType
+  {
+    var result:CType = switch (t)
+    {
+      case CTParent(t): t;
+      case CTNamed(_, t): t;
+      case CTOpt(t): t;
+      default: t;
+    }
+    if (!once && result != t) result = follow(t);
+    return result;
   }
 }

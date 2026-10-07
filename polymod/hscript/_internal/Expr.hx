@@ -66,6 +66,7 @@ enum Expr
   EReturn(?e:Expr);
   EArray(e:Expr, index:Expr);
   EArrayDecl(e:Array<Expr>);
+  EComprehension(e:Expr, isMap:Bool);
   ENew(cl:String, params:Array<Expr>);
   EThrow(e:Expr);
   ETry(e:Expr, catches:Array<{name:String, t:Null<CType>, e:Expr}>);

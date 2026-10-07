@@ -365,6 +365,10 @@ class Printer
           expr(e);
         }
         add("]");
+      case EComprehension(e, _):
+        add("[");
+        expr(e);
+        add("]");
       case ENew(cl, args):
         add("new " + cl + "(");
         var first = true;
