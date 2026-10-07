@@ -2224,7 +2224,7 @@ class Interp
           checkTypeForDeprecation(name);
           return PolymodEnum.tryBuild(name, f);
         }
-        try 
+        try
         {
           return get(fieldTarget(e), f);
         }
@@ -3455,13 +3455,17 @@ class Interp
     }
     else if (Std.isOfType(o, PolymodScriptClass))
     {
-      var ref:PolymodAbstractScriptClass = cast(o, PolymodAbstractScriptClass);
+      // We use the topASC value when checking script classes
+      // As there's a chance the function we're referencing wasn't found in the parent but in a superclass instead.
+      var ref:PolymodAbstractScriptClass = cast(o, PolymodAbstractScriptClass).getMostTopASC();
+      var proxyTopASC:PolymodAbstractScriptClass = _proxy?.getMostTopASC();
+      var clsName:String = proxyTopASC?.fullyQualifiedName ?? getClassFullyQualifiedName();
 
-      if (ref.fullyQualifiedName == getClassFullyQualifiedName())
+      if (ref.fullyQualifiedName == clsName)
         return true;
 
       // If this script class shares the same superclasses with this class we're in (inheritance) then we can access it if the field is any of those.
-      var superClasses:Array<String> = PolymodScriptClass.getSuperClasses(getClassDecl()) ?? [];
+      var superClasses:Array<String> = PolymodScriptClass.getSuperClasses(proxyTopASC?._c ?? getClassDecl()) ?? [];
       var inheritatedSuperClasses:Array<String> = [ref.fullyQualifiedName].concat(PolymodScriptClass.getSuperClasses(ref._c)).filter((superCls:String) -> return superClasses.contains(superCls));
 
       var superClass:Dynamic = ref.superClass;
@@ -3509,7 +3513,7 @@ class Interp
     else
     {
       // We're checking for fields from within a regular class.
-      var superClasses:Array<String> = PolymodScriptClass.getSuperClasses(getClassDecl()) ?? [];
+      var superClasses:Array<String> = PolymodScriptClass.getSuperClasses(_proxy?.getMostTopASC()._c ?? getClassDecl()) ?? [];
       var inheritatedSuperClasses:Array<String> = [Util.getTypeNameOf(o)].concat(Util.getSuperClasses(o) ?? []).filter((superCls:String) -> return superClasses.contains(superCls));
 
       for (cls in inheritatedSuperClasses)
