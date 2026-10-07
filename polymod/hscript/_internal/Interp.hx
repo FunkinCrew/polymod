@@ -219,17 +219,8 @@ class Interp
       var packagedClass = getClassDecl().pkg.join(".") + "." + cl;
       if (_scriptClassDescriptors.exists(packagedClass))
       {
-        // OVERRIDE CHANGE: Create a PolymodScriptClass instead of a ScriptClass
-        var clsDescriptor:ClassDecl = findScriptClassDescriptor(packagedClass);
-        var ctorField:Null<FieldDecl> = clsDescriptor.fields.find((f) -> f.name == 'new');
-        if (clsDescriptor != getClassDecl() && ctorField?.access.contains(APrivate))
-        {
-          error(EPrivateConstructor(clsRef.cls.name));
-          return null;
-        }
-
-        var proxy:PolymodAbstractScriptClass = new PolymodScriptClass(clsDescriptor, args);
-        return proxy;
+        var clsRef = PolymodStaticClassReference.tryBuild(packagedClass);
+        if (clsRef != null) return tryBuildClass(clsRef, args);
       }
     }
     @:privateAccess
@@ -238,16 +229,8 @@ class Interp
       var importedClass:ClassImport = getClassDecl().imports.get(cl);
       if (_scriptClassDescriptors.exists(importedClass.fullPath))
       {
-        // OVERRIDE CHANGE: Create a PolymodScriptClass instead of a ScriptClass
-        var clsDescriptor:ClassDecl = findScriptClassDescriptor(importedClass.fullPath);
-        var ctorField:Null<FieldDecl> = clsDescriptor.fields.find((f) -> f.name == 'new');
-        if (clsDescriptor != getClassDecl() && ctorField?.access.contains(APrivate))
-        {
-          error(EPrivateConstructor(clsRef.cls.name));
-          return null;
-        }
-        var proxy:PolymodAbstractScriptClass = new PolymodScriptClass(clsDescriptor, args);
-        return proxy;
+        var clsRef = PolymodStaticClassReference.tryBuild(importedClass.fullPath);
+        if (clsRef != null) return tryBuildClass(clsRef, args);
       }
 
       // Ignore importedClass.enm as enums cannot be instantiated.
