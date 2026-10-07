@@ -1775,9 +1775,14 @@ class Interp
 
         _proxy._superConstructorCalled = true;
         if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
-          return Reflect.makeVarArgs(_proxy.superClass.callConstructor); // We will be calling the superclass constructor.
+        {
+          var superCls:PolymodScriptClass = cast _proxy.superClass; // Explicit cast for cross-platform compatibility.
+          return Reflect.makeVarArgs(superCls.callConstructor); // We will be calling the superclass constructor.
+        }
         else
+        {
           return Reflect.makeVarArgs(_proxy.createSuperClass); // We can't get a native class constructor at runtime right now unfortunately, so we just return the class itself to instantiate it.
+        }
       }
       else
       {
@@ -4013,6 +4018,13 @@ class Interp
                     var ref:Dynamic = importedClass.cls;
                     if (ref == null) ref = importedClass.enm;
                     if (ref == null) ref = importedClass.abs?.absImpl;
+
+                    if (ref == null)
+                    {
+                      // Fallthrough for imports that fail to validate.
+                      importsToValidate.set(importedClass.name, importedClass);
+                      continue;
+                    }
 
                     // Check if field or its property getter exists
                     importedClass.field = Reflect.hasField(ref, fldName) ? true : Reflect.hasField(ref, 'get_${fldName}');
