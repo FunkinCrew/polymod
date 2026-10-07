@@ -175,7 +175,7 @@ class Printer
       add("??NULL??");
       return;
     }
-    switch (#if hscriptPos e.e #else e #end)
+    switch (Tools.expr(e))
     {
       case EConst(c):
         addConst(c);
@@ -261,7 +261,7 @@ class Printer
       case ECall(e, args):
         if (e == null) expr(e);
         else
-          switch (#if hscriptPos e.e #else e #end)
+          switch (Tools.expr(e))
           {
             case EField(_), EIdent(_), EConst(_):
               expr(e);
