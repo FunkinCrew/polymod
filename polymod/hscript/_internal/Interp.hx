@@ -185,7 +185,7 @@ class Interp
     function tryBuildClass(clsRef:PolymodStaticClassReference, args:Array<Dynamic>):Null<Dynamic>
     {
       checkTypeForDeprecation(clsRef.getFullyQualifiedName());
-      if (clsRef.cls != getClassDecl() && !clsRef.canInstantiate)
+      if (!inPrivateAccess && clsRef.cls != getClassDecl() && !clsRef.canInstantiate)
       {
         error(EPrivateConstructor(clsRef.cls.name));
         return null;
