@@ -937,7 +937,7 @@ class Interp
     }
   }
 
-   public function storePersistentStaticFields():Void
+  public function storePersistentStaticFields():Void
   {
     for (key => decl in _scriptClassDescriptors)
     {
@@ -4562,17 +4562,13 @@ class Interp
         var superClassPath:String = new Printer().typeToString(extend);
         var baseInterfaceName:String = superClassPath;
 
+        // Ignore templates.
+        if (superClassPath.indexOf('<') != -1)
+          superClassPath = superClassPath.split('<')[0];
+
         switch (extend)
         {
-          case CTPath(path, params):
-            if (params != null && params.length > 0)
-            {
-              Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not extend ${superClassPath}, do not include type parameters in super class name.', SCRIPT_RUNTIME);
-
-              _scriptInterfaceDescriptors.remove(interfacePath);
-              registryStamp++;
-              break;
-            }
+          case CTPath(path, _):
             baseInterfaceName = path[path.length - 1];
 
             // The full package was used for the interface.
@@ -4831,34 +4827,83 @@ class Interp
       if (cls.extend == null) continue;
 
       var superClassPath:String = new Printer().typeToString(cls.extend);
+
+      // Templates are ignored completely since there's no type checking in HScript.
+      if (superClassPath.indexOf('<') != -1)
+        superClassPath = superClassPath.split('<')[0];
+
       if (!cls.imports.exists(superClassPath))
       {
-        switch (cls.extend)
+        if (!PolymodScriptClass.interfaceImpls.exists(superClassPath) || _scriptInterfaceDescriptors.exists(superClassPath))
         {
-          case CTPath(path, params):
-            if (params != null && params.length > 0)
+          if (PolymodScriptClass.importOverrides.exists(superClassPath) && PolymodScriptClass.importOverrides.get(superClassPath) == null)
+          {
+            Polymod.error(
+              SCRIPTED_CLASS_BLACKLISTED_MODULE,
+              'Could not extend ${superClassPath}: class is blacklisted.',
+              SCRIPT_RUNTIME
+            );
+          }
+          else if (PolymodScriptClass.blacklistedScriptClasses.contains(superClassPath))
+          {
+            Polymod.error(
+              SCRIPTED_CLASS_BLACKLISTED_MODULE,
+              'Could not extend ${superClassPath}: scripted class is blacklisted.',
+              SCRIPT_RUNTIME
+            );
+          }
+          else if ((Type.resolveClass(superClassPath) == null #if POLYMOD_CPPIA || PolymodCppiaClassReference.isInactiveCppiaClass(superClassPath) #end)
+          && !PolymodScriptClass.typedefs.exists(superClassPath) && !PolymodScriptClass.importOverrides.exists(superClassPath) && !_scriptClassDescriptors.exists(clsPath))
+          {
+            Polymod.error(
+              SCRIPTED_CLASS_UNRESOLVED_IMPORT,
+              'Could not extend ${superClassPath}. Make sure the module to extend ${superClassPath.indexOf('.') != -1 ? "is a valid path" : "has been imported"} and is spelled correctly.',
+              SCRIPT_RUNTIME
+            );
+          }
+          else
+          {
+            if (PolymodScriptClass.backwardsCompatibilityImports.exists(superClassPath))
             {
-              Polymod.error(
-                SCRIPTED_CLASS_UNRESOLVED_IMPORT,
-                'Could not extend ${superClassPath}, do not include type parameters in super class name.',
-                SCRIPT_RUNTIME
-              );
+              backwardsCompatibilityImport(superClassPath);
             }
 
-          default:
-            // Other error handling?
+            switch (cls.extend)
+            {
+              case CTPath(_, params):
+                cls.extend = CTPath(superClassPath.split('.'), params);
+              case _:
+            }
+          }
         }
-
-        // Default
-        Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not extend ${superClassPath}. Make sure the type to extend has been imported.', SCRIPT_RUNTIME);
+        else
+        {
+          Polymod.error(
+            SCRIPTED_CLASS_UNRESOLVED_IMPORT,
+            'Class ${cls.name} cannot extend interface ${superClassPath}. Use "implements" instead of "extends".',
+            SCRIPT_RUNTIME
+          );
+        }
       }
       else
       {
-        switch (cls.extend)
+        var fullPath:String = cls.imports.get(superClassPath).fullPath;
+        if (PolymodScriptClass.interfaceImpls.exists(fullPath) || _scriptInterfaceDescriptors.exists(fullPath))
         {
-          case CTPath(_, params):
-            cls.extend = CTPath(cls.imports.get(superClassPath).fullPath.split('.'), params);
-          case _:
+          Polymod.error(
+            SCRIPTED_CLASS_UNRESOLVED_IMPORT,
+            'Class ${cls.name} cannot extend interface ${superClassPath}. Use "implements" instead of "extends".',
+            SCRIPT_RUNTIME
+          );
+        }
+        else
+        {
+          switch (cls.extend)
+          {
+            case CTPath(_, params):
+              cls.extend = CTPath(fullPath.split('.'), params);
+            case _:
+          }
         }
       }
     }
