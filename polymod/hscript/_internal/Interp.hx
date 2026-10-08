@@ -4473,7 +4473,8 @@ class Interp
           continue;
         }
 
-        if (interfacePkg != null && fullInterfacePath.indexOf(interfacePkg.join('.')) == 0)
+        var hasPackage:Bool = interfacePkg != null && interfacePkg.length > 0;
+        if (hasPackage && path.indexOf(interfacePkg.join(.) + ".") == 0)
         {
           inter.imports.set(interfaceName, interfaceImport);
         }
@@ -4675,7 +4676,8 @@ class Interp
           continue;
         }
 
-        if (interfacePkg != null && fullInterfacePath.indexOf(interfacePkg.join('.')) == 0)
+        var hasPackage:Bool = interfacePkg != null && interfacePkg.length > 0;
+        if (hasPackage && clsPath.indexOf(interfacePkg.join('.') + ".") == 0)
         {
           cls.imports.set(interfaceName, interfaceImport);
         }
