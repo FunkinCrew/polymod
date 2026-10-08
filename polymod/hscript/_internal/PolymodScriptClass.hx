@@ -446,6 +446,9 @@ class PolymodScriptClass
         for (extend in decl.implement)
         {
           var extendName:String = new Printer().typeToString(extend);
+          if (extendName.indexOf('<') != -1)
+            extendName = extendName.split('<')[0];
+
           var interfaceName:String = decl.imports.get(extendName)?.fullPath ?? extendName;
 
           // Retrieve the interface reference first. A cache will be used if found.
@@ -646,7 +649,7 @@ class PolymodScriptClass
     }
 
     // Get the super class name.
-    var fullSuperClsName = (new Printer()).typeToString(classDecl.extend);
+    var fullSuperClsName = new Printer().typeToString(classDecl.extend);
     var baseSuperClsName = switch (classDecl.extend)
     {
       case CTPath(pth, params):
@@ -667,13 +670,6 @@ class PolymodScriptClass
     }
     else
     {
-      // Templates are ignored completely since there's no type checking in HScript.
-      if (fullSuperClsName.indexOf('<') != -1)
-      {
-        fullSuperClsName = fullSuperClsName.split('<')[0];
-        baseSuperClsName = baseSuperClsName.split('<')[0];
-      }
-
       var superCls:Dynamic = null;
 
       if (classDecl.imports.exists(baseSuperClsName))
@@ -691,6 +687,11 @@ class PolymodScriptClass
         {
           superCls = importedClass.cls;
         }
+      }
+      else
+      {
+        // Try to resolve superCls class throught the path
+        superCls = importOverrides.get(fullSuperClsName) ?? typedefs.get(fullSuperClsName) ?? Type.resolveClass(fullSuperClsName);
       }
 
       // Check if the superclass was resolved.
@@ -916,7 +917,13 @@ class PolymodScriptClass
         }
         else
         {
-          Polymod.error(SCRIPT_PARSE_FAILED, 'Could not determine target class for "${pth.join('.')}" (unregistered type?)', SCRIPT_RUNTIME);
+          // Try to resolve the target class throught the path
+          targetClass = importOverrides.get(clsPath) ?? typedefs.get(clsPath) ?? Type.resolveClass(clsPath);
+          if (targetClass == null || interfaceImpls.exists(clsPath))
+          {
+            targetClass = null;
+            Polymod.error(SCRIPT_PARSE_FAILED, 'Could not determine target class for "${pth.join('.')}" (unregistered type?)', SCRIPT_RUNTIME);
+          }
         }
       default:
         if (c.extend != null)
@@ -1012,12 +1019,6 @@ class PolymodScriptClass
     args ??= [];
 
     var fullExtendString = new Printer().typeToString(_c.extend);
-
-    // Templates are ignored completely since there's no type checking in HScript.
-    if (fullExtendString.indexOf('<') != -1)
-    {
-      fullExtendString = fullExtendString.split('<')[0];
-    }
 
     // Build an unqualified path too.
     var fullExtendPath:String = _c.imports.get(fullExtendString)?.fullPath ?? fullExtendString;
@@ -1322,11 +1323,15 @@ class PolymodScriptClass
     for (implement in _c.implement)
     {
       var extendName:String = new Printer().typeToString(implement);
+      if (extendName.indexOf('<') != -1)
+        extendName = extendName.split('<')[0];
+      
+      var interfacePath:String = _c.imports.get(extendName)?.fullPath ?? extendName;
 
-      // Attempt to resolve the interface, will throw an error if it isn't able to.
-      var ref:PolymodStaticInterfaceReference = this._interp.resolve(extendName);
+      // Attempt to resolve the interface.
+      var ref = PolymodStaticInterfaceReference.tryBuild(interfacePath);
 
-      if (ref == null || !Std.isOfType(ref, PolymodStaticInterfaceReference))
+      if (ref == null)
       {
         this._interp.error(ECustom("You can only implement an interface"));
       }
