@@ -4832,78 +4832,56 @@ class Interp
       if (superClassPath.indexOf('<') != -1)
         superClassPath = superClassPath.split('<')[0];
 
-      if (!cls.imports.exists(superClassPath))
-      {
-        if (!PolymodScriptClass.interfaceImpls.exists(superClassPath) || _scriptInterfaceDescriptors.exists(superClassPath))
-        {
-          if (PolymodScriptClass.importOverrides.exists(superClassPath) && PolymodScriptClass.importOverrides.get(superClassPath) == null)
-          {
-            Polymod.error(
-              SCRIPTED_CLASS_BLACKLISTED_MODULE,
-              'Could not extend ${superClassPath}: class is blacklisted.',
-              SCRIPT_RUNTIME
-            );
-          }
-          else if (PolymodScriptClass.blacklistedScriptClasses.contains(superClassPath))
-          {
-            Polymod.error(
-              SCRIPTED_CLASS_BLACKLISTED_MODULE,
-              'Could not extend ${superClassPath}: scripted class is blacklisted.',
-              SCRIPT_RUNTIME
-            );
-          }
-          else if ((Type.resolveClass(superClassPath) == null #if POLYMOD_CPPIA || PolymodCppiaClassReference.isInactiveCppiaClass(superClassPath) #end)
-          && !PolymodScriptClass.typedefs.exists(superClassPath) && !PolymodScriptClass.importOverrides.exists(superClassPath) && !_scriptClassDescriptors.exists(clsPath))
-          {
-            Polymod.error(
-              SCRIPTED_CLASS_UNRESOLVED_IMPORT,
-              'Could not extend ${superClassPath}. Make sure the module to extend ${superClassPath.indexOf('.') != -1 ? "is a valid path" : "has been imported"} and is spelled correctly.',
-              SCRIPT_RUNTIME
-            );
-          }
-          else
-          {
-            if (PolymodScriptClass.backwardsCompatibilityImports.exists(superClassPath))
-            {
-              backwardsCompatibilityImport(superClassPath);
-            }
+      var fullPath:String = cls.imports.get(superClassPath)?.fullPath ?? superClassPath;
 
-            switch (cls.extend)
-            {
-              case CTPath(_, params):
-                cls.extend = CTPath(superClassPath.split('.'), params);
-              case _:
-            }
-          }
-        }
-        else
-        {
-          Polymod.error(
-            SCRIPTED_CLASS_UNRESOLVED_IMPORT,
-            'Class ${cls.name} cannot extend interface ${superClassPath}. Use "implements" instead of "extends".',
-            SCRIPT_RUNTIME
-          );
-        }
+      if (PolymodScriptClass.interfaceImpls.exists(fullPath) || _scriptInterfaceDescriptors.exists(fullPath))
+      {
+        Polymod.error(
+          SCRIPTED_CLASS_UNRESOLVED_IMPORT,
+          'Class ${cls.name} cannot extend interface ${superClassPath}. Use "implements" instead of "extends".',
+          SCRIPT_RUNTIME
+        );
+        continue;
+      }
+
+      if (PolymodScriptClass.importOverrides.exists(fullPath) && PolymodScriptClass.importOverrides.get(fullPath) == null)
+      {
+        Polymod.error(
+          SCRIPTED_CLASS_BLACKLISTED_MODULE,
+          'Could not extend ${superClassPath}: class is blacklisted.',
+          SCRIPT_RUNTIME
+        );
+      }
+      else if (PolymodScriptClass.blacklistedScriptClasses.contains(fullPath))
+      {
+        Polymod.error(
+          SCRIPTED_CLASS_BLACKLISTED_MODULE,
+          'Could not extend ${superClassPath}: scripted class is blacklisted.',
+          SCRIPT_RUNTIME
+        );
+      }
+      else if ((Type.resolveClass(fullPath) == null #if POLYMOD_CPPIA || PolymodCppiaClassReference.isInactiveCppiaClass(fullPath) #end)
+      && !PolymodScriptClass.typedefs.exists(fullPath) && !PolymodScriptClass.importOverrides.exists(fullPath) && !_scriptClassDescriptors.exists(fullPath))
+      {
+        // superClass is not a class or does not exists at all
+        Polymod.error(
+          SCRIPTED_CLASS_UNRESOLVED_IMPORT,
+          'Could not extend ${superClassPath}. Make sure the module to extend ${superClassPath.indexOf('.') != -1 ? "is a valid path" : "has been imported"} and is spelled correctly.',
+          SCRIPT_RUNTIME
+        );
       }
       else
       {
-        var fullPath:String = cls.imports.get(superClassPath).fullPath;
-        if (PolymodScriptClass.interfaceImpls.exists(fullPath) || _scriptInterfaceDescriptors.exists(fullPath))
+        if (PolymodScriptClass.backwardsCompatibilityImports.exists(fullPath))
         {
-          Polymod.error(
-            SCRIPTED_CLASS_UNRESOLVED_IMPORT,
-            'Class ${cls.name} cannot extend interface ${superClassPath}. Use "implements" instead of "extends".',
-            SCRIPT_RUNTIME
-          );
+          backwardsCompatibilityImport(fullPath);
         }
-        else
+
+        switch (cls.extend)
         {
-          switch (cls.extend)
-          {
-            case CTPath(_, params):
-              cls.extend = CTPath(fullPath.split('.'), params);
-            case _:
-          }
+          case CTPath(_, params):
+            cls.extend = CTPath(fullPath.split('.'), params);
+          case _:
         }
       }
     }
