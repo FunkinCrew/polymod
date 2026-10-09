@@ -1711,6 +1711,8 @@ class Parser
           switch (t)
           {
             case TId("extends"):
+              if (extend != null)
+                error(ECustom("Cannot extend several classes"), currentPos, currentPos);     
               extend = parseType();
             case TId("implements"):
               implement.push(parseType());
