@@ -1093,24 +1093,33 @@ class PolymodScriptClass
       switch (f.kind)
       {
         case KVar(v):
-          if (!f.access.contains(AStatic) && superHasField(f.name))
+          if (superHasField(f.name))
           {
             // Throw an error if the script class has an instance field with the same name as one from the super class.
             throw 'Redefinition of variable "${f.name}" from superclass not allowed.';
           }
         case KFunction(fn):
-          #if POLYMOD_STRICT_SYNTAX
-          if (f.access.contains(AOverride) && !superHasField(f.name))
+          // Look up the function in the superclasses.
+          var func:Dynamic = findSuperFunction(f.name);
+
+          if (superHasField(f.name) && func == null)
           {
-            // Native class constructors can not be retrieved at runtime so `superHasField` does not account for them so we ignore them.
-            if (f.name == 'new' && !Std.isOfType(superClass, PolymodScriptClass)) return;
+            // Throw an error if a function redefines a superclass variable.
+            throw 'Redefinition of variable "${f.name}" from superclass not allowed.';
+          }
+
+          #if POLYMOD_STRICT_SYNTAX
+          if (f.access.contains(AOverride) && func == null)
+          {
+            // Native class constructors can not be retrieved at runtime so `findSuperFunction` does not account for them so we ignore them.
+            if (f.name == 'new' && !Std.isOfType(superClass, PolymodScriptClass)) continue;
 
             // Throw an error if a function is declared overwritten but isn't overriding anything.
             throw 'Field ' + '"${f.name}"' + ' is declared "override"' + " but doesn't override any field.";
           }
-          else if (!f.access.contains(AOverride) && superHasField(f.name))
+          else if (!f.access.contains(AOverride) && func != null)
           {
-            if (f.name == 'new') return;
+            if (f.name == 'new') continue;
 
             var superClassPackage:String = '';
             if (superClass is PolymodScriptClass)
@@ -1129,6 +1138,33 @@ class PolymodScriptClass
           {
             // Throw an error if the override accessor is used with no super class.
             throw 'Invalid modifier: override on field "${f.name}" of class that has no parent.';
+          }
+          else if (fn.isdynamic && func != null)
+          {
+            // If it's a native Haxe function, verify if it can be dynamically overridden by testing assignment.
+            if (Reflect.isFunction(func))
+            {
+              // Traverse up the script superclasses to find the native base class.
+              var _super = superClass;
+              while (Std.isOfType(_super, PolymodScriptClass))
+              {
+                _super = _super.superClass;
+              }
+
+              try
+              {
+                // Attempt to assign the function. will throw an error if the native field is not dynamic.
+                Reflect.setField(_super, f.name, func);
+              }
+              catch (e:Dynamic)
+              {
+                throw 'Field "${f.name}" in superclass is not dynamic and cannot be overridden as dynamic.';
+              }
+            }
+            else if (func.isdynamic != null && !func.isdynamic) // If it's a script FunctionDecl, check its explicit 'isdynamic' flag.
+            {
+              throw 'Field "${f.name}" in superclass is not dynamic and cannot be overridden as dynamic.';
+            }
           }
           #end
         default:
