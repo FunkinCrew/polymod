@@ -2169,8 +2169,8 @@ class Interp
         var result:Dynamic = null;
         switch (name)
         {
-          case _.startsWith('_g') => true:
-            result = (expression != null) ? this.exprMap([]) : null;
+          // case _.startsWith('_g') => true:
+          // result = (expression != null) ? this.exprMap([]) : null;
           default:
             result = (expression != null) ? exprWithType(expression, type) : null;
         }
@@ -2201,6 +2201,42 @@ class Interp
       case EBlock(exprs):
         var old = declared.length;
         var v = null;
+        // HACK: Enforce the correct map type for map comprehension
+        switch (Tools.expr(exprs[0]))
+        {
+          case EVar(id, _, _) if (id.startsWith('_g')):
+            switch (Tools.expr(exprs[1]))
+            {
+              case EFor(_) | EWhile(_) | EDoWhile(_):
+                var keys:Array<Dynamic> = [];
+                var values:Array<Dynamic> = [];
+                var counterfeitMap = {
+                  set: (key:Dynamic, value:Dynamic) -> {
+                    keys.push(key);
+                    values.push(value);
+                  }
+                };
+                var ref:LocalVar = {
+                  r: counterfeitMap
+                };
+                declared.push({
+                  n: id,
+                  old: locals.get(id)
+                });
+                locals.set(id, ref);
+
+                for (i in 1...exprs.length)
+                {
+                  v = expr(exprs[i]);
+                }
+
+                ref.r = makeMap(keys, values);
+                restore(old);
+                return ref.r;
+              default:
+            }
+          default:
+        }
         for (e in exprs) v = expr(e);
         restore(old);
         return v;
