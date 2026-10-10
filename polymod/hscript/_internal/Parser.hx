@@ -1857,27 +1857,46 @@ class Parser
       switch (id)
       {
         case "override":
-          access.push(AOverride);
+          if (access.contains(AOverride))
+            error(ECustom("Duplicate access modifier override"), currentPos, currentPos);
+          else
+            access.push(AOverride);
         case "public":
           // Throw an error if the user tries declaring a variable as public when it's already been declared private.
           if (access.contains(APrivate))
             error(ECustom("Conflicting access modifier public"), currentPos, currentPos);
-          else if (!access.contains(APublic))
+          else if (access.contains(APublic))
+            error(ECustom("Duplicate access modifier public"), currentPos, currentPos);
+          else
             access.push(APublic);
         case "private":
           // Throw an error if the user tries declaring a variable as private when it's already been declared public.
           if (access.contains(APublic))
             error(ECustom("Conflicting access modifier private"), currentPos, currentPos);
-          else if (!access.contains(APrivate))
+          else if (access.contains(APrivate))
+            error(ECustom("Duplicate access modifier private"), currentPos, currentPos);
+          else
             access.push(APrivate);
         case "inline":
-          access.push(AInline);
+          if (access.contains(AInline))
+            error(ECustom("Duplicate access modifier inline"), currentPos, currentPos);
+          else
+            access.push(AInline);
         case "static":
-          access.push(AStatic);
+          if (access.contains(AStatic))
+            error(ECustom("Duplicate access modifier static"), currentPos, currentPos);
+          else
+            access.push(AStatic);
         case "dynamic":
-          access.push(ADynamic);
+          if (access.contains(ADynamic))
+            error(ECustom("Duplicate access modifier dynamic"), currentPos, currentPos);
+          else
+            access.push(ADynamic);
         case "macro":
-          access.push(AMacro);
+          if (access.contains(AMacro))
+            error(ECustom("Duplicate access modifier macro"), currentPos, currentPos);
+          else
+            access.push(AMacro);
         case "function":
           if (access.contains(AOverride) && access.contains(AStatic))
           {
@@ -1939,6 +1958,19 @@ class Parser
           }
           #end
 
+          if (access.contains(AOverride))
+          {
+            error(ECustom('Invalid modifier: override on variable'), currentPos, currentPos);
+          }
+          if (access.contains(AMacro))
+          {
+            error(ECustom('Invalid modifier: macro on variable'), currentPos, currentPos);
+          }
+          if (access.contains(ADynamic))
+          {
+            error(ECustom('Invalid modifier: dynamic on variable'), currentPos, currentPos);
+          }
+          
           // Default private if there is none specified.
           if (!access.contains(APrivate) && !access.contains(APublic))
             access.push(APrivate);
@@ -1969,29 +2001,39 @@ class Parser
   function parseInterfaceField():Null<FieldDecl>
   {
     var meta = parseMetadata();
-    var access = [APublic]; // Interface fields default to public.
+    var access = [];
     while (true)
     {
       var id = getIdent();
       switch (id)
       {
+        case "override":
+          error(ECustom("Interface fields cannot have 'override' modifier"), currentPos, currentPos);
+        case "inline":
+          error(ECustom("Interface fields cannot have 'inline' modifier"), currentPos, currentPos);
+        case "macro":
+          error(ECustom("Interface fields cannot have 'macro' modifier"), currentPos, currentPos);
+        case "static":
+          error(ECustom("Interface fields cannot have 'static' modifier"), currentPos, currentPos);
         case "public":
-          access.remove(APrivate);
-
-          if (!access.contains(APublic))
+          if (access.contains(APrivate))
+            error(ECustom("Conflicting access modifier public"), currentPos, currentPos);
+          else if (access.contains(APublic))
+            error(ECustom("Duplicate access modifier public"), currentPos, currentPos);
+          else
             access.push(APublic);
         case "private":
-          access.remove(APublic);
-
-          if (!access.contains(APrivate))
+          if (access.contains(APublic))
+            error(ECustom("Conflicting access modifier private"), currentPos, currentPos);
+          else if (access.contains(APrivate))
+            error(ECustom("Duplicate access modifier private"), currentPos, currentPos);
+          else
             access.push(APrivate);
-        case "static":
-          if (!access.contains(AStatic))
-            access.push(AStatic);
         case "dynamic":
-          if (!access.contains(ADynamic))
+          if (access.contains(ADynamic))
+            error(ECustom("Duplicate access modifier dynamic"), currentPos, currentPos);
+          else
             access.push(ADynamic);
-
         case "function":
           var name = getIdent();
           ensure(TPOpen);
@@ -2005,6 +2047,10 @@ class Parser
               ret = parseType();
           }
           ensure(TSemicolon);
+
+          // Interface fields default to public.
+          if (!access.contains(APrivate) && !access.contains(APublic))
+          access.push(APublic);
 
           checkRequireMeta(meta, name, 'Interface function');
 
@@ -2038,6 +2084,15 @@ class Parser
           }
           else
             ensure(TSemicolon);
+
+          if (access.contains(ADynamic))
+          {
+            error(ECustom('Invalid modifier: dynamic on variable'), currentPos, currentPos);
+          }
+
+          // Interface fields default to public.
+          if (!access.contains(APrivate) && !access.contains(APublic))
+            access.push(APublic);
 
           checkRequireMeta(meta, name, 'Field');
 

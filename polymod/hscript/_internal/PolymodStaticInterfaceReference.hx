@@ -151,17 +151,13 @@ class PolymodStaticInterfaceReference
             switch (accessVal)
             {
               case APrivate:
-                if (!foundField.access.contains(APrivate) || foundField.access.contains(APublic))
+                if (!foundField.access.contains(APrivate))
                   errorList.push('Field "${foundField.name}" should be private as requested by "$interfaceId"');
 
               case APublic:
-                if (!foundField.access.contains(APublic) || foundField.access.contains(APrivate))
+                if (!foundField.access.contains(APublic))
                   errorList.push('Field "${foundField.name}" should be public as requested by "$interfaceId"');
 
-              case AStatic:
-                if (!foundField.access.contains(AStatic))
-                  errorList.push('Field "${foundField.name}" should be static as requested by "$interfaceId"');
-                
               case ADynamic:
                 if (!foundField.access.contains(ADynamic))
                   errorList.push('Field "${foundField.name}" should be dynamic as requested by "$interfaceId"');
@@ -187,11 +183,11 @@ class PolymodStaticInterfaceReference
                   }
                   if (v.isfinal != v2.isfinal)
                   {
-                    errorList.push('Field "${foundField.name}" should be final as requested by "$interfaceId"');
+                    errorList.push('Field "${foundField.name}" should be ${v.isfinal ? "final" : "var"} as requested by "$interfaceId"');
                   }
                 case KFunction(_):
                   // Field should be a var and not a function!
-                  errorList.push('Field "${foundField.name}" should be "var" instead of "function" as requested by "$interfaceId"');
+                  errorList.push('Field "${foundField.name}" should be ${v.isfinal ? "final" : "var"} instead of "function" as requested by "$interfaceId"');
               }
             case KFunction(f):
               switch (foundField.kind)
