@@ -764,7 +764,7 @@ class Util
     #end
 
     var type = Type.typeof(obj);
-    return switch (type)
+    #if hl var result:String = #else return #end switch (type)
     {
       case TClass(cls):
         #if js
@@ -786,6 +786,9 @@ class Util
       default:
         Std.string(type);
     }
+    #if hl
+    return result.replace('$', '');
+    #end
   }
 
   public static function getScriptClassName(cls:Dynamic):Null<String>
