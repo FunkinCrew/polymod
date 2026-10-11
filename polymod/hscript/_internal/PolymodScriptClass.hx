@@ -759,13 +759,11 @@ class PolymodScriptClass
   {
     if (v == null || t == null) return false;
 
-    if (t is String && Interp._scriptEnumDescriptors.exists(t))
+    if (t is PolymodEnum)
     {
-      if (v is PolymodEnum)
+      if (v is PolymodEnum.PolymodEnumValue)
       {
-        var enumDecl:EnumDecl = v._e;
-
-        return Util.getFullEnumClass(enumDecl) == t;
+        return v.parentEnum.getFullName() == t.getFullName();
       }
       return false;
     }

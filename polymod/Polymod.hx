@@ -893,7 +893,6 @@ class Polymod
     #if POLYMOD_CPPIA
     polymod.hscript._internal.PolymodCppiaClassReference.clearCppiaClasses();
     #end
-    polymod.hscript._internal.PolymodEnum.clearScriptedEnums();
     #if hscript_typer
     polymod.hscript._internal.PolymodTyperEx.clearAllModules();
     #end

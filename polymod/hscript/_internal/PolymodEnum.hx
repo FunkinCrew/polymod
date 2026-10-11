@@ -3,83 +3,39 @@ package polymod.hscript._internal;
 import polymod.util.Util;
 import polymod.hscript._internal.Expr;
 
+@:allow(polymod.hscript._internal.PolymodEnumValue)
 class PolymodEnum
 {
-  private static final scriptInterp = new Interp(null, null);
-  private static final _staticUsingFunctionsCache:Map<String, Map<String, Array<Dynamic>->Dynamic>> = [];
+  static final _staticUsingFunctionsCache:Map<String, Map<String, Array<Dynamic>->Dynamic>> = [];
 
-  private var _e:EnumDecl;
+  /**
+   * Internal cache for active `PolymodEnum` instances to optimize and prevent redundant allocations.
+   */
+  static var _enumCache:Map<String, PolymodEnum> = new Map<String, PolymodEnum>();
 
-  public var value:String;
-  public var args:Array<Dynamic>;
+  var _e:EnumDecl;
+
+
+  /**
+   * Cache storing resolved enum fields, which can either be a `PolymodEnumValue` (for constants) 
+   * or a variadic function constructor (for enums requiring arguments).
+   */
+  var _fieldCach:Map<String, Dynamic> = new Map<String, Dynamic>();
 
   public var usingFunctionsCache:Map<String, Array<Dynamic>->Dynamic> = [];
 
-  public function new(e:EnumDecl, value:String, args:Array<Dynamic>)
+  public function new(e:EnumDecl)
   {
     this._e = e;
-
-    var field = getField(e, value);
-
-    if (field == null)
-    {
-      Polymod.error(SCRIPT_PARSE_FAILED, '${e.name}.${value} does not exist.', SCRIPT_RUNTIME);
-      return;
-    }
-
-    this.value = value;
-
-    if (args.length != field.args.length)
-    {
-      Polymod.error(SCRIPT_PARSE_FAILED, '${e.name}.${value} got the wrong number of arguments.', SCRIPT_RUNTIME);
-      return;
-    }
-
-    this.args = args;
-
     buildUsingCache();
   }
 
   /**
-   * Attempts to retrieve the full package of a scripted enum.
-   * @param id
+   * Attempts to build a `PolymodEnum` instance using its fully qualified name.
+   * @param enmName The fully qualified name or path of the scripted enum.
+   * @return A `PolymodEnum` instance, or `null` if the enum descriptor is not found.
    */
-  public static function tryResolve(id:String):Null<String>
-  {
-    // `id` is a package.
-    if (id.indexOf('.') != -1)
-    {
-      // Enum exists so we can safely return the full package.
-      @:privateAccess
-      if (Interp._scriptEnumDescriptors.exists(id)) return id;
-    }
-
-    else
-    {
-      @:privateAccess
-      for (fullEnumName in Interp._scriptEnumDescriptors.keys())
-      {
-        var at:Int = fullEnumName.length - id.length;
-        if (at == 0)
-        {
-          if (fullEnumName == id) return fullEnumName;
-        }
-        else if (at > 0 && StringTools.fastCodeAt(fullEnumName, at - 1) == '.'.code && StringTools.endsWith(fullEnumName, id))
-        {
-          return fullEnumName;
-        }
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Instantiates or returns a reference to a `PolymodEnum` constructor.
-   * @param enmName The name of the scripted enum
-   * @param field The target field
-   * @return A `PolymodEnum` instance/constructor, or `null` if the enum is not found
-   */
-  public static function tryBuild(enmName:String, field:String):Dynamic
+  public static function tryBuild(enmName:String):Null<PolymodEnum>
   {
     @:privateAccess
     if (Interp._scriptEnumDescriptors.exists(enmName))
@@ -87,27 +43,82 @@ class PolymodEnum
       @:privateAccess
       var enm = Interp._scriptEnumDescriptors.get(enmName);
 
-      var fld = getField(enm, field);
+      if (_enumCache.exists(enmName)) return _enumCache.get(enmName);
 
-      if ((fld?.args?.length ?? 0) >= 1)
-      {
-        return Reflect.makeVarArgs((args) -> new PolymodEnum(enm, field, args));
-      }
+      var ref = new PolymodEnum(enm);
+      _enumCache.set(enmName, ref);
 
-      return new PolymodEnum(enm, field, []);
+      return ref;
     }
 
     return null;
   }
 
-  public static function clearScriptedEnums():Void
+  /**
+   * Compares two `PolymodEnumValue` instances for structural and identity equality.
+   * Validates both the constructor name value and its parent enum reference.
+   * @param a First enum value instance.
+   * @param b Second enum value instance.
+   * @return `true` if both enum values match precisely, `false` otherwise.
+   */
+  public static function enumEq(a:PolymodEnumValue, b:PolymodEnumValue):Bool
   {
-    scriptInterp.clearScriptEnumDescriptors();
+    if (a == null || b == null) return false;
+
+    if (a.value == b.value)
+    {
+      return a.parentEnum.getFullName() == b.parentEnum.getFullName();
+    }
+    return false;
   }
 
-  private static function getField(e:EnumDecl, name:String):Null<EnumFieldDecl>
+  /**
+   * Clears all cached script enums, fields, and static using-functions caches.
+   */
+  public static function clearScriptedEnums():Void
   {
-    for (field in e.fields)
+    for (name => enm in _enumCache)
+    {
+      enm._fieldCach.clear();
+      _enumCache.remove(name);
+    }
+
+    _staticUsingFunctionsCache.clear();
+  }
+
+  /**
+   * Retrieves an enum field (either a constant value or a constructor function) by its name.
+   * @param name The name of the enum field.
+   * @return The resolved field (`PolymodEnumValue` or a constructor for it).
+   * @throws error if the specified field does not exist on this enum.
+   */
+  public function getField(name:String):Dynamic
+  {
+    if (_fieldCach.exists(name)) return _fieldCach.get(name);
+
+    var field = getFieldDecl(name);
+    if (field == null) throw '${_e.name}.${name} does not exist.';
+
+    var fld:Dynamic = null;
+
+    if (field.args.length >= 1)
+    {
+      fld = Reflect.makeVarArgs(function(args:Array<Dynamic>) return new PolymodEnumValue(this, field, args));
+    }
+
+    if (fld == null) fld = new PolymodEnumValue(this, field);
+    _fieldCach.set(name, fld);
+    return fld;
+  }
+
+  /**
+   * Finds and returns the raw declaration of a specific enum field.
+   * @param name The target field name.
+   * @return The `EnumFieldDecl` structure, or `null` if not found.
+   */
+  public function getFieldDecl(name:String):Null<EnumFieldDecl>
+  {
+    for (field in _e.fields)
     {
       if (field.name == name)
       {
@@ -117,12 +128,21 @@ class PolymodEnum
     return null;
   }
 
-  public function buildUsingCache()
+  /**
+   * Checks whether a specific field exists within this enum declaration.
+   * @param field The field name to check.
+   * @return `true` if the field exists, `false` otherwise.
+   */
+  public function hasField(field:String):Bool
   {
-    var fullEnumName:String = Util.getFullEnumClass(_e);
+    return getFieldDecl(field) != null;
+  }
 
-    if (_staticUsingFunctionsCache.exists(fullEnumName))
-      return usingFunctionsCache = _staticUsingFunctionsCache.get(fullEnumName);
+  function buildUsingCache()
+  {
+    var fullEnumName:String = getFullName();
+
+    if (_staticUsingFunctionsCache.exists(fullEnumName)) return usingFunctionsCache = _staticUsingFunctionsCache.get(fullEnumName);
 
     var list:Map<String, Array<Dynamic>->Dynamic> = [];
     for (m in _e.meta)
@@ -143,10 +163,53 @@ class PolymodEnum
     return usingFunctionsCache = list;
   }
 
+  public function getFullName():String
+  {
+    return Util.getFullEnumClass(_e);
+  }
+
   public function toString():String
   {
-    var result:String = '${_e.name}.${value}';
+    return 'PolymodEnum(${getFullName()})';
+  }
+}
+
+class PolymodEnumValue
+{
+  var _f:EnumFieldDecl;
+
+  /**
+   * A reference to the parent PolymodEnum instance
+   */
+  public var parentEnum:PolymodEnum;
+
+  public var value:String;
+  public var args:Array<Dynamic>;
+
+  public function new(parent:PolymodEnum, f:EnumFieldDecl, ?args:Array<Dynamic>)
+  {
+    this.parentEnum = parent;
+    this._f = f;
+
+    this.value = f.name;
+
+    if (f.args.length == 0 && args != null)
+    {
+      throw '${parent._e.name}.${value} is not callable.';
+    }
+
+    if ((args?.length ?? 0) != f.args.length)
+    {
+      throw '${parent._e.name}.${value} got the wrong number of arguments.';
+    }
+
+    this.args = args ?? [];
+  }
+
+  public function toString():String
+  {
+    var result:String = '${parentEnum._e.name}.${value}';
     if (args.length > 0) result += '(${args.join(',')})';
-    return result;
+    return 'PolymodEnumValue($result)';
   }
 }

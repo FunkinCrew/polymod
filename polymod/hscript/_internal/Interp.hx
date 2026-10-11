@@ -342,12 +342,12 @@ class Interp
 
   function tryUsingFallback(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic
   {
-    if (o is PolymodEnum)
+    if (o is PolymodEnum.PolymodEnumValue)
     {
-      var e = cast(o, PolymodEnum);
-      if (e.usingFunctionsCache.exists(f))
+      var v = cast(o, PolymodEnum.PolymodEnumValue);
+      if (v.parentEnum.usingFunctionsCache.exists(f))
       {
-        return e.usingFunctionsCache[f]([o].concat(args));
+        return v.parentEnum.usingFunctionsCache[f]([o].concat(args));
       }
       return null;
     }
@@ -372,9 +372,9 @@ class Interp
 
   function hasUsingFallback(o:Dynamic, f:String):Bool
   {
-    if (o is PolymodEnum)
+    if (o is PolymodEnum.PolymodEnumValue)
     {
-      return cast(o, PolymodEnum).usingFunctionsCache.exists(f);
+      return cast(o, PolymodEnum.PolymodEnumValue).parentEnum.usingFunctionsCache.exists(f);
     }
 
     @:privateAccess
@@ -999,19 +999,15 @@ class Interp
     _scriptInterfaceDescriptors.clear();
     registryStamp++;
 
+    // Clear the script enums.
+    PolymodEnum.clearScriptedEnums();
+    _scriptEnumDescriptors.clear();
+    registryStamp++;
+
+
     // Also clear the imports from the import.hx files.
     _scriptClassImports.clear();
     _scriptClassUsings.clear();
-
-    // Also destroy local variable scope.
-    this.resetVariables();
-  }
-
-  public function clearScriptEnumDescriptors():Void
-  {
-    // Clear the script enum descriptors.
-    _scriptEnumDescriptors.clear();
-    registryStamp++;
 
     // Also destroy local variable scope.
     this.resetVariables();
@@ -1832,14 +1828,10 @@ class Interp
           if (ref == null) ref = importedClass.enm;
           if (ref == null) ref = importedClass.abs;
           if (ref == null) ref = PolymodStaticClassReference.tryBuild(clsName);
+          if (ref == null) ref = PolymodEnum.tryBuild(clsName);
           if (ref != null)
           {
             return get(ref, fldName);
-          }
-          else if (_scriptEnumDescriptors.exists(clsName))
-          {
-            checkTypeForDeprecation(clsName);
-            return PolymodEnum.tryBuild(clsName, fldName);
           }
         }
         else
@@ -1848,7 +1840,7 @@ class Interp
           if (importedClass.enm != null) return importedClass.enm;
           if (importedClass.abs != null) return importedClass.abs;
 
-          var enumResult:Null<String> = PolymodEnum.tryResolve(importedClass.fullPath);
+          var enumResult = PolymodEnum.tryBuild(importedClass.fullPath);
           if (enumResult != null) return enumResult;
 
           // Resolve imported scripted interface.
@@ -1884,12 +1876,12 @@ class Interp
 
       if (!_plainIds.exists(id))
       {
-        // Try to retrieve a scripted class with this name in the same package.
+        // Try to retrieve a scripted reference with this name in the same package.
         if (getClassDecl().pkg != null && getClassDecl().pkg.length > 0)
         {
-          var localClassId = getClassDecl().pkg.join('.') + "." + id;
+          var localClassId = getClassDecl().pkg.join('.') + '.' + id;
 
-          var enumResult:Null<String> = PolymodEnum.tryResolve(localClassId);
+          var enumResult = PolymodEnum.tryBuild(localClassId);
           if (enumResult != null) return enumResult;
 
           var resultInterface = PolymodStaticInterfaceReference.tryBuild(localClassId);
@@ -1899,14 +1891,8 @@ class Interp
           if (result != null) return result;
         }
 
-        var enumResult:Null<String> = PolymodEnum.tryResolve(id);
-        if (enumResult != null) return enumResult;
-
-        var resultInterface = PolymodStaticInterfaceReference.tryBuild(id);
-        if (resultInterface != null) return resultInterface;
-
-        // Try to retrieve a scripted class with this name in the base package.
-        var result = PolymodStaticClassReference.tryBuild(id);
+        // Try to retrieve a reference with this name in the base package.
+        var result = resolveDottedPath(id);
         if (result != null) return result;
 
         _plainIds.set(id, true);
@@ -1996,9 +1982,11 @@ class Interp
         {
           checkTypeForDeprecation(imp.fullPath);
 
-          if (PolymodEnum.getField(_scriptEnumDescriptors.get(imp.fullPath), id) != null)
+          var enm = PolymodEnum.tryBuild(imp.fullPath);
+
+          if (enm.hasField(id))
           {
-            return PolymodEnum.tryBuild(imp.fullPath, id);
+            return enm.getField(id);
           }
         }
       }
@@ -2009,9 +1997,11 @@ class Interp
         if (enm.pkg != getClassDecl().pkg) continue;
         checkTypeForDeprecation(name);
 
-        if (PolymodEnum.getField(enm, id) != null)
+        var enm = PolymodEnum.tryBuild(name);
+
+        if (enm.hasField(id))
         {
-          return PolymodEnum.tryBuild(name, id);
+          return enm.getField(id);
         }
       }
 
@@ -2207,13 +2197,6 @@ class Interp
         restore(old);
         return v;
       case EField(e, f):
-        var name = startsAtValue(e) ? null : dottedPath(e);
-        if (name != null) name = getClassDecl().imports.get(name)?.fullPath ?? name;
-        if (name != null && _scriptEnumDescriptors.exists(name))
-        {
-          checkTypeForDeprecation(name);
-          return PolymodEnum.tryBuild(name, f);
-        }
         try
         {
           return get(fieldTarget(e), f);
@@ -2261,10 +2244,6 @@ class Interp
                 fullPath = imp.fullPath;
                 abs = imp.abs;
               }
-              else
-              {
-                fullPath = name;
-              }
             }
             else if (!startsAtValue(e))
             {
@@ -2293,13 +2272,6 @@ class Interp
               for (p in params) args.push(expr(p));
 
               return abs.callInlineFunction(this, params[0], f, args);
-            }
-            else if (_scriptEnumDescriptors.exists(fullPath))
-            {
-              var args = new Array();
-              for (p in params) args.push(expr(p));
-
-              return new PolymodEnum(_scriptEnumDescriptors.get(fullPath), f, args);
             }
           default:
         }
@@ -2821,8 +2793,8 @@ class Interp
 
   function evalSwitchCase(val:Dynamic, v:Expr, ?valExpr:Expr):Bool
   {
-    var isScriptEnum:Bool = val is PolymodEnum;
-    var isEnumValue:Bool = Reflect.isEnumValue(val) || isScriptEnum;
+    var isScriptEnumValue:Bool = val is PolymodEnum.PolymodEnumValue;
+    var isEnumValue:Bool = Reflect.isEnumValue(val) || isScriptEnumValue;
 
     inSwitchBinop = false;
     switch (Tools.expr(v))
@@ -2841,12 +2813,13 @@ class Interp
       case EIdent(v) if (v != 'true' && v != 'false'):
         if (isEnumValue)
         {
-          // Check to see if this value's constructor is the same.
-          var valConstName:String = isScriptEnum ? val.value : Type.enumConstructor(val);
-          if (valConstName == v)
-          {
+          // Resolve the enum value throws an error if it doesn't exist
+          var enumValue = resolve(v);
+
+          if (isScriptEnumValue && PolymodEnum.enumEq(val, enumValue))
             return true;
-          }
+          else if (Reflect.isEnumValue(enumValue) && Type.enumEq(val, enumValue))
+            return true;
         }
 
         if (~/[A-Z]/.match(v.charAt(0)))
@@ -2874,11 +2847,11 @@ class Interp
         locals.set(v, {r: val});
 
         return true;
-      case EField(e, f) if (isScriptEnum):
+      case EField(e, f) if (isScriptEnumValue):
         var enumValue:Dynamic = expr(v);
 
         // Special case checking for scripted enums as native enums should work fine.
-        if (enumValue is PolymodEnum && val.value == enumValue.value)
+        if (PolymodEnum.enumEq(val, enumValue))
           return true;
       case EArrayDecl(_), EObject(_):
         // There's a chance we have an array inside this array so we do this to allow for recursion.
@@ -2907,18 +2880,18 @@ class Interp
           default: null;
         }
 
-        var valConstructor:String = isScriptEnum ? val.value : Type.enumConstructor(val);
+        var valConstructor:String = isScriptEnumValue ? val.value : Type.enumConstructor(val);
         if (valConstructor == constName)
         {
           var enumParams:Array<Dynamic> = null;
-          if (isScriptEnum)
-            enumParams = (cast val : PolymodEnum).args.copy();
+          if (isScriptEnumValue)
+            enumParams = (cast val : PolymodEnum.PolymodEnumValue).args.copy();
           else
             enumParams = Type.enumParameters(val);
 
           // We call a method to double-check that this is an enum, this should return the same value if so.
           var enumValue:Dynamic = Reflect.callMethod(val, expr(e), enumParams);
-          if ((Reflect.isEnumValue(enumValue) && val == enumValue) || (enumValue is PolymodEnum))
+          if ((Reflect.isEnumValue(enumValue) && val == enumValue) || (enumValue is PolymodEnum.PolymodEnumValue && PolymodEnum.enumEq(val, enumValue)))
           {
             var enumLocals:Map<String, LocalVar> = null;
 
@@ -3202,7 +3175,7 @@ class Interp
     if (PolymodScriptClass.abstractClassImpls.exists(path)) return PolymodScriptClass.abstractClassImpls.get(path);
     if (PolymodScriptClass.typedefs.exists(path)) return PolymodScriptClass.typedefs.get(path);
 
-    var enumResult:Null<String> = PolymodEnum.tryResolve(path);
+    var enumResult = PolymodEnum.tryBuild(path);
     if (enumResult != null) return enumResult;
 
     var scriptedInterface = PolymodStaticInterfaceReference.tryBuild(path);
@@ -3698,6 +3671,12 @@ class Interp
     else if (Std.isOfType(o, PolymodStaticClassReference))
     {
       var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
+
+      return ref.getField(f);
+    }
+    else if (Std.isOfType(o, PolymodEnum))
+    {
+      var ref:PolymodEnum = cast(o, PolymodEnum);
 
       return ref.getField(f);
     }

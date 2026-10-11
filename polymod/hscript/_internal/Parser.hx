@@ -1782,7 +1782,13 @@ class Parser
         ensure(TBrOpen);
         while (!maybe(TBrClose))
         {
-          fields.push(parseEnumField());
+          var field = parseEnumField();
+          for (fld in fields)
+          {
+            if (fld.name == field.name)
+              error(ECustom('Duplicate field declaration: ${field.name}'), currentPos, currentPos);
+          }
+          fields.push(field);
           ensure(TSemicolon);
         }
 
