@@ -1292,6 +1292,7 @@ class Interp
             var path:Array<String> = importedClass.fullPath.split('.');
             var ref:Dynamic = importedClass.cls;
             if (ref == null) ref = importedClass.enm;
+            if (ref == null) ref = importedClass.abs;
             if (ref == null) ref = PolymodStaticClassReference.tryBuild(importedClass.pkg.join('.'));
             if (ref != null)
             {
@@ -1829,6 +1830,7 @@ class Interp
           var fldName:String = path[path.length - 1];
           var ref:Dynamic = importedClass.cls;
           if (ref == null) ref = importedClass.enm;
+          if (ref == null) ref = importedClass.abs;
           if (ref == null) ref = PolymodStaticClassReference.tryBuild(clsName);
           if (ref != null)
           {
