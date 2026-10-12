@@ -27,6 +27,24 @@ class PolymodConfig
   }
 
   /**
+   * Whether scripted classes should be preheated after registration.
+   * Preheating walks statically-resolvable script-class accesses and warms up safe
+   * lookup caches. It never runs constructors, field initializers, or lifecycle hooks.
+   *
+   * Set this option with the `POLYMOD_SCRIPTS_PREHEAT` Haxe define, or at runtime
+   * before loading scripted classes.
+   *
+   * @default `true`
+   */
+  public static var scriptsPreheat(get, default):Null<Bool>;
+
+  static function get_scriptsPreheat():Null<Bool>
+  {
+    if (scriptsPreheat == null) scriptsPreheat = DefineUtil.getDefineBool('POLYMOD_SCRIPTS_PREHEAT', true);
+    return scriptsPreheat;
+  }
+
+  /**
    * The base path from which scripts should be accessed.
    *
    * Set this option by setting the `POLYMOD_ROOT_PATH` Haxe define at compile time,

@@ -1066,6 +1066,29 @@ class Polymod
   #end
 
   /**
+   * Preheat registered scripted classes without executing game code.
+   * This is normally called automatically after registration when
+   * PolymodConfig.scriptsPreheat is enabled.
+   */
+  public static function preheatScriptClasses():Void
+  {
+    if (!PolymodConfig.scriptsPreheat) return;
+
+    try
+    {
+      polymod.hscript._internal.ScriptPreheater.run();
+    }
+    catch (error:Dynamic)
+    {
+      Polymod.warning(
+        SCRIPT_PREHEAT_WARNING,
+        'Script preheat stopped safely after an internal checker error: ${Std.string(error)}. Script loading continues.',
+        SCRIPT_RUNTIME
+      );
+    }
+  }
+
+  /**
    * Loads all script classes (`.hxc` files) and registers any classes they provide.
    */
   public static function registerAllScriptClasses():Map<String, Bool>
@@ -1115,6 +1138,7 @@ class Polymod
       var _ = polymod.hscript._internal.PolymodTyperEx.typeAllModules();
       #end
       polymod.hscript._internal.Interp.validateImports();
+      Polymod.preheatScriptClasses();
       polymod.hscript._internal.PolymodScriptClass.reloadPersistentStaticFields();
       polymod.hscript._internal.PolymodScriptClass.scriptsInitialized = true;
 
@@ -1174,6 +1198,7 @@ class Polymod
 
       // Once all scripts have been registered, THEN validate the imports.
       polymod.hscript._internal.Interp.validateImports();
+      Polymod.preheatScriptClasses();
       polymod.hscript._internal.PolymodScriptClass.reloadPersistentStaticFields();
       polymod.hscript._internal.PolymodScriptClass.scriptsInitialized = true;
 
@@ -2081,6 +2106,9 @@ enum abstract PolymodErrorCode(String) from String to String
    */
   public var SCRIPT_PARSE_FAILED:String = 'script_parse_failed';
 
+  public var SCRIPT_PREHEAT_WARNING:String = 'script_preheat_warning';
+  public var SCRIPT_PREHEAT_ERROR:String = 'script_preheat_error';
+  public var SCRIPT_PREHEAT_DONE:String = 'script_preheat_done';
   //
   // Script Execution Errors
   //
