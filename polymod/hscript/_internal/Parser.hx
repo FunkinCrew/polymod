@@ -1858,13 +1858,13 @@ class Parser
       {
         case "override":
           if (access.contains(AOverride))
-            error(ECustom("Duplicate access modifier override"), currentPos, currentPos);
+            error(EDuplicateAccessModifier("override"), currentPos, currentPos);
           else
             access.push(AOverride);
         case "public":
           // Throw an error if the user tries declaring a variable as public when it's already been declared private.
           if (access.contains(APrivate))
-            error(ECustom("Conflicting access modifier public"), currentPos, currentPos);
+            error(EConflictingAccessModifier("public"), currentPos, currentPos);
           else if (access.contains(APublic))
             error(EDuplicateAccessModifier('public'), currentPos, currentPos);
           else
@@ -1872,7 +1872,7 @@ class Parser
         case "private":
           // Throw an error if the user tries declaring a variable as private when it's already been declared public.
           if (access.contains(APublic))
-            error(ECustom("Conflicting access modifier private"), currentPos, currentPos);
+            error(EConflictingAccessModifier("private"), currentPos, currentPos);
           else if (access.contains(APrivate))
             error(EDuplicateAccessModifier('private'), currentPos, currentPos);
           else
@@ -1959,17 +1959,13 @@ class Parser
           #end
 
           if (access.contains(AOverride))
-          {
-            error(ECustom('Invalid modifier: override on variable'), currentPos, currentPos);
-          }
+            error(EInvalidVariableAccessor("override"), currentPos, currentPos);
+
           if (access.contains(AMacro))
-          {
-            error(ECustom('Invalid modifier: macro on variable'), currentPos, currentPos);
-          }
+            error(EInvalidVariableAccessor("macro"), currentPos, currentPos);
+
           if (access.contains(ADynamic))
-          {
-            error(ECustom('Invalid modifier: dynamic on variable'), currentPos, currentPos);
-          }
+            error(EInvalidVariableAccessor("dynamic"), currentPos, currentPos);
 
           // Default private if there is none specified.
           if (!access.contains(APrivate) && !access.contains(APublic))
@@ -2008,30 +2004,30 @@ class Parser
       switch (id)
       {
         case "override":
-          error(ECustom("Interface fields cannot have 'override' modifier"), currentPos, currentPos);
+          error(EInvalidInterfaceAccessor("override"), currentPos, currentPos);
         case "inline":
-          error(ECustom("Interface fields cannot have 'inline' modifier"), currentPos, currentPos);
+          error(EInvalidInterfaceAccessor("inline"), currentPos, currentPos);
         case "macro":
-          error(ECustom("Interface fields cannot have 'macro' modifier"), currentPos, currentPos);
+          error(EInvalidInterfaceAccessor("macro"), currentPos, currentPos);
         case "static":
-          error(ECustom("Interface fields cannot have 'static' modifier"), currentPos, currentPos);
+          error(EInvalidInterfaceAccessor("static"), currentPos, currentPos);
         case "public":
           if (access.contains(APrivate))
-            error(ECustom("Conflicting access modifier public"), currentPos, currentPos);
+            error(EConflictingAccessModifier("public"), currentPos, currentPos);
           else if (access.contains(APublic))
-            error(ECustom("Duplicate access modifier public"), currentPos, currentPos);
+            error(EDuplicateAccessModifier('public'), currentPos, currentPos);
           else
             access.push(APublic);
         case "private":
           if (access.contains(APublic))
-            error(ECustom("Conflicting access modifier private"), currentPos, currentPos);
+            error(EConflictingAccessModifier("private"), currentPos, currentPos);
           else if (access.contains(APrivate))
-            error(ECustom("Duplicate access modifier private"), currentPos, currentPos);
+            error(EDuplicateAccessModifier('private'), currentPos, currentPos);
           else
             access.push(APrivate);
         case "dynamic":
           if (access.contains(ADynamic))
-            error(ECustom("Duplicate access modifier dynamic"), currentPos, currentPos);
+            error(EDuplicateAccessModifier('dynamic'), currentPos, currentPos);
           else
             access.push(ADynamic);
         case "function":
@@ -2087,7 +2083,7 @@ class Parser
 
           if (access.contains(ADynamic))
           {
-            error(ECustom('Invalid modifier: dynamic on variable'), currentPos, currentPos);
+            error(EInvalidVariableAccessor("dynamic"), currentPos, currentPos);
           }
 
           // Interface fields default to public.

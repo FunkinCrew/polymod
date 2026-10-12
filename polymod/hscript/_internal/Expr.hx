@@ -187,6 +187,9 @@ enum Error
   EPrivateConstructor(v:String);
   EMultipleBoundVariable(v:String);
   EDuplicateAccessModifier(access:String);
+  EInvalidInterfaceAccessor(access:String);
+  EConflictingAccessModifier(access:String);
+  EInvalidVariableAccessor(access:String);
   // Fallback error type.
   ECustom(msg:String);
 }

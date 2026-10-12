@@ -755,6 +755,9 @@ class Printer
       case EPrivateConstructor(funcName): 'Cannot access private constructor of "$funcName"';
       case EMultipleBoundVariable(v): 'Variable "$v" is bound multiple times';
       case EDuplicateAccessModifier(access): 'Duplicate access modifier "$access"';
+      case EInvalidInterfaceAccessor(access): 'Interface fields cannot have "$access" modifier';
+      case EConflictingAccessModifier(access): 'Conflicting access modifier "$access"';
+      case EInvalidVariableAccessor(access): 'Invalid modifier: "$access" on variable';
       case ECustom(msg): msg;
     };
     #if hscriptPos
