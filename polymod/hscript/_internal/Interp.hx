@@ -2524,9 +2524,10 @@ class Interp
         // If there is a try/catch block, the error will be caught.
         // If there is no try/catch block, the error will be reported.
         error(EScriptThrow('${expr(e)}'));
-      case ETry(e, n, _, ecatch):
+      case ETry(e, catches):
         var old = declared.length;
         var oldTry = inTry;
+        var catchList = catches.copy();
         try
         {
           inTry = true;
@@ -2535,56 +2536,16 @@ class Interp
           inTry = oldTry;
           return v;
         }
-        catch (error:Error)
+        catch (e:Stop)
         {
-          #if hscriptPos
-          var err = error.e;
-          #else
-          var err = error;
-          #end
-          // restore vars
-          restore(old);
+          // Continue to throw the original error.
           inTry = oldTry;
-          // declare 'v'
-          declared.push({
-            n: n,
-            old: locals.get(n)
-          });
-          locals.set(n, {
-            r: switch (err)
-            {
-              case EScriptThrow(errValue):
-                errValue;
-              default:
-                error;
-            }
-          });
-          var v:Dynamic = expr(ecatch);
-          restore(old);
-          return v;
+          throw e;
         }
         catch (error:Dynamic)
         {
-          var en = Type.getEnum(error);
-          if (en != null && en.getName().endsWith("Interp.Stop"))
-          {
-            inTry = oldTry;
-            throw error;
-          }
-          // restore vars
-          restore(old);
-          inTry = oldTry;
-          // declare 'v'
-          declared.push({
-            n: n,
-            old: locals.get(n)
-          });
-          locals.set(n, {
-            r: error
-          });
-          var v:Dynamic = expr(ecatch);
-          restore(old);
-          return v;
+          // This function'll call recurively so that multiple catch functions can still be called.
+          return handleCatch(error, catchList, old, oldTry);
         }
       case EObject(fl):
         var o = {};
@@ -2622,16 +2583,40 @@ class Interp
           inSwitchCase = false;
           if (match)
           {
-            val = expr(c.expr);
-
+            try
+            {
+              val = expr(c.expr);
+            }
+            catch (e:Stop)
+            {
+              switch (e)
+              {
+                case SContinue:
+                  restore(old);
+                  throw e;
+                default:
+              }
+            }
             restore(old);
             break;
           }
         }
 
-        if (!match) val = def == null ? null : expr(def);
+        try
+        {
+          if (!match) val = def == null ? null : expr(def);
+        }
+        catch (e:Stop)
+        {
+          switch (e)
+          {
+            case SContinue:
+              restore(old);
+              throw e;
+            default:
+          }
+        }
         restore(old);
-
         return val;
       case EMeta(name, args, e):
         switch (name)
@@ -5191,6 +5176,71 @@ class Interp
       }
     }
     return funcArgs;
+  }
+
+  function handleCatch(error:Dynamic, catches:Array<{name:String, t:Null<CType>, e:Expr}>, oldDeclared:Int, oldTry:Bool):Dynamic
+  {
+    var err = error;
+    if (error is Expr.Error)
+    {
+      #if hscriptPos
+      err = error.e;
+      #end
+    }
+
+    try
+    {
+      var catchExpr = catches.shift();
+      var n:String = catchExpr.name;
+
+      // restore vars
+      restore(oldDeclared);
+
+      inTry = oldTry;
+      // declare 'v'
+      declared.push({
+        n: n,
+        old: locals.get(n)
+      });
+
+      if (error is Expr.Error)
+      {
+        locals.set(n, {
+          r: switch (cast (err : EnumValue))
+          {
+            case EScriptThrow(errValue): errValue;
+            default: error;
+          }
+        });
+      }
+      else
+      {
+        locals.set(n, {
+          r: err
+        });
+      }
+      var v:Dynamic = expr(catchExpr.e);
+      restore(oldDeclared);
+      return v;
+    }
+    catch (e:Stop)
+    {
+      inTry = oldTry;
+      throw e;
+    }
+    catch (e:Dynamic)
+    {
+      // We recursively call the function again so multiple catch functions can be called.
+      if (catches.length > 0)
+      {
+        return handleCatch(e, catches, oldDeclared, oldTry);
+      }
+      else
+      {
+        // Throw the original error.
+        throw e;
+      }
+    }
   }
 
   private inline function buildScriptClassStaticFunction(clsName:String, fieldName:String):Dynamic

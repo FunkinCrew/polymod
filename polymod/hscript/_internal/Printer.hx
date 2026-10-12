@@ -379,13 +379,17 @@ class Printer
       case EThrow(e):
         add("throw ");
         expr(e);
-      case ETry(e, v, t, ecatch):
+      case ETry(e, catches):
         add("try ");
         expr(e);
-        add(" catch( " + v);
-        addType(t);
-        add(") ");
-        expr(ecatch);
+        for (i in 0...catches.length)
+        {
+          var catchExpr = catches[i];
+          add(" catch( " + catchExpr.name);
+          addType(catchExpr.t);
+          add(") ");
+          expr(catchExpr.e);
+        }
       case EObject(fl):
         if (fl.length == 0)
         {

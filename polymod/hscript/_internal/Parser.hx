@@ -339,7 +339,7 @@ class Parser
       case EDoWhile(_, e): isBlock(e);
       case EFor(_, _, e), EForGen(_, e): isBlock(e);
       case EReturn(e): e != null && isBlock(e);
-      case ETry(_, _, _, e): isBlock(e);
+      case ETry(_, c): isBlock(c[0].e);
       case EMeta(_, _, e): isBlock(e);
       default: false;
     }
@@ -963,18 +963,33 @@ class Parser
         var e = parseExpr();
         mk(EThrow(e), p1, pmax(e));
       case "try":
+        var catches = [];
+        var pmaxCatch:Int = 0;
+        function parseCatchExpr()
+        {
+          trace('LIOL');
+          ensure(TPOpen);
+          var vname = getIdent();
+          ensure(TDoubleDot);
+          var t = null;
+          t = parseType() ?? null;
+          ensure(TPClose);
+
+          var ec = parseExpr();
+          catches.push({name: vname, t: t, e: ec});
+          pmaxCatch = pmax(ec);
+        }
         var e = parseExpr();
+
+        // Mandatory catch function.
         ensureToken(TId("catch"));
-        ensure(TPOpen);
-        var vname = getIdent();
-        ensure(TDoubleDot);
-        var t = null;
-        if (allowTypes) t = parseType();
-        else
-          ensureToken(TId("Dynamic"));
-        ensure(TPClose);
-        var ec = parseExpr();
-        mk(ETry(e, vname, t, ec), p1, pmax(ec));
+        parseCatchExpr();
+
+        // Any optional catch expressions.
+        while (maybe(TId("catch")))
+          parseCatchExpr();
+
+        mk(ETry(e, catches), p1, pmaxCatch);
       case "switch":
         var e = parseExpr();
         var def = null, cases = [];

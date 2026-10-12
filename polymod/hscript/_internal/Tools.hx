@@ -83,9 +83,10 @@ class Tools
           f(e);
       case EThrow(e):
         f(e);
-      case ETry(e, _, _, c):
+      case ETry(e, catches):
         f(e);
-        f(c);
+        for (c in catches)
+          f(c.e);
       case EObject(fl):
         for (fi in fl)
           f(fi.e);
@@ -302,7 +303,7 @@ class Tools
       case EArrayDecl(el): EArrayDecl([for (e in el) f(e)]);
       case ENew(cl, el): ENew(cl, [for (e in el) f(e)]);
       case EThrow(e): EThrow(f(e));
-      case ETry(e, v, t, c): ETry(f(e), v, t, f(c));
+      case ETry(e, catches): ETry(f(e), [for (c in catches) {name: c.name, t: c.t, e: f(c.e)}]);
       case EObject(fl): EObject([for (fi in fl) {name: fi.name, e: f(fi.e)}]);
       case ETernary(c, e1, e2): ETernary(f(c), f(e1), f(e2));
       case ESwitch(e, cases, def): ESwitch(f(e), [for (c in cases) {values: [for (v in c.values) f(v)], guard: (c.guard == null ? null : f(c.guard)), expr: f(c.expr)}], def == null ? null : f(def));
