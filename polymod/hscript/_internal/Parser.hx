@@ -1712,7 +1712,7 @@ class Parser
           {
             case TId("extends"):
               if (extend != null)
-                error(ECustom("Cannot extend several classes"), currentPos, currentPos);     
+                error(ECustom("Cannot extend several classes"), currentPos, currentPos);
               extend = parseType();
             case TId("implements"):
               implement.push(parseType());
@@ -1866,7 +1866,7 @@ class Parser
           if (access.contains(APrivate))
             error(ECustom("Conflicting access modifier public"), currentPos, currentPos);
           else if (access.contains(APublic))
-            error(ECustom("Duplicate access modifier public"), currentPos, currentPos);
+            error(EDuplicateAccessModifier('public'), currentPos, currentPos);
           else
             access.push(APublic);
         case "private":
@@ -1874,27 +1874,27 @@ class Parser
           if (access.contains(APublic))
             error(ECustom("Conflicting access modifier private"), currentPos, currentPos);
           else if (access.contains(APrivate))
-            error(ECustom("Duplicate access modifier private"), currentPos, currentPos);
+            error(EDuplicateAccessModifier('private'), currentPos, currentPos);
           else
             access.push(APrivate);
         case "inline":
           if (access.contains(AInline))
-            error(ECustom("Duplicate access modifier inline"), currentPos, currentPos);
+            error(EDuplicateAccessModifier('inline'), currentPos, currentPos);
           else
             access.push(AInline);
         case "static":
           if (access.contains(AStatic))
-            error(ECustom("Duplicate access modifier static"), currentPos, currentPos);
+            error(EDuplicateAccessModifier('static'), currentPos, currentPos);
           else
             access.push(AStatic);
         case "dynamic":
           if (access.contains(ADynamic))
-            error(ECustom("Duplicate access modifier dynamic"), currentPos, currentPos);
+            error(EDuplicateAccessModifier('dynamic'), currentPos, currentPos);
           else
             access.push(ADynamic);
         case "macro":
           if (access.contains(AMacro))
-            error(ECustom("Duplicate access modifier macro"), currentPos, currentPos);
+            error(EDuplicateAccessModifier('macro'), currentPos, currentPos);
           else
             access.push(AMacro);
         case "function":
@@ -1970,7 +1970,7 @@ class Parser
           {
             error(ECustom('Invalid modifier: dynamic on variable'), currentPos, currentPos);
           }
-          
+
           // Default private if there is none specified.
           if (!access.contains(APrivate) && !access.contains(APublic))
             access.push(APrivate);

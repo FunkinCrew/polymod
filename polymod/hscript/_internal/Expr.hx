@@ -186,6 +186,7 @@ enum Error
   EInvalidAccessorCombination(accessors:Array<String>);
   EPrivateConstructor(v:String);
   EMultipleBoundVariable(v:String);
+  EDuplicateAccessModifier(access:String);
   // Fallback error type.
   ECustom(msg:String);
 }

@@ -754,6 +754,7 @@ class Printer
       case EInvalidAccessorCombination(accessors): 'Invalid modifier combination: ${accessors.join(' + ')}';
       case EPrivateConstructor(funcName): 'Cannot access private constructor of "$funcName"';
       case EMultipleBoundVariable(v): 'Variable "$v" is bound multiple times';
+      case EDuplicateAccessModifier(access): 'Duplicate access modifier "$access"';
       case ECustom(msg): msg;
     };
     #if hscriptPos
