@@ -5238,6 +5238,7 @@ class Interp
       else
       {
         // Throw the original error.
+        inTry = oldTry;
         throw e;
       }
     }
