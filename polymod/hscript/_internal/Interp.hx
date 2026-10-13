@@ -4408,6 +4408,8 @@ class Interp
             fields: i.fields,
           }
           registerScriptInterface(interfaceDecl);
+        case DAbstractClass(a):
+
         case DEnum(e):
           if (isImportFile) continue;
 
