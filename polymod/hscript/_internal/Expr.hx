@@ -204,6 +204,7 @@ enum ModuleDecl
   DTypedef(c:TypeDecl);
   DEnum(e:EnumDecl);
   DInterface(e:InterfaceDecl);
+  DAbstractClass(e:AbstractClassDecl);
 }
 
 typedef ModuleType =
@@ -384,6 +385,11 @@ typedef InterfaceDecl =
   var pkg:Array<String>;
 }
 
+typedef AbstractClassDecl =
+{
+  > ClassDecl,
+}
+
 typedef FieldDecl =
 {
   var name:String;
@@ -401,6 +407,7 @@ enum FieldAccess
   AStatic;
   ADynamic;
   AMacro;
+  AAbstract;
 }
 
 enum FieldKind

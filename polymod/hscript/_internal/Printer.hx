@@ -526,6 +526,24 @@ class Printer
           output += classFieldsToString(c.fields);
           output += "}";
 
+        case DAbstractClass(a):
+          output += metaToString(a.meta);
+          output += a.isPrivate ? "private " : "";
+          output += a.isExtern ? "extern " : "";
+          output += "abstract class " + a.name;
+          if (Reflect.fields(a.params).length > 0) output += "<>";
+          output += " ";
+
+          if (a.extend != null) output += "extends " + this.typeToString(a.extend) + " ";
+          for (imp in a.implement)
+          {
+            output += "implements " + imp + " ";
+          }
+
+          output += "\n{";
+          output += classFieldsToString(a.fields);
+          output += "}";
+
         case DTypedef(t):
           output += metaToString(t.meta);
           output += t.isPrivate ? "private " : "";
@@ -641,6 +659,8 @@ class Printer
             output += "dynamic ";
           case AMacro:
             output += "macro ";
+          case AAbstract:
+            output += "abstract ";
         }
       }
 
@@ -662,7 +682,7 @@ class Printer
           output += ")";
           if (f.ret != null) output += ':${this.typeToString(f.ret)}';
 
-          output += ignoreValues ? ";" : (" " + this.exprToString(f.expr));
+          output += (ignoreValues || f.expr == null) ? ";" : (" " + this.exprToString(f.expr));
 
         case KVar(v):
           output += "var " + fld.name;
