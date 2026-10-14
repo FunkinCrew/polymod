@@ -36,8 +36,9 @@ class ScriptPreheater
       var fields:Map<String, Bool> = new Map();
       for (field in decl.fields) switch (field.kind)
       {
-        case KFunction(fn):
+        case KFunction(fn) if (fn.expr != null):
           collectPreheatAssignments(fn.expr, fields);
+        case KFunction(_):
         case KVar(v):
           if (v.expr != null) collectPreheatAssignments(v.expr, fields);
       }
@@ -49,13 +50,16 @@ class ScriptPreheater
       count++;
       for (field in decl.staticFields) switch (field.kind)
       {
-        case KFunction(fn):
+        case KFunction(fn) if (fn.expr != null):
           try
             PolymodScriptClass.scriptInterp.getScriptClassStaticField(name, field.name)
           catch (error:Dynamic)
+          {
             issues.push(
               'Script preheat error in ${name}: could not prepare static method ${field.name} (${preheatPosition(fn.expr, name)}): ${Std.string(error)}'
             );
+          }
+        case KFunction(_):
         case KVar(_):
       }
 
@@ -64,7 +68,7 @@ class ScriptPreheater
         var isStatic = field.access.contains(AStatic);
         switch (field.kind)
         {
-          case KFunction(fn):
+          case KFunction(fn) if (fn.expr != null):
             var locals:Map<String, Bool> = new Map();
             for (arg in fn.args) locals.set(arg.name, true);
             var stats = {
@@ -72,6 +76,7 @@ class ScriptPreheater
             };
             preheatWalk(fn.expr, decl, name, isStatic, locals, assigned, issues, stats);
             checked += stats.checked;
+          case KFunction(_):
           case KVar(v) if (v.expr != null):
             var stats = {
               checked: 0
@@ -86,7 +91,7 @@ class ScriptPreheater
     if (issues.length > 0) Polymod.error(PolymodErrorCode.SCRIPT_PREHEAT_ERROR, issues.join('\n'), PolymodErrorOrigin.SCRIPT_RUNTIME);
     Polymod.info(
       PolymodErrorCode.SCRIPT_PREHEAT_DONE,
-      'Script preheat finished: ${count} classes, ${checked} identifier/member references checked, ${issues.length} error(s).',
+      'Script preheat finished: ${count} classes, ${checked} identifier/member checks completed, ${issues.length} error(s).',
       PolymodErrorOrigin.SCRIPT_RUNTIME
     );
   }

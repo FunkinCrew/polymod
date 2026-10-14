@@ -1189,6 +1189,7 @@ class PolymodScriptClass
 
   public function callFunction(fnName:String, ?args:Array<Dynamic>):Null<Dynamic>
   {
+    if (args == null) args = [];
     var field = findField(fnName);
     var fn = (field != null) ? findFunction(fnName) : null;
 
@@ -1201,6 +1202,7 @@ class PolymodScriptClass
         {
           if(_interp.functions.exists(fnName))
           {
+            _interp.validateScriptFunctionArguments(fn, args, fnName);
             r = Reflect.callMethod(this, _interp.functions.get(fnName), args);
           }
           else
@@ -1597,7 +1599,11 @@ class PolymodScriptClass
           _cachedVarDecls.set(f.name, v);
           if (v.expr != null)
           {
+            #if POLYMOD_STRICT_SYNTAX
             var varValue = this._interp.exprWithType(v.expr, v.type);
+            #else
+            var varValue = this._interp.expr(v.expr);
+            #end
             this._interp.variables.set(f.name, varValue);
           }
         default:

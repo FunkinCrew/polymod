@@ -865,6 +865,8 @@ class Util
    */
   public static function getFullEnumClass(enumDecl:EnumDecl):String
   {
-    return enumDecl.pkg != null ? '${enumDecl.pkg.join('.')}.${enumDecl}' : enumDecl.name;
+    if (enumDecl.pkg != null && enumDecl.pkg.length > 0)
+      return enumDecl.pkg.join('.') + '.' + enumDecl.name;
+    return enumDecl.name;
   }
 }
