@@ -967,7 +967,6 @@ class Parser
         var pmaxCatch:Int = 0;
         function parseCatchExpr()
         {
-          trace('LIOL');
           ensure(TPOpen);
           var vname = getIdent();
           ensure(TDoubleDot);
