@@ -379,7 +379,7 @@ class Tools
       case CTOpt(t): t;
       default: t;
     }
-    if (!once && result != t) result = follow(t);
+    if (!once && result != t) result = follow(result);
     return result;
   }
 }
