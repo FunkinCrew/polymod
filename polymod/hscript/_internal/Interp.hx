@@ -1300,7 +1300,7 @@ class Interp
         var l = locals.get(id);
         if (l != null && l.isfinal && l.r != null)
         {
-          return error(EInvalidAccess(id));
+          return error(EInvalidFinalSet(id));
         }
 
         if (l == null)
