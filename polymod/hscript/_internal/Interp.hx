@@ -2631,6 +2631,9 @@ class Interp
       case EArrayDecl(arr):
         // Initialize an array (or map) from a declaration.
         return exprArrayDecl(arr, t);
+      case EComprehension(body, isMap):
+        // Initialize an array (or map) from a comprehension.
+        return exprCompr(body, isMap, t);
       default:
         // Whatever.
     }
@@ -2767,7 +2770,7 @@ class Interp
     return entries.map((e) -> expr(e));
   }
 
-  function exprCompr(body:Expr, isMap:Bool):Dynamic
+  function exprCompr(body:Expr, isMap:Bool, ?typeHint:CType):Dynamic
   {
     var entries:Array<Dynamic> = [];
     var keys:Array<Dynamic> = [];
@@ -2823,7 +2826,7 @@ class Interp
     visitExpr(body);
     if (isMap)
     {
-      return makeMap(keys, values);
+      return makeMap(keys, values, typeHint);
     }
     else
     {
