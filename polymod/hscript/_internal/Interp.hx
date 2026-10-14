@@ -2785,14 +2785,21 @@ class Interp
     switch (Tools.expr(v))
     {
       case EParent(e):
-        if (evalSwitchCase(val, e, valExpr))
-          return true;
-      case EVar(v):
+        if (evalSwitchCase(val, e, valExpr)) return true;
+      case EVar(n), EFinal(n, _, _):
+        var isFinal = switch (Tools.expr(v))
+        {
+          case EFinal(_): true;
+          default: false;
+        };
         declared.push({
-          n: v,
-          old: locals.get(v),
+          n: n,
+          old: locals.get(n),
         });
-        locals.set(v, {r: val});
+        locals.set(n, {
+          r: val,
+          isfinal: isFinal
+        });
 
         return true;
       case EIdent(v) if (v != 'true' && v != 'false'):
@@ -2884,21 +2891,38 @@ class Interp
             for (i in 0...params.length)
             {
               var localVarName:Null<String> = null;
+              var isFinalVar:Bool = false;
               var paramExpr:Expr = params[i];
+
               switch (Tools.expr(paramExpr))
               {
-                // Quick check for enum variable capturing.
+                case EIdent(v) if (!['true', 'false', '_'].contains(v)):
+                  localVarName = v;
+                case EVar(v, _, _):
+                  localVarName = v;
+                case EFinal(v, _, _):
+                  localVarName = v;
+                  isFinalVar = true;
+
                 case EBinop('=', e1, e2):
                   switch (Tools.expr(e1))
                   {
                     case EIdent(v) if (!['true', 'false', '_'].contains(v)):
-                      if (enumLocals != null && enumLocals.exists(v))
-                      {
-                        error(EMultipleBoundVariable(v));
-                        return false;
-                      }
+                      localVarName = v;
+                    case EVar(v, _, _):
+                      localVarName = v;
+                    case EFinal(v, _, _):
+                      isFinalVar = true;
                       localVarName = v;
                     default:
+                  }
+                  if (localVarName != null)
+                  {
+                    if (enumLocals != null && enumLocals.exists(localVarName))
+                    {
+                      error(EMultipleBoundVariable(localVarName));
+                      return false;
+                    }
                   }
                   paramExpr = e2;
                 default:
@@ -2918,7 +2942,10 @@ class Interp
               if (localVarName != null)
               {
                 enumLocals ??= new Map<String, LocalVar>();
-                enumLocals.set(localVarName, {r: valParam});
+                enumLocals.set(localVarName, {
+                  r: valParam,
+                  isfinal: isFinalVar
+                });
               }
             }
 
