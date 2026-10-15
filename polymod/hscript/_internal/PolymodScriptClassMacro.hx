@@ -5,6 +5,7 @@ import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Type;
 import haxe.macro.Type.ClassType;
+import haxe.macro.Type.EnumType;
 import polymod.util.MacroUtil;
 #end
 
@@ -54,6 +55,17 @@ class PolymodScriptClassMacro
     }
 
     return macro polymod.hscript._internal.PolymodScriptClassMacro.fetchTypedefs();
+  }
+
+  public static macro function listTypedefTargets():ExprOf<Map<String, String>>
+  {
+    if (!onGenerateCallbackRegistered)
+    {
+      onGenerateCallbackRegistered = true;
+      haxe.macro.Context.onGenerate(onGenerate);
+    }
+
+    return macro polymod.hscript._internal.PolymodScriptClassMacro.fetchTypedefTargets();
   }
 
   /**
@@ -121,9 +133,13 @@ class PolymodScriptClassMacro
       switch (type)
       {
         case TInst(t, _params):
-          // Parse classes to check if they are `HScriptedClass` implementations, for processing later.
-
           var classType:ClassType = t.get();
+          switch (classType.kind)
+          {
+            case KTypeParameter(_), KExpr(_): continue;
+            default:
+          }
+          // Parse classes to check if they are `HScriptedClass` implementations, for processing later.
           var classPack:String = classType.pack.join('.');
           var classPath:String = t.toString();
 
@@ -252,32 +268,21 @@ class PolymodScriptClassMacro
 
             case TAbstract(t, _params):
               var targetPath:String = t.toString();
-
-              var entryData = [typedefPath, targetPath];
-
-              typedefEntries.push(entryData);
+              typedefEntries.push([typedefPath, targetPath]);
               addPackageClass(t.get().pack.join('.'), targetPath);
             case TEnum(t, _params):
               var targetEnum:EnumType = t.get();
-              var targetEnumPath:String = '${targetEnum.pack.concat([targetEnum.name]).join(".")}';
-
-              var entryData = [typedefPath, targetEnumPath];
-
-              typedefEntries.push(entryData);
+              var targetEnumPath = targetEnum.pack.concat([targetEnum.name]).join('.');
+              typedefEntries.push([typedefPath, targetEnumPath]);
               addPackageClass(targetEnum.pack.join('.'), targetEnumPath);
             case TInst(t, _params):
               var targetClass:ClassType = t.get();
-              var targetClassPath:String = '${targetClass.pack.concat([targetClass.name]).join(".")}';
-
-              var entryData = [typedefPath, targetClassPath];
-
-              typedefEntries.push(entryData);
+              var targetClassPath = targetClass.pack.concat([targetClass.name]).join('.');
+              typedefEntries.push([typedefPath, targetClassPath]);
               addPackageClass(targetClass.pack.join('.'), targetClassPath);
             default:
-              // Unknown typedef target type?
-              trace('TYPEDEF: ${typedefPath} -> ${typedefTarget}');
+              continue;
           }
-
         case TAbstract(t, _params):
           // Perform additional processing on abstracts classes to ensure they can be accessed at runtime.
 
@@ -285,18 +290,11 @@ class PolymodScriptClassMacro
           var abstractType = t.get();
           var abstractPack:String = abstractType.pack.join('.');
           var abstractImpl = abstractType.impl?.get();
-
-          if (abstractImpl == null)
-          {
-            // If the abstract doesn't have an implementation, it's usually an extern or something, so we always want to ignore it.
-            continue;
-          }
+          if (abstractImpl == null) continue;
 
           var abstractImplPath:String = abstractType.impl?.toString() ?? '';
-
           var polymodImplPath:String = 'polymod.hscript._internal._abstract.${abstractPath}_PolymodImpl_';
           var hasPolymodImpl:Bool = false;
-
           try
           {
             Context.getType(polymodImplPath);
@@ -304,14 +302,15 @@ class PolymodScriptClassMacro
           }
           catch (e) {}
 
-          var entryData = [
+          abstractImplEntries.push([
             abstractPath,
             abstractImplPath,
             hasPolymodImpl ? polymodImplPath : null
-          ];
-
-          abstractImplEntries.push(entryData);
+          ]);
           addPackageClass(abstractPack, abstractPath);
+        case TEnum(t, _params):
+          var enumType:EnumType = t.get();
+          addPackageClass(enumType.pack.join('.'), t.toString());
         default:
           continue;
       }
@@ -629,6 +628,7 @@ class PolymodScriptClassMacro
     return _metadata;
   }
 
+
   public static function fetchAbstractImpls():Map<String, AbstractImplEntry>
   {
     var metaData = fetchMetadata();
@@ -683,6 +683,19 @@ class PolymodScriptClassMacro
     {
       throw 'No abstractImpls found in PolymodScriptClassMacro!';
     }
+  }
+
+  public static function fetchTypedefTargets():Map<String, String>
+  {
+    var metaData = fetchMetadata();
+    var result:Map<String, String> = [];
+    var typedefs:Array<Array<String>> = cast metaData.typedefs;
+    if (typedefs == null) return result;
+    for (entry in typedefs)
+    {
+      if (entry.length == 2) result.set(entry[0], entry[1]);
+    }
+    return result;
   }
 
   public static function fetchTypedefs():Map<String, Class<Dynamic>>

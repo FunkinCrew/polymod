@@ -893,9 +893,6 @@ class Polymod
     #if POLYMOD_CPPIA
     polymod.hscript._internal.PolymodCppiaClassReference.clearCppiaClasses();
     #end
-    #if hscript_typer
-    polymod.hscript._internal.PolymodTyperEx.clearAllModules();
-    #end
     polymod.hscript.ScriptRunner.clearScripts();
   }
 
@@ -1131,18 +1128,22 @@ class Polymod
 
       registerAllCppiaClasses(results);
 
-      #if hscript_typer
-      // in the future typed modules might have a use
-      // but for now we just ignore the typed modules that are returned
-      var _ = polymod.hscript._internal.PolymodTyperEx.typeAllModules();
-      #end
+      finishScriptRegistration();
+      return results;
+    }
+  }
+
+  static function finishScriptRegistration():Void
+  {
+    @:privateAccess {
       polymod.hscript._internal.Interp.validateImports();
+      #if (POLYMOD_STRICT_SYNTAX && !macro)
+      polymod.hscript._internal.Typer.run();
+      #end
       Polymod.preheatScriptClasses();
       polymod.hscript._internal.PolymodScriptClass.reloadPersistentStaticFields();
       polymod.hscript._internal.PolymodScriptClass.scriptsInitialized = true;
-
       if (Polymod.onScriptsLoaded != null) Polymod.onScriptsLoaded();
-      return results;
     }
   }
 
@@ -1195,14 +1196,7 @@ class Polymod
       polymod.hscript._internal.PolymodCppiaClassReference.unloadInactiveModules();
       #end
 
-      // Once all scripts have been registered, THEN validate the imports.
-      polymod.hscript._internal.Interp.validateImports();
-      Polymod.preheatScriptClasses();
-      polymod.hscript._internal.PolymodScriptClass.reloadPersistentStaticFields();
-      polymod.hscript._internal.PolymodScriptClass.scriptsInitialized = true;
-
-      if (Polymod.onScriptsLoaded != null) Polymod.onScriptsLoaded();
-
+      finishScriptRegistration();
       return lime.app.Future.withValue(results);
     });
   }
@@ -2105,6 +2099,8 @@ enum abstract PolymodErrorCode(String) from String to String
    */
   public var SCRIPT_PARSE_FAILED:String = 'script_parse_failed';
 
+  public var SCRIPT_TYPE_ERROR:String = 'script_type_error';
+  public var SCRIPT_TYPE_CHECK_DONE:String = 'script_type_check_done';
   public var SCRIPT_PREHEAT_WARNING:String = 'script_preheat_warning';
   public var SCRIPT_PREHEAT_ERROR:String = 'script_preheat_error';
   public var SCRIPT_PREHEAT_DONE:String = 'script_preheat_done';

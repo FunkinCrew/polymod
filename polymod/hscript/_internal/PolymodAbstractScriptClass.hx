@@ -69,7 +69,11 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
           {
             if (v.expr != null)
             {
+              #if POLYMOD_STRICT_SYNTAX
               varValue = this._interp.exprWithType(v.expr, v.type);
+              #else
+              varValue = this._interp.expr(v.expr);
+              #end
               this._interp.variables.set(name, varValue);
             }
           }
