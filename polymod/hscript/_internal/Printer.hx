@@ -512,6 +512,8 @@ class Printer
           output += metaToString(c.meta);
           output += c.isPrivate ? "private " : "";
           output += c.isExtern ? "extern " : "";
+          output += c.isAbstract ? "abstract " : "";
+
           output += "class " + c.name;
           if (Reflect.fields(c.params).length > 0) output += "<>"; // Once params are actually functional, this should be implemented.
           output += " ";
@@ -525,25 +527,6 @@ class Printer
           output += "\n{";
           output += classFieldsToString(c.fields);
           output += "}";
-
-        case DAbstractClass(a):
-          output += metaToString(a.meta);
-          output += a.isPrivate ? "private " : "";
-          output += a.isExtern ? "extern " : "";
-          output += "abstract class " + a.name;
-          if (Reflect.fields(a.params).length > 0) output += "<>";
-          output += " ";
-
-          if (a.extend != null) output += "extends " + this.typeToString(a.extend) + " ";
-          for (imp in a.implement)
-          {
-            output += "implements " + imp + " ";
-          }
-
-          output += "\n{";
-          output += classFieldsToString(a.fields);
-          output += "}";
-
         case DTypedef(t):
           output += metaToString(t.meta);
           output += t.isPrivate ? "private " : "";

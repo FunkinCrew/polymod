@@ -816,11 +816,15 @@ class Interp
   {
     var name = Util.getFullClassName(c);
 
-    if (_scriptClassDescriptors.exists(name))
+    if (
+      _scriptInterfaceDescriptors.exists(name)
+      || PolymodScriptClass.interfaceImpls.exists(name)
+      || _scriptClassDescriptors.exists(name)
+      || _scriptEnumDescriptors.exists(name))
     {
       Polymod.error(
         SCRIPTED_CLASS_ALREADY_REGISTERED,
-        'Scripted class with fully qualified name "$name" has already been defined. Please change the class name or the package name to ensure uniqueness.',
+        'Type with fully qualified name "$name" has already been defined. Please change the class name or the package name to ensure uniqueness.',
         SCRIPT_RUNTIME
       );
       return;
@@ -841,11 +845,14 @@ class Interp
     {
       name = i.pkg.join('.') + '.' + i.name;
     }
-
-    if (_scriptInterfaceDescriptors.exists(name) || PolymodScriptClass.interfaceImpls.exists(name) || _scriptClassDescriptors.exists(name))
+    if (
+      _scriptInterfaceDescriptors.exists(name)
+      || PolymodScriptClass.interfaceImpls.exists(name)
+      || _scriptClassDescriptors.exists(name)
+      || _scriptEnumDescriptors.exists(name))
     {
       Polymod.error(SCRIPTED_CLASS_ALREADY_REGISTERED,
-      'Scripted interface with fully qualified name "$name" has already been defined. Please change the interface or the package name to ensure uniqueness.',
+        'Type with fully qualified name "$name" has already been defined. Please change the interface or the package name to ensure uniqueness.',
       SCRIPT_RUNTIME);
       return;
     }
@@ -866,11 +873,16 @@ class Interp
       name = e.pkg.join(".") + "." + name;
     }
 
-    if (_scriptEnumDescriptors.exists(name))
+    if (
+      _scriptInterfaceDescriptors.exists(name)
+      || PolymodScriptClass.interfaceImpls.exists(name)
+      || _scriptClassDescriptors.exists(name)
+      || _scriptEnumDescriptors.exists(name)
+    )
     {
       Polymod.error(
         SCRIPTED_CLASS_ALREADY_REGISTERED,
-        'An enum with the fully qualified name "$name" has already been defined. Please change the enum name to ensure a unique name.',
+        'Type with the fully qualified name "$name" has already been defined. Please change the enum name to ensure a unique name.',
         SCRIPT_RUNTIME
       );
       return;
@@ -4204,6 +4216,7 @@ class Interp
             params: c.params,
             meta: c.meta,
             isPrivate: c.isPrivate,
+            isAbstract: c.isAbstract,
             extend: c.extend,
             implement: c.implement,
             fields: instanceFields,
@@ -4229,8 +4242,6 @@ class Interp
             fields: i.fields,
           }
           registerScriptInterface(interfaceDecl);
-        case DAbstractClass(a):
-
         case DEnum(e):
           if (isImportFile) continue;
 

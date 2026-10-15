@@ -1023,8 +1023,7 @@ class PolymodScriptClass
     var fullExtendStringParts = fullExtendString.split('.');
     var extendString = fullExtendStringParts[fullExtendStringParts.length - 1];
 
-    var classDescriptor = Interp.findScriptClassDescriptor(fullExtendPath);
-    if (classDescriptor != null)
+    if (Interp.findScriptClassDescriptor(fullExtendPath) != null)
     {
       var ref:PolymodStaticClassReference = PolymodStaticClassReference.tryBuild(fullExtendPath);
 
@@ -1346,7 +1345,7 @@ class PolymodScriptClass
       var extendName:String = new Printer().typeToString(implement);
       if (extendName.indexOf('<') != -1)
         extendName = extendName.split('<')[0];
-      
+
       var interfacePath:String = _c.imports.get(extendName)?.fullPath ?? extendName;
 
       // Attempt to resolve the interface.

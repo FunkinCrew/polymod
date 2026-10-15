@@ -1266,11 +1266,12 @@ class Parser
     return args;
   }
 
-  function parseFunctionDecl()
+  function parseFunctionDecl(isAbstract:Bool = false)
   {
     ensure(TPOpen);
     var args = parseFunctionArgs();
     var ret = null;
+    var inf = {args: args, ret: ret, body: null};
     if (allowTypes)
     {
       var tk = token();
@@ -1278,7 +1279,17 @@ class Parser
       else
         ret = parseType();
     }
-    return {args: args, ret: ret, body: parseExpr()};
+    if (isAbstract)
+    {
+      if (!maybe(TSemicolon))
+        inf.body = parseExpr();
+    }
+    else
+    {
+      // Force parse the body expression
+      inf.body = parseExpr();
+    }
+    return inf;
   }
 
   function parsePath()
@@ -1581,7 +1592,7 @@ class Parser
   {
     var meta = parseMetadata();
     var ident = getIdent();
-    var isPrivate = false, isExtern = false;
+    var isPrivate = false, isExtern = false, isAbstract = false;
     while (true)
     {
       switch (ident)
@@ -1590,6 +1601,8 @@ class Parser
           isPrivate = true;
         case "extern":
           isExtern = true;
+        case "abstract":
+          isAbstract = true;
         default:
           break;
       }
@@ -1714,7 +1727,7 @@ class Parser
             fields: fields,
             isPrivate: isPrivate,
             isExtern: isExtern,
-
+            isAbstract: isAbstract,
             pkg: [],
             imports: [],
             importsToValidate: [],
@@ -1821,71 +1834,6 @@ class Parser
             isExtern: isExtern,
             pkg: [],
           });
-      case "abstract":
-        var name:String = getIdent();
-
-        if (name == "class")
-        {
-          name = getIdent();
-          var params = parseParams();
-          var extend = null;
-          var implement = [];
-
-          while (true)
-          {
-            var t = token();
-            switch (t)
-            {
-              case TId("extends"):
-                if (extend != null) error(ECustom("Cannot extend several classes"), currentPos, currentPos);
-                extend = parseType();
-              case TId("implements"):
-                implement.push(parseType());
-              default:
-                push(t);
-                break;
-            }
-          }
-
-          var fields = [];
-
-          ensure(TBrOpen);
-          while (!maybe(TBrClose))
-          {
-            var newField:FieldDecl = parseAbstractField();
-
-            for (field in fields)
-            {
-              if (field.name == newField.name)
-              {
-                error(ECustom('Duplicate field declaration: ${newField.name}'), currentPos, currentPos);
-              }
-            }
-            fields.push(newField);
-          }
-          return DAbstractClass({
-            name: name,
-            meta: meta,
-            params: params,
-            extend: extend,
-            implement: implement,
-            fields: fields,
-            isPrivate: isPrivate,
-            isExtern: isExtern,
-
-            pkg: [],
-            imports: [],
-            importsToValidate: [],
-            usings: [],
-            usingsToValidate: [],
-            staticFields: [],
-          });
-        }
-        else
-        {
-          // No generic abstracts.... yet!
-          return null;
-        }
       default:
         unexpected(TId(ident));
     }
@@ -1958,7 +1906,7 @@ class Parser
             access.push(APrivate);
 
           var name = getIdent();
-          var inf = parseFunctionDecl();
+          var inf = parseFunctionDecl(access.contains(AAbstract));
           maybe(TSemicolon);
 
           checkRequireMeta(meta, name, 'Function');
@@ -2174,170 +2122,6 @@ class Parser
                 expr: null,
                 isfinal: (id == "final")
               }),
-          };
-        default:
-          unexpected(TId(id));
-          break;
-      }
-    }
-    return null;
-  }
-  function parseAbstractField():Null<FieldDecl>
-  {
-    var meta = parseMetadata();
-    var access = [];
-    while (true)
-    {
-      var id = getIdent();
-      switch (id)
-      {
-        case "abstract":
-          if (access.contains(AAbstract))
-            error(EDuplicateAccessModifier("abstract"), currentPos, currentPos);
-          else
-            access.push(AAbstract);
-        case "override":
-          if (access.contains(AOverride))
-            error(EDuplicateAccessModifier("override"), currentPos, currentPos);
-          else
-            access.push(AOverride);
-        case "public":
-          // Throw an error if the user tries declaring a variable as public when it's already been declared private.
-          if (access.contains(APrivate))
-            error(EConflictingAccessModifier("public"), currentPos, currentPos);
-          else if (access.contains(APublic))
-            error(EDuplicateAccessModifier('public'), currentPos, currentPos);
-          else
-            access.push(APublic);
-        case "private":
-          // Throw an error if the user tries declaring a variable as private when it's already been declared public.
-          if (access.contains(APublic))
-            error(EConflictingAccessModifier("private"), currentPos, currentPos);
-          else if (access.contains(APrivate))
-            error(EDuplicateAccessModifier('private'), currentPos, currentPos);
-          else
-            access.push(APrivate);
-        case "inline":
-          if (access.contains(AInline))
-            error(EDuplicateAccessModifier('inline'), currentPos, currentPos);
-          else
-            access.push(AInline);
-        case "static":
-          if (access.contains(AStatic))
-            error(EDuplicateAccessModifier('static'), currentPos, currentPos);
-          else
-            access.push(AStatic);
-        case "dynamic":
-          if (access.contains(ADynamic))
-            error(EDuplicateAccessModifier('dynamic'), currentPos, currentPos);
-          else
-            access.push(ADynamic);
-        case "macro":
-          if (access.contains(AMacro))
-            error(EDuplicateAccessModifier('macro'), currentPos, currentPos);
-          else
-            access.push(AMacro);
-        case "function":
-          if (access.contains(AOverride) && access.contains(AStatic))
-          {
-            error(EInvalidAccessorCombination(['override', 'static']), currentPos, currentPos);
-          }
-
-          // Default private if there is none specified.
-          if (!access.contains(APrivate) && !access.contains(APublic))
-            access.push(APrivate);
-
-          var name = getIdent();
-
-          ensure(TPOpen);
-          var args = parseFunctionArgs();
-          var ret = null;
-          var inf = {args: args, ret: ret, body: null};
-          if (allowTypes)
-          {
-            var tk = token();
-            if (tk != TDoubleDot) push(tk);
-            else
-              ret = parseType();
-          }
-          if (!maybe(TSemicolon))
-          {
-            inf.body = parseExpr();
-          }
-
-          return {
-            name: name,
-            meta: meta,
-            access: access,
-            kind: KFunction({
-              args: inf.args,
-              expr: inf.body,
-              ret: inf.ret,
-              isdynamic: access.contains(ADynamic),
-            }),
-          }
-        case "var", "final":
-          var name = getIdent();
-          var get = null, set = null;
-          if (maybe(TPOpen))
-          {
-            get = getIdent();
-            ensure(TComma);
-            set = getIdent();
-            ensure(TPClose);
-          }
-          var type = maybe(TDoubleDot) ? parseType() : null;
-          var expr = maybe(TOp("=")) ? parseExpr() : null;
-
-          if (expr != null)
-          {
-            if (isBlock(expr)) maybe(TSemicolon);
-            else
-              ensure(TSemicolon);
-          }
-          else if (type != null && type.match(CTAnon(_)))
-          {
-            maybe(TSemicolon);
-          }
-          else
-            ensure(TSemicolon);
-
-          #if POLYMOD_STRICT_SYNTAX
-          if (access.contains(AInline) && !access.contains(AStatic))
-          {
-            error(ECustom('Invalid modifier: inline on non-static variable'), currentPos, currentPos);
-          }
-          #end
-
-          if (access.contains(AOverride))
-            error(EInvalidVariableAccessor("override"), currentPos, currentPos);
-
-          if (access.contains(AMacro))
-            error(EInvalidVariableAccessor("macro"), currentPos, currentPos);
-
-          if (access.contains(ADynamic))
-            error(EInvalidVariableAccessor("dynamic"), currentPos, currentPos);
-
-          if (access.contains(AAbstract))
-            error(EInvalidVariableAccessor("abstract"), currentPos, currentPos);
-
-          // Default private if there is none specified.
-          if (!access.contains(APrivate) && !access.contains(APublic))
-            access.push(APrivate);
-
-          checkRequireMeta(meta, name, 'Field');
-
-          return {
-            name: name,
-            meta: meta,
-            access: access,
-            kind: KVar({
-              get: get,
-              set: set,
-              type: type,
-              expr: expr,
-              isfinal: (id == "final")
-            }),
           };
         default:
           unexpected(TId(id));
