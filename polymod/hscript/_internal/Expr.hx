@@ -205,7 +205,6 @@ enum ModuleDecl
   DTypedef(c:TypeDecl);
   DEnum(e:EnumDecl);
   DInterface(e:InterfaceDecl);
-  DAbstractClass(e:AbstractClassDecl);
 }
 
 typedef ModuleType =
@@ -247,6 +246,11 @@ typedef ClassDecl =
    * Whether the class was declared with the `extern` keyword
    */
   var isExtern:Bool;
+
+  /**
+   * Whether this class is an abstract.
+   */
+  var isAbstract:Bool;
 
   /**
    * The package that the scripted class belongs to
@@ -385,11 +389,6 @@ typedef InterfaceDecl =
    * The package the interface belongs to
    */
   var pkg:Array<String>;
-}
-
-typedef AbstractClassDecl =
-{
-  > ClassDecl,
 }
 
 typedef FieldDecl =

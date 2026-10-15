@@ -1024,8 +1024,7 @@ class PolymodScriptClass
     var fullExtendStringParts = fullExtendString.split('.');
     var extendString = fullExtendStringParts[fullExtendStringParts.length - 1];
 
-    var classDescriptor = Interp.findScriptClassDescriptor(fullExtendPath);
-    if (classDescriptor != null)
+    if (Interp.findScriptClassDescriptor(fullExtendPath) != null)
     {
       var ref:PolymodStaticClassReference = PolymodStaticClassReference.tryBuild(fullExtendPath);
 

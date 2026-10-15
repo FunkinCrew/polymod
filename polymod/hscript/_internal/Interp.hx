@@ -4383,6 +4383,7 @@ class Interp
             params: c.params,
             meta: c.meta,
             isPrivate: c.isPrivate,
+            isAbstract: c.isAbstract,
             extend: c.extend,
             implement: c.implement,
             fields: instanceFields,
@@ -4408,8 +4409,6 @@ class Interp
             fields: i.fields,
           }
           registerScriptInterface(interfaceDecl);
-        case DAbstractClass(a):
-
         case DEnum(e):
           if (isImportFile) continue;
 
