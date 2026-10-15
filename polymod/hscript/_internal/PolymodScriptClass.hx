@@ -1167,6 +1167,47 @@ class PolymodScriptClass
         default:
       }
     }
+
+    // Validate that all abstract functions have an implementation.
+    validateAbstractFields();
+  }
+
+  private function validateAbstractFields():Void
+  {
+    if (_c.isAbstract)
+      return;
+
+    var unImplementedFields:Map<String, String> = [];
+    var superCls:Dynamic = this.superClass;
+    var ascProxy:PolymodAbstractScriptClass = cast this;
+
+    // TODO: Make this work for native classes.
+    while (superCls != null && Std.isOfType(superCls, PolymodScriptClass))
+    {
+      var superClsProxy:PolymodAbstractScriptClass = cast (superCls, PolymodScriptClass);
+      if (superClsProxy._c.isAbstract)
+      {
+        for (f in superClsProxy._c.abstractFields)
+        {
+          switch (f.kind)
+          {
+            case KFunction(_):
+              // This an abstract function that is still needs to be implemented.
+              if (!ascProxy.fieldExists(f.name))
+                unImplementedFields.set(f.name, superClsProxy.fullyQualifiedName);
+            default:
+          }
+        }
+      }
+      superCls = superClsProxy.superClass;
+    }
+
+    if (unImplementedFields.count() > 0)
+    {
+      var msg:String = [for (field => cls in unImplementedFields) 'Class "$fullyQualifiedName" extends abstract class "$cls" but doesn\'t implement "$field"'].join('\n');
+
+      _interp.error(ECustom(msg));
+    }
   }
 
   public static function reportError(err:Expr.Error, ?className:String, ?fnName:String):Void

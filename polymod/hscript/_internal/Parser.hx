@@ -1279,6 +1279,7 @@ class Parser
       else
         ret = parseType();
     }
+
     if (isAbstract)
     {
       if (!maybe(TSemicolon))
@@ -1717,6 +1718,36 @@ class Parser
         while (!maybe(TBrClose))
           fields.push(parseField());
 
+        for (f in fields)
+        {
+          // Post abstract error-checking.
+          if (f.access.contains(AAbstract))
+          {
+            if (!isAbstract)
+            {
+              error(ECustom('"$name" should be declared "abstract" because it has at least one abstract field.'), currentPos, currentPos);
+              break;
+            }
+
+            if (f.name == 'new')
+            {
+              error(ECustom('Invalid modifier: abstract on constructor'), currentPos, currentPos);
+              break;
+            }
+
+            switch (f.kind)
+            {
+              case KFunction(fn):
+                if (fn.expr != null && f.name != 'new')
+                {
+                  error(ECustom('Abstract methods may not have an expression.'), currentPos, currentPos);
+                  break;
+                }
+              default:
+            }
+          }
+        }
+
         return DClass(
           {
             name: name,
@@ -1734,6 +1765,7 @@ class Parser
             usings: [],
             usingsToValidate: [],
             staticFields: [],
+            abstractFields: [],
           });
       case "typedef":
         var name = getIdent();
@@ -1906,7 +1938,7 @@ class Parser
             access.push(APrivate);
 
           var name = getIdent();
-          var inf = parseFunctionDecl(access.contains(AAbstract));
+          var inf = parseFunctionDecl(access.contains(AAbstract) && name != 'new');
           maybe(TSemicolon);
 
           checkRequireMeta(meta, name, 'Function');

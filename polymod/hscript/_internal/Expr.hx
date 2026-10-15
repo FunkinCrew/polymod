@@ -232,6 +232,12 @@ typedef ClassDecl =
   var implement:Array<CType>;
 
   /**
+   * The list of abstract fields of this scripted class.
+   * Only available for if this class is declared an abstract.
+   */
+  var abstractFields:Array<FieldDecl>;
+
+  /**
    * The static fields of the scripted class
    */
   var staticFields:Array<FieldDecl>;
