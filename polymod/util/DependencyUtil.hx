@@ -64,14 +64,16 @@ class DependencyUtil
           Polymod.warning(MOD_DEPENDENCY_UNMET, 'Skipping mod "${currentMod.id}", required dependency "${depId}" not found.', INIT);
           currentModMissingDep = true;
           break;
-        } else {
-          if (depMod.isModCompatible(depVersionRule)) {
-            // The dependency is met!
-            continue;
-          } else {
-            Polymod.warning(MOD_DEPENDENCY_UNMET, 'Skipping mod "${currentMod.id}", required dependency "${depId}" has version "${depMod.modVersion}" but we need "${depVersionRule}".', INIT);
-          }
         }
+
+        if (depMod.isModCompatible(depVersionRule)) {
+          // The dependency is met!
+          continue;
+        }
+
+        Polymod.warning(MOD_DEPENDENCY_UNMET, 'Skipping mod "${currentMod.id}", required dependency "${depId}" has version "${depMod.modVersion}" but we need "${depVersionRule}".', INIT);
+        currentModMissingDep = true;
+        break;
       }
 
       if (!currentModMissingDep) result.push(currentMod);
