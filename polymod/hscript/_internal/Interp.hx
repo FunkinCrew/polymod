@@ -184,12 +184,19 @@ class Interp
 
     function tryBuildClass(clsRef:PolymodStaticClassReference, args:Array<Dynamic>):Null<Dynamic>
     {
-      checkTypeForDeprecation(clsRef.getFullyQualifiedName());
+      if (clsRef.cls.isAbstract)
+      {
+        // Abstracts can't be instantiated.
+        error(ECustom('"${clsRef.cls.name}" is an abstract class and cannot be constructed.'));
+        return null;
+      }
       if (!inPrivateAccess && clsRef.cls != getClassDecl() && !clsRef.canInstantiate)
       {
         error(EPrivateConstructor(clsRef.cls.name));
         return null;
       }
+      checkTypeForDeprecation(clsRef.getFullyQualifiedName());
+
       return clsRef.instantiate(args);
     }
 
@@ -816,11 +823,15 @@ class Interp
   {
     var name = Util.getFullClassName(c);
 
-    if (_scriptClassDescriptors.exists(name))
+    if (
+      _scriptInterfaceDescriptors.exists(name)
+      || PolymodScriptClass.interfaceImpls.exists(name)
+      || _scriptClassDescriptors.exists(name)
+      || _scriptEnumDescriptors.exists(name))
     {
       Polymod.error(
         SCRIPTED_CLASS_ALREADY_REGISTERED,
-        'Scripted class with fully qualified name "$name" has already been defined. Please change the class name or the package name to ensure uniqueness.',
+        'Type with fully qualified name "$name" has already been defined. Please change the class name or the package name to ensure uniqueness.',
         SCRIPT_RUNTIME
       );
       return;
@@ -841,11 +852,14 @@ class Interp
     {
       name = i.pkg.join('.') + '.' + i.name;
     }
-
-    if (_scriptInterfaceDescriptors.exists(name) || PolymodScriptClass.interfaceImpls.exists(name) || _scriptClassDescriptors.exists(name))
+    if (
+      _scriptInterfaceDescriptors.exists(name)
+      || PolymodScriptClass.interfaceImpls.exists(name)
+      || _scriptClassDescriptors.exists(name)
+      || _scriptEnumDescriptors.exists(name))
     {
       Polymod.error(SCRIPTED_CLASS_ALREADY_REGISTERED,
-      'Scripted interface with fully qualified name "$name" has already been defined. Please change the interface or the package name to ensure uniqueness.',
+        'Type with fully qualified name "$name" has already been defined. Please change the interface or the package name to ensure uniqueness.',
       SCRIPT_RUNTIME);
       return;
     }
@@ -866,11 +880,16 @@ class Interp
       name = e.pkg.join(".") + "." + name;
     }
 
-    if (_scriptEnumDescriptors.exists(name))
+    if (
+      _scriptInterfaceDescriptors.exists(name)
+      || PolymodScriptClass.interfaceImpls.exists(name)
+      || _scriptClassDescriptors.exists(name)
+      || _scriptEnumDescriptors.exists(name)
+    )
     {
       Polymod.error(
         SCRIPTED_CLASS_ALREADY_REGISTERED,
-        'An enum with the fully qualified name "$name" has already been defined. Please change the enum name to ensure a unique name.',
+        'Type with the fully qualified name "$name" has already been defined. Please change the enum name to ensure a unique name.',
         SCRIPT_RUNTIME
       );
       return;
@@ -4182,8 +4201,16 @@ class Interp
 
           var instanceFields = [];
           var staticFields = [];
+          var abstractFields = [];
+
           for (f in c.fields)
           {
+            if (c.isAbstract && f.access.contains(AAbstract))
+            {
+              abstractFields.push(f);
+              continue;
+            }
+
             if (f.access.contains(AStatic))
             {
               staticFields.push(f);
@@ -4204,11 +4231,13 @@ class Interp
             params: c.params,
             meta: c.meta,
             isPrivate: c.isPrivate,
+            isAbstract: c.isAbstract,
             extend: c.extend,
             implement: c.implement,
             fields: instanceFields,
-            isExtern: c.isExtern,
             staticFields: staticFields,
+            abstractFields: abstractFields,
+            isExtern: c.isExtern,
           };
           registerScriptClassBlacklist(classDecl);
           registerScriptClass(classDecl);
