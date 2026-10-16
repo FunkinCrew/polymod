@@ -48,8 +48,8 @@ enum Expr
 {
   EConst(c:Const);
   EIdent(v:String);
-  EVar(n:String, ?t:CType, ?e:Expr);
-  EFinal(n:String, ?t:CType, ?e:Expr);
+  EVar(n:String, ?t:CType, ?e:Expr, ?s:Bool);
+  EFinal(n:String, ?t:CType, ?e:Expr, ?s:Bool);
   EParent(e:Expr);
   EBlock(e:Array<Expr>);
   EField(e:Expr, f:String);
@@ -191,6 +191,7 @@ enum Error
   EInvalidInterfaceAccessor(access:String);
   EConflictingAccessModifier(access:String);
   EInvalidVariableAccessor(access:String);
+  EInvalidStaticLocalInit(name:String, reason:String);
   // Fallback error type.
   ECustom(msg:String);
 }

@@ -351,10 +351,45 @@ class Parser
     exprs.push(e);
 
     var tk = token();
-    // this is a hack to support var a,b,c; with a single EVar
-    while (tk == TComma && e != null && expr(e).match(EVar(_)))
+    
+    var isFinal = false;
+    var isStatic = false;
+    
+    switch (expr(e))
     {
-      e = parseStructure("var"); // next variable
+      case EVar(_, _, _, staticVal):
+        isStatic = staticVal;
+      case EFinal(_, _, _, staticVal):
+        isFinal = true;
+        isStatic = staticVal;
+      default:
+    }
+
+    var isVarDecl = switch (expr(e))
+    {
+      case EVar(_) | EFinal(_): true;
+      default: false;
+    };
+
+    while (tk == TComma && e != null && isVarDecl)
+    {
+      e = parseStructure(isFinal ? "final" : "var");
+      if (isStatic)
+      {
+        e = switch (expr(e))
+        {
+          case EVar(n, t, ex): mk(EVar(n, t, ex, true), pmin(e), pmax(e));
+          case EFinal(n, t, ex): mk(EFinal(n, t, ex, true), pmin(e), pmax(e));
+          default: e;
+        }
+      }
+
+      isVarDecl = switch (expr(e))
+      {
+        case EVar(_) | EFinal(_): true;
+        default: false;
+      };
+
       exprs.push(e);
       tk = token();
     }
@@ -792,7 +827,7 @@ class Parser
         if (inSwitchCase)
         {
           // Simply return the expression as the switch case handles `:` and expression parsing.
-          mk(isFinal ? EFinal(ident, null, null) : EVar(ident, null, null), p1, tokenMax);
+          mk(isFinal ? EFinal(ident, null, null, null) : EVar(ident, null, null, null), p1, tokenMax);
         }
         else
         {
@@ -820,9 +855,26 @@ class Parser
               unexpected(tk);
           }
 
-          if (isFinal) mk(EFinal(ident, t, e), p1, (e == null) ? tokenMax : pmax(e));
+          if (isFinal) mk(EFinal(ident, t, e, false), p1, (e == null) ? tokenMax : pmax(e));
           else
-            mk(EVar(ident, t, e), p1, (e == null) ? tokenMax : pmax(e));
+            mk(EVar(ident, t, e, false), p1, (e == null) ? tokenMax : pmax(e));
+        }
+      case "static":
+        if (inSwitchCase)
+        {
+          unexpected(TId("static"));
+        }
+        else
+        {
+          switch (expr(parseStructure(getIdent())))
+          {
+            case EVar(id, t, e, _):
+              mk(EVar(id, t, e, true), p1, (e == null) ? tokenMax : pmax(e));
+            case EFinal(id, t, e, _):
+              mk(EFinal(id, t, e, true), p1, (e == null) ? tokenMax : pmax(e));
+            default:
+              unexpected(TId("static"));
+          }
         }
       case "while":
         var econd = parseExpr();
