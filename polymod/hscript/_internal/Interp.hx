@@ -1172,6 +1172,7 @@ class Interp
 
   function assign(e1:Expr, e2:Expr):Dynamic
   {
+    validateAssignment(e2); // Make sure the value is valid
     return assignValue(e1, expr(e2));
   }
 
@@ -1317,7 +1318,15 @@ class Interp
           setVar(id, v);
         }
         else
+        {
+          if (l.isstatic)
+          {
+            var fullName = '${getClassFullyQualifiedName()}#${this.currentFunction}#$id';
+            PolymodScriptClass.scriptInterp.variables.set(fullName, v);
+          }
+
           l.r = v;
+        }
       case EField(e0, id):
         // Make sure setting superclass fields works when using this.
         // Also ensures property functions are accounted for.
@@ -2151,35 +2160,93 @@ class Interp
         if (l != null) return l.r;
 
         return resolve(id);
-      case EVar(name, type, expression):
+      case EVar(name, type, expression, isStatic) | EFinal(name, type, expression, isStatic):
+        validateAssignment(expression);
+
+        if (isStatic)
+        {
+          var varName = '${this.currentFunction}_$name';
+          var clsName = getClassFullyQualifiedName();
+          var result:Dynamic = null;
+          if (clsName != null && this.currentFunction != null)
+          {
+            if ((locals.exists(name) && locals.get(name).isstatic) || PolymodScriptClass.hasScriptClassStaticField(clsName, varName))
+            {
+              error(ECustom('The expanded name of static local "$varName" conflicts with another static field'));
+              return null;
+            }
+
+            // Special name for static locals so they get stored in the class static variables
+            var fullName = '$clsName#${this.currentFunction}#$name';
+            if (PolymodScriptClass.scriptInterp.variables.exists(fullName))
+            {
+              result = PolymodScriptClass.scriptInterp.variables.get(fullName);
+            }
+            else
+            {
+              var id:String = switch (Tools.expr(expression))
+              {
+                case ESwitch(_):
+                  error(EInvalidStaticLocalInit(varName, "cannot use a switch expression as an initializer"));
+                  null;
+                case EIdent(i):
+                  i;
+                case EField(e, _):
+                  getIdent(e);
+                default:
+                  null;
+              }
+
+              if (id != null)
+              {
+                if (locals.exists(id) && !locals.get(name).isstatic)
+                {
+                  error(EInvalidStaticLocalInit(varName, 'cannot use local variable "$id" as an initializer'));
+                }
+                else if (_proxy != null)
+                {
+                  if (id == "this")
+                  {
+                    error(EInvalidStaticLocalInit(varName, 'cannot use "this" as initialization'));
+                  }
+                  else if (_proxy.findField(id) != null)
+                  {
+                    error(EInvalidStaticLocalInit(varName, 'cannot use instance field "$id" as an initializer'));
+                  }
+                }
+              }
+
+              result = expression != null ? exprWithType(expression, type) : null;
+              PolymodScriptClass.scriptInterp.variables.set(fullName, result);
+            }
+
+            declared.push({
+              n: name,
+              old: locals.get(name)
+            });
+
+            locals.set(name, {
+              r: result,
+              isfinal: Std.isOfType(Tools.expr(e), EFinal),
+              isstatic: true
+            });
+
+            return null;
+          }
+        }
+
         declared.push({
           n: name,
           old: locals.get(name)
         });
 
-        // Evaluate the expression before assigning, applying typing if possible.
         var result:Dynamic = (expression != null) ? exprWithType(expression, type) : null;
 
         locals.set(name, {
           r: result,
-          isfinal: false
+          isfinal: Std.isOfType(Tools.expr(e), EFinal)
         });
-
-        return null;
-      case EFinal(name, type, expression):
-        declared.push({
-          n: name,
-          old: locals.get(name)
-        });
-
-        // Evaluate the expression before assigning, applying typing if possible.
-        var result = (expression != null) ? exprWithType(expression, type) : null;
-
-        locals.set(name, {
-          r: result,
-          isfinal: true
-        });
-
+        
         return null;
       case EParent(e0):
         return expr(e0);
@@ -2381,10 +2448,12 @@ class Interp
           var oldDepth = me.depth;
           var oldCallObject = me._nextCallObject;
           var oldClsDeclOverride = me._classDeclOverride;
+          var oldFunctionName = me.currentFunction;
           me.depth++;
           me.locals = duplicate(capturedLocals);
           me._nextCallObject = capturedCallObject;
           me._classDeclOverride = capturedClassDeclOverride;
+          me.currentFunction = capturedFunctionName;
 
           name ??= capturedFunctionName;
 
@@ -2404,6 +2473,7 @@ class Interp
             me.depth = oldDepth;
             me._nextCallObject = oldCallObject;
             me._classDeclOverride = oldClsDeclOverride;
+            me.currentFunction = oldFunctionName;
           }
 
           if (inTry)
@@ -5221,6 +5291,18 @@ class Interp
     //    }
   }
 
+  function validateAssignment(expr:Null<Expr>)
+  {
+    if (expr == null) return;
+
+    switch (Tools.expr(expr))
+    {
+      case EWhile(_) | EDoWhile(_) | EFor(_) | EForGen(_) | EThrow(_) | EReturn(_) | EBreak | EContinue:
+        error(ECustom("Cannot assign an expression that does not return a value."));
+      default:
+    }
+  }
+
   function buildBindArgs(args:Array<Dynamic>, bindArgs:Array<Dynamic>):Array<Dynamic>
   {
     if ((args.findIndex((arg) -> arg == '_') == -1) || args.length == 0)
@@ -5583,6 +5665,7 @@ typedef LocalVar =
 {
   var r:Dynamic;
   var ?isfinal:Bool;
+  var ?isstatic:Bool;
 }
 private class ArrayIterator<T>
 {

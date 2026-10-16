@@ -191,6 +191,7 @@ enum Error
   EInvalidInterfaceAccessor(access:String);
   EConflictingAccessModifier(access:String);
   EInvalidVariableAccessor(access:String);
+  EInvalidStaticLocalInit(name:String, reason:String);
   // Fallback error type.
   ECustom(msg:String);
 }

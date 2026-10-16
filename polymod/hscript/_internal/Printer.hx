@@ -766,6 +766,7 @@ class Printer
       case EInvalidInterfaceAccessor(access): 'Interface fields cannot have "$access" modifier';
       case EConflictingAccessModifier(access): 'Conflicting access modifier "$access"';
       case EInvalidVariableAccessor(access): 'Invalid modifier: "$access" on variable';
+      case EInvalidStaticLocalInit(name, reason): 'Cannot initialize static variable "${name}": $reason';
       case ECustom(msg): msg;
     };
     #if hscriptPos
