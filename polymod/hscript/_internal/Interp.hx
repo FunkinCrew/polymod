@@ -2197,6 +2197,12 @@ class Interp
       case EVar(name, type, expression, isStatic) | EFinal(name, type, expression, isStatic):
         validateAssignment(expression);
 
+        var isFinal = switch (Tools.expr(e))
+        {
+          case EFinal(_): true;
+          default: false;
+        };
+
         if (isStatic)
         {
           var varName = '${this.currentFunction}_$name';
@@ -2261,7 +2267,7 @@ class Interp
 
             locals.set(name, {
               r: result,
-              isfinal: Std.isOfType(Tools.expr(e), EFinal),
+              isfinal: isFinal,
               isstatic: true
             });
 
@@ -2278,7 +2284,7 @@ class Interp
 
         locals.set(name, {
           r: result,
-          isfinal: Std.isOfType(Tools.expr(e), EFinal),
+          isfinal: isFinal,
           isstatic: false
         });
         
