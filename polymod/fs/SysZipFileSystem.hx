@@ -386,7 +386,14 @@ class SysZipFileSystem extends SysFileSystem
         if (StringTools.endsWith(filePath, archiveExt))
         {
           Polymod.debug('- $filePath');
-          addZipFile(filePath);
+          try
+          {
+            addZipFile(filePath);
+          }
+          catch (e)
+          {
+            Polymod.warning(MOD_ARCHIVE_READ_FAILED, 'Failed to read archive, skipping it, is it corrupt?\n$filePath\n${e}');
+          }
         }
       }
     }
