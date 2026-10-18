@@ -489,6 +489,44 @@ class Interp
     if (hasUsingFallback(o, f)) return tryUsingFallback(o, f, args);
 
     #if html5
+    if (Std.isOfType(o, Array))
+    {
+      switch (f)
+      {
+        case "copy":
+          return (cast o : Array<Dynamic>).copy();
+        case "insert":
+          if (args.length >= 2)
+          {
+            (cast o : Array<Dynamic>).insert(Std.int(args[0]), args[1]);
+            return null;
+          }
+        case "resize":
+          if (args.length >= 1)
+          {
+            (cast o : Array<Dynamic>).resize(Std.int(args[0]));
+            return null;
+          }
+        case "iterator":
+          return (cast o : Array<Dynamic>).iterator();
+        case "keyValueIterator":
+          return (cast o : Array<Dynamic>).keyValueIterator();
+        default:
+      }
+    }
+
+    if (o == Math)
+    {
+      switch (f)
+      {
+        case "isNaN":
+          return args.length == 0 ? true : Math.isNaN(cast args[0]);
+        case "isFinite":
+          return args.length > 0 && Math.isFinite(cast args[0]);
+        default:
+      }
+    }
+
     // Workaround for an HTML5-specific issue.
     // https://github.com/HaxeFoundation/haxe/issues/11298
     if (f == "contains")
@@ -3727,6 +3765,19 @@ class Interp
         return null;
       }
     }
+
+    #if html5
+    if (o == Math)
+    {
+      switch (f)
+      {
+        case "NaN": return Math.NaN;
+        case "POSITIVE_INFINITY": return Math.POSITIVE_INFINITY;
+        case "NEGATIVE_INFINITY": return Math.NEGATIVE_INFINITY;
+        default:
+      }
+    }
+    #end
 
     // Otherwise, we assume the field is fine to use.
     if (Std.isOfType(o, PolymodStaticAbstractReference))
