@@ -306,7 +306,7 @@ class SysZipFileSystem extends SysFileSystem
 
         var iconFile = getModIconPath(modId, origin);
 
-        if (exists(iconFile))
+        if (iconFile != null && exists(iconFile))
         {
           var iconBytes:Null<Bytes> = getFileBytes(iconFile);
 

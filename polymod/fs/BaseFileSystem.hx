@@ -274,7 +274,7 @@ abstract class BaseFileSystem implements IFileSystem
 
         var iconFile = getModIconPath(modPath, origin);
 
-        if (exists(iconFile))
+        if (iconFile != null && exists(iconFile))
         {
           var iconBytes:Null<Bytes> = getFileBytes(iconFile);
 
@@ -370,7 +370,7 @@ abstract class BaseFileSystem implements IFileSystem
 
       var iconFile = getModIconPath(modPath, origin);
 
-      if (exists(iconFile))
+      if (iconFile != null && exists(iconFile))
       {
         var iconBytes:Null<Bytes> = getFileBytes(iconFile);
 
