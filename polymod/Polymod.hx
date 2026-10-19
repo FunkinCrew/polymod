@@ -1704,8 +1704,16 @@ class ModMetadata
     m.license = JsonHelp.str(json, 'license');
     m.metadata = JsonHelp.mapStr(json, 'metadata');
 
-    m.dependencies = JsonHelp.mapVersionRule(json, 'dependencies');
-    m.optionalDependencies = JsonHelp.mapVersionRule(json, 'optionalDependencies');
+    try
+    {
+      m.dependencies = JsonHelp.mapVersionRule(json, 'dependencies');
+      m.optionalDependencies = JsonHelp.mapVersionRule(json, 'optionalDependencies');
+    }
+    catch (msg:Dynamic)
+    {
+      Polymod.error(MOD_METADATA_PARSE_FAILED, 'Error parsing mod dependencies from metadata: ${msg}', origin);
+      return null;
+    }
 
     return m;
   }

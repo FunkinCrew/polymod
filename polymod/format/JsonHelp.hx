@@ -69,7 +69,8 @@ class JsonHelp
     {
       for (field in Reflect.fields(val))
       {
-        var fieldVal = Reflect.field(val, field);
+        var fieldVal:Null<String> = Reflect.field(val, field);
+        if (fieldVal == null || StringTools.trim(fieldVal) == '') fieldVal = '*';
         map.set(field, VersionRule.stringToVersionRule(fieldVal));
       }
     }
