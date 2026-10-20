@@ -126,7 +126,3 @@ jobs:
       - name: Build OpenFL (HScript with Classes) Sample
         working-directory: ./samples/openfl_hscript_class
         run: haxelib run openfl build ${{ matrix.target }} --no-output
-<<<<<<< Updated upstream
-=======
-
->>>>>>> Stashed changes

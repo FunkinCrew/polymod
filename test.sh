@@ -112,5 +112,6 @@ if (( ${#missing_dependencies[@]} > 0 )); then
 fi
 
 printf 'Running the Polymod HScript regression suite with Haxe %s...\n' "$HAXE_VERSION"
-haxe run.hxml
+cd "$ROOT_DIR"
+haxe tests/run.hxml
 printf '\nAll Polymod tests passed.\n'

@@ -1,14 +1,4 @@
 package tests;
-<<<<<<< Updated upstream
-import tests.Stage;
-
-class BasicStage extends Stage {
-  public function new(stageId:String) {
-    super(stageId);
-    name = "scripted";
-  }
-
-=======
 
 import tests.ScriptedStage;
 
@@ -20,25 +10,12 @@ class BasicStage extends ScriptedStage {
 
   public var scriptValue:Int = 5;
 
->>>>>>> Stashed changes
   public override function update(amount:Int):Int {
     super.update(amount);
     return count * 2;
   }
 
   public function addScriptOnly(amount:Int):Int {
-<<<<<<< Updated upstream
-    scriptValue += amount;
-    return scriptValue;
-  }
-
-  public static function addStatic(amount:Int):Int {
-    return 40 + amount;
-  }
-
-  static var staticValue:Int = 10;
-  var scriptValue:Int = 5;
-=======
     return scriptValue + amount;
   }
 
@@ -47,5 +24,4 @@ class BasicStage extends ScriptedStage {
   public static function addStatic(amount:Int):Int {
     return amount + 40;
   }
->>>>>>> Stashed changes
 }

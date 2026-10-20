@@ -1,10 +1,3 @@
-<<<<<<< Updated upstream
-var offset = 7;
-var addOffset = function(value:Int):Int {
-  return value + offset;
-};
-addOffset(5) // This somehow works lol
-=======
 function makeAdder(amount:Int):Int->Int {
   return function(value:Int):Int {
     return value + amount;
@@ -13,4 +6,3 @@ function makeAdder(amount:Int):Int->Int {
 
 var addFive = makeAdder(5);
 addFive(7)
->>>>>>> Stashed changes
