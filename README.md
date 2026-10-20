@@ -101,7 +101,7 @@ This will return either the default asset, or a modified version if it's been re
 
 ## Tests
 
-The test suite requires haxe 4.3.7 or newer. On windows, run `test.bat` from the repository root; it installs only the libraries needed by the suite and prints clear setup instructions if haxe is missing or too old.
+The test suite requires Haxe 4.3.7 or newer and Bash. Run `bash test.sh` from the repository root in Git Bash on Windows or a terminal on Linux/macOS. The script installs only the libraries needed by the suite if they are missing and prints clear setup instructions if Haxe is missing or too old.
 
 To prepare the test dependencies manually on any platform:
 
@@ -118,7 +118,7 @@ Run the HScript regression tests from the repository root:
 haxe tests/run.hxml
 ```
 
-The dedicated `tests/hmm.json` manifest keeps test setup isolated from the much larger graphics and sample dependency set. `test.bat` checks that the libraries resolve through Haxelib, installs hmm.json and prepares the minimal test dependencies only if needed, verifies them again, and then runs the suite. Haxe itself must already be installed. If it is missing or too old, the script shows instructions and waits before closing.
+The dedicated `tests/hmm.json` manifest keeps test setup isolated from the much larger graphics and sample dependency set. `test.sh` checks that the libraries resolve through Haxelib, installs `hmm.json` and prepares the minimal test dependencies only if needed, verifies them again, and then runs the suite. Haxe itself must already be installed. If it is missing or too old, the script shows instructions and waits before closing when run in an interactive terminal.
 
 The suite uses a small standalone haxe test runner (no additional testing library), so it exercises the interpreter without starting lime or a display backend. Its script fixtures cover HScript expressions, functions and closures, control flow, and arrays. Integration fixtures cover `HScriptedClass` registration errors, inheritance, instantiation, constructor arguments, overrides, and instance/static field and method access. GitHub Actions runs this same command once per push and pull request, then builds the sample projects across its platform.
 

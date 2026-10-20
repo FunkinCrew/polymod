@@ -68,7 +68,7 @@ jobs:
 
       - name: Run HScript tests
         if: matrix.os == 'ubuntu-latest' && matrix.target == 'hl'
-        run: haxe tests/run.hxml
+        run: bash test.sh
 
       - name: Build Flixel Sample
         working-directory: ./samples/flixel
