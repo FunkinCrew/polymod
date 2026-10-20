@@ -1,4 +1,5 @@
 var total = 0;
+<<<<<<< Updated upstream
 for (value in [1, 2, 3, 4]) {
   if (value % 2 == 0) {
     total += value;
@@ -13,3 +14,23 @@ switch (total) {
   case 9: total == 9 ? total * 2 : 0;
   default: 0;
 }
+=======
+for (value in [0, 1, 2, 3, 4]) {
+  if (value % 2 == 0) total += value;
+}
+
+var remaining = 2;
+while (remaining > 0) {
+  total += remaining;
+  remaining--;
+}
+
+var multiplier = 0;
+switch (total) {
+  case 9: multiplier = 2;
+  default: multiplier = 0;
+}
+
+var result = total * multiplier;
+result
+>>>>>>> Stashed changes

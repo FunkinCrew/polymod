@@ -101,6 +101,7 @@ This will return either the default asset, or a modified version if it's been re
 
 ## Tests
 
+<<<<<<< Updated upstream
 The test suite requires haxe 4.3.7 or newer. On windows, run `test.bat` from the repository root; it installs only the libraries needed by the suite and prints clear setup instructions if haxe is missing or too old.
 
 To prepare the test dependencies manually on any platform:
@@ -121,6 +122,17 @@ haxe tests/run.hxml
 The dedicated `tests/hmm.json` manifest keeps test setup isolated from the much larger graphics and sample dependency set. `test.bat` checks that the libraries resolve through Haxelib, installs hmm.json and prepares the minimal test dependencies only if needed, verifies them again, and then runs the suite. Haxe itself must already be installed. If it is missing or too old, the script shows instructions and waits before closing.
 
 The suite uses a small standalone haxe test runner (no additional testing library), so it exercises the interpreter without starting lime or a display backend. Its script fixtures cover HScript expressions, functions and closures, control flow, and arrays. Integration fixtures cover `HScriptedClass` registration errors, inheritance, instantiation, constructor arguments, overrides, and instance/static field and method access. GitHub Actions runs this same command once per push and pull request, then builds the sample projects across its platform.
+=======
+The regression suite requires Haxe 4.3.7 or newer. Run it from the repository root using Bash:
+
+```sh
+bash test.sh
+```
+
+This works in Git Bash on Windows and in a terminal on Linux or macOS. The script checks the Haxe version, installs HMM and the small set of test dependencies only when needed, verifies that they resolve, and then runs all nine tests. In an interactive terminal it waits for a keypress after reporting success or failure; in CI it exits without waiting.
+
+The dedicated `tests/hmm.json` manifest avoids downloading the graphics and framework dependencies used only by the sample projects. GitHub Actions runs the regression suite and builds the sample projects on pushes and pull requests.
+>>>>>>> Stashed changes
 
 ## Documentation
 

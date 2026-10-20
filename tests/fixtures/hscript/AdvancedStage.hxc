@@ -1,6 +1,17 @@
 package tests;
 
+<<<<<<< Updated upstream
 class AdvancedStage extends BasicStage {
+=======
+import tests.BasicStage;
+
+class AdvancedStage extends BasicStage {
+  public function new(id:String) {
+    super(id);
+    name = "advanced";
+  }
+
+>>>>>>> Stashed changes
   public override function update(amount:Int):Int {
     return super.update(amount) + 1;
   }

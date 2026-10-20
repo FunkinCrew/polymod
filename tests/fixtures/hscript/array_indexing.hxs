@@ -1,2 +1,7 @@
+<<<<<<< Updated upstream
 var values = [3, 4];
 values[0] + values[1]
+=======
+var values = [3, 5, 7];
+values[1] + 2
+>>>>>>> Stashed changes

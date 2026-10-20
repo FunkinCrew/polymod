@@ -11,6 +11,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Setup Haxe
+        uses: FunkinCrew/ci-haxe@v3
+        with:
+          haxe-version: 4.3.7
+
+      - name: Cache test Haxelibs
+        uses: actions/cache@v6
+        with:
+          path: ./tests/.haxelib
+          key: test-haxelib-${{ hashFiles('tests/hmm.json') }}
+
+      - name: Run HScript tests
+        run: bash test.sh
+
   build:
     strategy:
       matrix:
@@ -105,3 +126,7 @@ jobs:
       - name: Build OpenFL (HScript with Classes) Sample
         working-directory: ./samples/openfl_hscript_class
         run: haxelib run openfl build ${{ matrix.target }} --no-output
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes

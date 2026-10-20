@@ -1,5 +1,6 @@
 package tests;
 
+<<<<<<< Updated upstream
 class InvalidStage extends Stage {
   public function new(stageId:String) {
     super(stageId);
@@ -7,5 +8,11 @@ class InvalidStage extends Stage {
 
   public function broken():Void {
     var value = ;
+=======
+class InvalidStage extends ScriptedStage {
+  public function new(id:String) {
+    super(id);
+    var invalid = ;
+>>>>>>> Stashed changes
   }
 }
