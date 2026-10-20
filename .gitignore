@@ -1,6 +1,7 @@
 *.hl
 docs/Gemfile.lock
 samples/*/.haxelib/
+tests/.haxelib/
 samples/*/[Ee]xport/
 samples/*/bin/
 samples/*/dump/

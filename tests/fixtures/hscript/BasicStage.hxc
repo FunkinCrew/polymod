@@ -1,0 +1,26 @@
+package tests;
+import tests.Stage;
+
+class BasicStage extends Stage {
+  public function new(stageId:String) {
+    super(stageId);
+    name = "scripted";
+  }
+
+  public override function update(amount:Int):Int {
+    super.update(amount);
+    return count * 2;
+  }
+
+  public function addScriptOnly(amount:Int):Int {
+    scriptValue += amount;
+    return scriptValue;
+  }
+
+  public static function addStatic(amount:Int):Int {
+    return 40 + amount;
+  }
+
+  static var staticValue:Int = 10;
+  var scriptValue:Int = 5;
+}

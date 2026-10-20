@@ -1,0 +1,5 @@
+--cwd tests
+-cp .
+-lib polymod
+-main TestMain
+--interp

@@ -1,0 +1,15 @@
+var total = 0;
+for (value in [1, 2, 3, 4]) {
+  if (value % 2 == 0) {
+    total += value;
+  }
+}
+var countdown = 2;
+while (countdown > 0) {
+  total += countdown;
+  countdown--;
+}
+switch (total) {
+  case 9: total == 9 ? total * 2 : 0;
+  default: 0;
+}

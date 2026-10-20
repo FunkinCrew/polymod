@@ -1,0 +1,7 @@
+package tests;
+
+class AdvancedStage extends BasicStage {
+  public override function update(amount:Int):Int {
+    return super.update(amount) + 1;
+  }
+}

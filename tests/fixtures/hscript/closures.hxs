@@ -1,0 +1,5 @@
+var offset = 7;
+var addOffset = function(value:Int):Int {
+  return value + offset;
+};
+addOffset(5) // This somehow works lol

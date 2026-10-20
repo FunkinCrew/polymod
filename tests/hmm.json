@@ -1,0 +1,29 @@
+{
+  "dependencies": [
+    {
+      "name": "jsonpatch",
+      "type": "haxelib"
+    },
+    {
+      "name": "jsonpath",
+      "type": "haxelib"
+    },
+    {
+      "name": "polymod",
+      "path": "..",
+      "type": "dev"
+    },
+    {
+      "name": "thx.core",
+      "url": "https://github.com/fponticelli/thx.core",
+      "ref": "master",
+      "type": "git"
+    },
+    {
+      "name": "thx.semver",
+      "url": "https://github.com/fponticelli/thx.semver",
+      "ref": "master",
+      "type": "git"
+    }
+  ]
+}

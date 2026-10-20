@@ -1,0 +1,11 @@
+package tests;
+
+class InvalidStage extends Stage {
+  public function new(stageId:String) {
+    super(stageId);
+  }
+
+  public function broken():Void {
+    var value = ;
+  }
+}
