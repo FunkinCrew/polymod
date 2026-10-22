@@ -1754,7 +1754,15 @@ class Parser
         var fields = [];
         ensure(TBrOpen);
         while (!maybe(TBrClose))
-          fields.push(parseField());
+        {
+         var field = parseField();
+         for (fld in fields)
+         {
+           if (fld.name == field.name)
+             error(ECustom('Duplicate field name "${field.name}" in class "${name}"'), currentPos, currentPos);
+         }
+         fields.push(field);
+        }
 
         return DClass(
           {

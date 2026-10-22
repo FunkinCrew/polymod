@@ -1580,11 +1580,6 @@ class PolymodScriptClass
 
     for (f in _c.fields)
     {
-      if (_cachedFieldDecls.exists(f.name))
-      {
-        throw 'Duplicate field name "${f.name}" in class "${_c.name}"';
-      }
-
       _cachedFieldDecls.set(f.name, f);
       switch (f.kind)
       {
