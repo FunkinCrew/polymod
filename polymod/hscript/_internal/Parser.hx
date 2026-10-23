@@ -1318,11 +1318,12 @@ class Parser
     return args;
   }
 
-  function parseFunctionDecl()
+  function parseFunctionDecl(isAbstract:Bool = false)
   {
     ensure(TPOpen);
     var args = parseFunctionArgs();
     var ret = null;
+    var inf = {args: args, ret: ret, body: null};
     if (allowTypes)
     {
       var tk = token();
@@ -1330,7 +1331,18 @@ class Parser
       else
         ret = parseType();
     }
-    return {args: args, ret: ret, body: parseExpr()};
+
+    if (isAbstract)
+    {
+      if (!maybe(TSemicolon))
+        inf.body = parseExpr();
+    }
+    else
+    {
+      // Force parse the body expression
+      inf.body = parseExpr();
+    }
+    return inf;
   }
 
   function parsePath()
@@ -1633,7 +1645,7 @@ class Parser
   {
     var meta = parseMetadata();
     var ident = getIdent();
-    var isPrivate = false, isExtern = false;
+    var isPrivate = false, isExtern = false, isAbstract = false;
     while (true)
     {
       switch (ident)
@@ -1642,6 +1654,8 @@ class Parser
           isPrivate = true;
         case "extern":
           isExtern = true;
+        case "abstract":
+          isAbstract = true;
         default:
           break;
       }
@@ -1756,6 +1770,36 @@ class Parser
         while (!maybe(TBrClose))
           fields.push(parseField());
 
+        for (f in fields)
+        {
+          // Post abstract error-checking.
+          if (f.access.contains(AAbstract))
+          {
+            if (!isAbstract)
+            {
+              error(ECustom('"$name" should be declared "abstract" because it has at least one abstract field.'), currentPos, currentPos);
+              break;
+            }
+
+            if (f.name == 'new')
+            {
+              error(ECustom('Invalid modifier: abstract on constructor'), currentPos, currentPos);
+              break;
+            }
+
+            switch (f.kind)
+            {
+              case KFunction(fn):
+                if (fn.expr != null && f.name != 'new')
+                {
+                  error(ECustom('Abstract methods may not have an expression.'), currentPos, currentPos);
+                  break;
+                }
+              default:
+            }
+          }
+        }
+
         return DClass(
           {
             name: name,
@@ -1766,13 +1810,14 @@ class Parser
             fields: fields,
             isPrivate: isPrivate,
             isExtern: isExtern,
-
+            isAbstract: isAbstract,
             pkg: [],
             imports: [],
             importsToValidate: [],
             usings: [],
             usingsToValidate: [],
             staticFields: [],
+            abstractFields: [],
           });
       case "typedef":
         var name = getIdent();
@@ -1888,6 +1933,11 @@ class Parser
       var id = getIdent();
       switch (id)
       {
+        case "abstract":
+          if (access.contains(AAbstract))
+            error(EDuplicateAccessModifier("abstract"), currentPos, currentPos);
+          else
+            access.push(AAbstract);
         case "override":
           if (access.contains(AOverride))
             error(EDuplicateAccessModifier("override"), currentPos, currentPos);
@@ -1940,7 +1990,7 @@ class Parser
             access.push(APrivate);
 
           var name = getIdent();
-          var inf = parseFunctionDecl();
+          var inf = parseFunctionDecl(access.contains(AAbstract) && name != 'new');
           maybe(TSemicolon);
 
           checkRequireMeta(meta, name, 'Function');
@@ -1999,6 +2049,9 @@ class Parser
           if (access.contains(ADynamic))
             error(EInvalidVariableAccessor("dynamic"), currentPos, currentPos);
 
+          if (access.contains(AAbstract))
+            error(EInvalidVariableAccessor("abstract"), currentPos, currentPos);
+
           // Default private if there is none specified.
           if (!access.contains(APrivate) && !access.contains(APublic))
             access.push(APrivate);
@@ -2035,6 +2088,9 @@ class Parser
       var id = getIdent();
       switch (id)
       {
+        case "abstract":
+          if (access.contains(AAbstract))
+            error(EDuplicateAccessModifier("override"), currentPos, currentPos);
         case "override":
           error(EInvalidInterfaceAccessor("override"), currentPos, currentPos);
         case "inline":
@@ -2078,7 +2134,7 @@ class Parser
 
           // Interface fields default to public.
           if (!access.contains(APrivate) && !access.contains(APublic))
-          access.push(APublic);
+            access.push(APublic);
 
           checkRequireMeta(meta, name, 'Interface function');
 
@@ -2113,14 +2169,28 @@ class Parser
           else
             ensure(TSemicolon);
 
-          if (access.contains(ADynamic))
+          #if POLYMOD_STRICT_SYNTAX
+          if (access.contains(AInline) && !access.contains(AStatic))
           {
-            error(EInvalidVariableAccessor("dynamic"), currentPos, currentPos);
+            error(ECustom('Invalid modifier: inline on non-static variable'), currentPos, currentPos);
           }
+          #end
 
-          // Interface fields default to public.
+          if (access.contains(AOverride))
+            error(EInvalidVariableAccessor("override"), currentPos, currentPos);
+
+          if (access.contains(AMacro))
+            error(EInvalidVariableAccessor("macro"), currentPos, currentPos);
+
+          if (access.contains(ADynamic))
+            error(EInvalidVariableAccessor("dynamic"), currentPos, currentPos);
+
+          if (access.contains(AAbstract))
+            error(EInvalidVariableAccessor("abstract"), currentPos, currentPos);
+
+          // Default private if there is none specified.
           if (!access.contains(APrivate) && !access.contains(APublic))
-            access.push(APublic);
+            access.push(APrivate);
 
           checkRequireMeta(meta, name, 'Field');
 
