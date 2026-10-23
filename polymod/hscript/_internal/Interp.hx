@@ -2851,41 +2851,53 @@ class Interp
         });
 
         return true;
-      case EIdent(v) if (v != 'true' && v != 'false'):
+      case EIdent(ident) if (ident != 'true' && ident != 'false'):
         if (isEnumValue)
         {
           // Resolve the enum value throws an error if it doesn't exist
-          var enumValue = resolve(v);
+          var enumValue = resolve(ident);
 
-          if (isScriptEnumValue && PolymodEnum.enumEq(val, enumValue))
-            return true;
-          else if (Reflect.isEnumValue(enumValue) && Type.enumEq(val, enumValue))
+          if ((isScriptEnumValue && PolymodEnum.enumEq(val, enumValue)) || (Reflect.isEnumValue(enumValue) && Type.enumEq(val, enumValue)))
             return true;
         }
 
-        if (~/[A-Z]/.match(v.charAt(0)))
+        if (~/[A-Z]/.match(ident.charAt(0)))
         {
           // Wildcard expressions need to start lowercase.
           error(ECustom('Pattern variable "$v" must be lower-case or with `var` prefix'));
           return false;
         }
 
+        function checkArrayDecl(e:Expr):Bool
+        {
+          switch (Tools.expr(e))
+          {
+            case EParent(e):
+              return checkArrayDecl(e);
+            case EArrayDecl(_):
+              return ident == '_';
+            default:
+              return true;
+          }
+        }
+
         // We'll be setting a local variable that's the same as the switch value.
         // This is a wildcard, so it's automatically a match.
-        if (val is Array && v != '_')
+        // Enum array constructor don't throw an error for this, so we check to see if we're in an enum.
+        if (!checkArrayDecl(valExpr))
         {
-          // Throw an error as to match errors with wildcards you HAVE to use `_`
-          error(ECustom('Cannot bind matched tuple to variable "$v", use "_" instead'));
+          error(ECustom('Cannot bind matched tuple to variable "$ident", use "_" instead'));
           return false;
         }
-        else if (v != '_')
+
+        if (ident != '_')
         {
           declared.push({
-            n: v,
-            old: locals.get(v)
+            n: ident,
+            old: locals.get(ident)
           });
         }
-        locals.set(v, {r: val});
+        locals.set(ident, {r: val});
 
         return true;
       case EField(e, f) if (isScriptEnumValue):
