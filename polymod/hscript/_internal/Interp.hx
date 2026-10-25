@@ -3012,7 +3012,8 @@ class Interp
             return true;
         }
 
-        if (~/[A-Z]/.match(ident.charAt(0)))
+        var c:Int = ident.fastCodeAt(0);
+        if (c >= 'A'.code && c <= 'Z'.code)
         {
           // Wildcard expressions need to start lowercase.
           error(ECustom('Pattern variable "$v" must be lower-case or with `var` prefix'));

@@ -2594,7 +2594,7 @@ class Parser
                 }
               case '_'.code:
                 char = readChar();
-                if (![48, 49, 50, 51, 52, 53, 54, 55, 56, 57].contains(char))
+                if (char < '0'.code || char > '9'.code)
                   unexpected(TId('_')); // Throw an error if the seperator doesn't separate another number.
                 else
                   readPos--; // Move the position back as the while loop will make the char be re-read again.
