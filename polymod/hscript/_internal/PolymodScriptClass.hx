@@ -1198,16 +1198,9 @@ class PolymodScriptClass
       var r:Dynamic = null;
       try
       {
-        if(fn.isdynamic)
+        if (fn.isdynamic && _interp.functions.exists(fnName))
         {
-          if(_interp.functions.exists(fnName))
-          {
-            r = Reflect.callMethod(this, _interp.functions.get(fnName), args);
-          }
-          else
-          {
-            r = _interp.executeFunction(fn, fnName, args);
-          }
+          r = Reflect.callMethod(this, _interp.functions.get(fnName), args);
         }
         else
         {
