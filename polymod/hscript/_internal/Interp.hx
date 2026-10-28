@@ -791,7 +791,6 @@ class Interp
 
   static function registerDeprecatedFields(path:String):Void
   {
-    var printer = new Printer();
     if (Interp.findScriptClassDescriptor(path) != null)
     {
       var decl:ClassDecl = Interp.findScriptClassDescriptor(path);
@@ -799,7 +798,7 @@ class Interp
       var deprecatedClassMeta = decl.meta.find((m) -> m.name == ':deprecated');
       if (deprecatedClassMeta != null)
       {
-        var message:String = printer.exprToString(deprecatedClassMeta.params[0]);
+        var message:String = Printer.toString(deprecatedClassMeta.params[0]);
         _deprecatedTypes.set(path, message);
       }
 
@@ -808,7 +807,7 @@ class Interp
         var deprecatedMeta = field.meta.find((m) -> m.name == ':deprecated');
         if (deprecatedMeta != null)
         {
-          var message:String = printer.exprToString(deprecatedMeta.params[0]);
+          var message:String = Printer.toString(deprecatedMeta.params[0]);
           var fields:Map<String, String> = _deprecatedFields.get(path) ?? [];
 
           fields.set(field.name, message);
@@ -823,7 +822,7 @@ class Interp
       var deprecatedClassMeta = decl.meta.find((m) -> m.name == ':deprecated');
       if (deprecatedClassMeta != null)
       {
-        var message:String = printer.exprToString(deprecatedClassMeta.params[0]);
+        var message:String = Printer.toString(deprecatedClassMeta.params[0]);
         _deprecatedTypes.set(path, message);
       }
 
@@ -832,7 +831,7 @@ class Interp
         var deprecatedMeta = field.meta.find((m) -> m.name == ':deprecated');
         if (deprecatedMeta != null)
         {
-          var message:String = printer.exprToString(deprecatedMeta.params[0]);
+          var message:String = Printer.toString(deprecatedMeta.params[0]);
           var fields:Map<String, String> = _deprecatedFields.get(path) ?? [];
 
           fields.set(field.name, message);
@@ -847,7 +846,7 @@ class Interp
       var deprecatedClassMeta = decl.meta.find((m) -> m.name == ':deprecated');
       if (deprecatedClassMeta != null)
       {
-        var message:String = printer.exprToString(deprecatedClassMeta.params[0]);
+        var message:String = Printer.toString(deprecatedClassMeta.params[0]);
         _deprecatedTypes.set(path, message);
       }
     }
@@ -1514,7 +1513,7 @@ class Interp
           }
         }
 
-        
+
         // Fallback to local variable
         var l = locals.get(id);
         v = fop(expr(e1), expr(e2));
@@ -1623,7 +1622,7 @@ class Interp
 
         var l = locals.get(id);
         var v:Dynamic = (l == null) ? resolve(id) : l.r;
-        
+
         if (l != null && l.isfinal && l.r != null) return error(EInvalidFinalSet(id));
 
         if (prefix)
@@ -2329,7 +2328,7 @@ class Interp
           isfinal: isFinal,
           isstatic: false
         });
-        
+
         return null;
       case EParent(e0):
         return expr(e0);
@@ -2852,7 +2851,7 @@ class Interp
         return new Map<{}, Dynamic>();
       default:
         // Whatever.
-        error(ECustom('Invalid key type for empty map initialization (${new Printer().typeToString(keyType)}).'));
+        error(ECustom('Invalid key type for empty map initialization (${Printer.printType(keyType)}).'));
     }
     return makeMap([], [], keyType);
   }
@@ -4512,7 +4511,7 @@ class Interp
           }
           listToUse.set(clsName, accessData);
         case ':deprecation':
-          var message:String = new Printer().exprToString(meta.params[0]);
+          var message:String = Printer.toString(meta.params[0]);
           _deprecatedTypes.set(clsName, message);
       }
     }
@@ -4588,7 +4587,7 @@ class Interp
             }
             listToUse.set(clsName, accessData);
         case ':deprecation':
-          var message:String = new Printer().exprToString(meta.params[0]);
+          var message:String = Printer.toString(meta.params[0]);
           var fields:Map<String, String> = _deprecatedFields.get(clsName) ?? [];
 
           fields.set(field.name, message);
@@ -4783,7 +4782,7 @@ class Interp
 
       for (extend in inter.extend)
       {
-        var superClassPath:String = new Printer().typeToString(extend);
+        var superClassPath:String = Printer.printType(extend);
         var baseInterfaceName:String = superClassPath;
 
         // Ignore templates.
@@ -5050,7 +5049,7 @@ class Interp
       // Check if the scripted classes extend the right type.
       if (cls.extend == null) continue;
 
-      var superClassPath:String = new Printer().typeToString(cls.extend);
+      var superClassPath:String = Printer.printType(cls.extend);
 
       // Templates are ignored completely since there's no type checking in HScript.
       if (superClassPath.indexOf('<') != -1)
