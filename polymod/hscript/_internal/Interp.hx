@@ -4599,75 +4599,104 @@ class Interp
 
   public function parseAccessMetadata(clsDecl:ClassDecl, meta:{name:String, params:Array<Expr>}):AccessControl
   {
-    var expr = meta.params[0];
-    var classPackageExpr:String = new Printer().exprToString(expr);
-    var path:Array<String> = classPackageExpr.split('.');
-    if (path.length == 1)
+    var accessControl:AccessControl = {};
+
+    function appendInterface(path:String):Void
     {
-      // We're dealing with an imported class.
-      // Classes with no package are auto-imported so this should be fine to check.
-      var clsPack:String = clsDecl.imports.get(classPackageExpr)?.fullPath ?? classPackageExpr;
-      if (PolymodStaticInterfaceReference.tryBuild(clsPack) != null)
+      if (accessControl.interfacePackage != null)
+        accessControl.interfacePackage.push(path);
+      else
+        accessControl.interfacePackage = [path];
+    }
+
+    function appendPackage(path:String):Void
+    {
+      if (accessControl.pkg != null)
+        accessControl.pkg.push(path)
+      else
+        accessControl.pkg = [path];
+    }
+
+    function appendClass(path:String, ?fields:Null<Array<String>> = null):Void
+    {
+      if (accessControl.access != null)
       {
-        // We're dealing with an interface package.
-        return {interfacePackage: [clsPack]};
+        accessControl.access.set(path, fields);
       }
       else
       {
-        // Attempt to resolve the class, and if it fails, this access control is for a package.
+        accessControl.access = new Map<String, Null<Array<String>>>();
+        accessControl.access.set(path, fields);
+      }
+    }
+
+    for (expr in meta.params)
+    {
+      var classPackageExpr:String = new Printer().exprToString(expr);
+      var path:Array<String> = classPackageExpr.split('.');
+      if (path.length == 1)
+      {
+        // We're dealing with an imported class.
+        // Classes with no package are auto-imported so this should be fine to check.
+        var clsPack:String = clsDecl.imports.get(classPackageExpr)?.fullPath ?? classPackageExpr;
+        if (PolymodStaticInterfaceReference.tryBuild(clsPack) != null)
+        {
+          // We're dealing with an interface package.
+          appendInterface(clsPack);
+        }
+        else
+        {
+          // Attempt to resolve the class, and if it fails, this access control is for a package.
+          var cls:Null<Dynamic> = resolveDottedPath(classPackageExpr);
+          if (cls != null)
+          {
+            appendClass(clsPack);
+          }
+          else
+          {
+            appendPackage(clsPack);
+          }
+        }
+      }
+      else
+      {
+        // We're dealing with a multi-dotted package that could potentially also be a field.
+        // Class metadata don't have very strict syntax in regular Haxe.
+
+        // Try to see if we can resolve the class first.
         var cls:Null<Dynamic> = resolveDottedPath(classPackageExpr);
         if (cls != null)
         {
-          return {access: [clsPack => null]};
+          if (cls is PolymodStaticInterfaceReference)
+          {
+            appendInterface(classPackageExpr);
+          }
+          else
+          {
+            appendClass(classPackageExpr);
+          }
         }
         else
         {
-          return {pkg: [clsPack]};
+          var clsField:String = path[path.length - 1];
+          var clsPack:String = path.slice(0, -1).join('.');
+
+          // Check for imports just in case the resolved class isn't dotted anymore.
+          clsPack = clsDecl.imports.get(clsPack)?.fullPath ?? clsPack;
+
+          cls = resolveDottedPath(clsPack);
+          if (cls != null)
+          {
+            appendClass(clsPack, [clsField]);
+          }
+          else
+          {
+            appendPackage(classPackageExpr);
+          }
         }
       }
     }
-    else
-    {
-      // We're dealing with a multi-dotted package that could potentially also be a field.
-      // Class metadata don't have very strict syntax in regular Haxe.
-
-      // Try to see if we can resolve the class first.
-      var cls:Null<Dynamic> = resolveDottedPath(classPackageExpr);
-      if (cls != null)
-      {
-        if (cls is PolymodStaticInterfaceReference)
-        {
-          // We're dealing with an interface package.
-          return {interfacePackage: [classPackageExpr]};
-        }
-        else
-        {
-          // Regular class path.
-          return {access: [classPackageExpr => null]};
-        }
-      }
-      else
-      {
-        var clsField:String = path[path.length - 1];
-        var clsPack:String = path.slice(0, -1).join('.');
-
-        // Check for imports just in case the resolved class isn't dotted anymore.
-        clsPack = clsDecl.imports.get(clsPack)?.fullPath ?? clsPack;
-
-        cls = resolveDottedPath(clsPack);
-        if (cls != null)
-        {
-          // Regular class path.
-          return {access: [clsPack => [clsField]]};
-        }
-        else
-        {
-          // We're most likely dealing with a regular package.
-          return {pkg: [classPackageExpr]};
-        }
-      }
-    }
-    return null;
+    return accessControl;
   }
 
   public static function validateInterfaceImports():Void
