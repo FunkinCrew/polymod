@@ -856,21 +856,11 @@ class Interp
   {
     var name = Util.getFullClassName(c);
 
-    if (_scriptClassDescriptors.exists(name))
-    {
-      Polymod.error(
-        SCRIPTED_CLASS_ALREADY_REGISTERED,
-        'Scripted class with fully qualified name "$name" has already been defined. Please change the class name or the package name to ensure uniqueness.',
-        SCRIPT_RUNTIME
-      );
-      return;
-    }
-    else
-    {
-      Polymod.debug('Registering scripted class $name');
-      _scriptClassDescriptors.set(name, c);
-      registryStamp++;
-    }
+    if (checkDuplicate(name)) return;
+
+    Polymod.debug('Registering scripted class $name');
+    _scriptClassDescriptors.set(name, c);
+    registryStamp++;
     registerDeprecatedFields(name);
   }
 
@@ -882,23 +872,15 @@ class Interp
       name = i.pkg.join('.') + '.' + i.name;
     }
 
-    if (_scriptInterfaceDescriptors.exists(name) || PolymodScriptClass.interfaceImpls.exists(name) || _scriptClassDescriptors.exists(name))
-    {
-      Polymod.error(SCRIPTED_CLASS_ALREADY_REGISTERED,
-      'Scripted interface with fully qualified name "$name" has already been defined. Please change the interface or the package name to ensure uniqueness.',
-      SCRIPT_RUNTIME);
-      return;
-    }
-    else
-    {
-      Polymod.debug('Registering scripted interface $name');
-      _scriptInterfaceDescriptors.set(name, i);
-      registryStamp++;
-      registerDeprecatedFields(name);
-    }
+    if (checkDuplicate(name)) return;
+
+    Polymod.debug('Registering scripted interface $name');
+    _scriptInterfaceDescriptors.set(name, i);
+    registryStamp++;
+    registerDeprecatedFields(name);
   }
 
-  private static function registerScriptEnum(e:EnumDecl)
+  static function registerScriptEnum(e:EnumDecl)
   {
     var name = e.name;
     if (e.pkg != null)
@@ -906,22 +888,42 @@ class Interp
       name = e.pkg.join(".") + "." + name;
     }
 
-    if (_scriptEnumDescriptors.exists(name))
+    if (checkDuplicate(name)) return;
+
+    Polymod.debug('Registering scripted enum $name');
+    _scriptEnumDescriptors.set(name, e);
+    registryStamp++;
+    registerDeprecatedFields(name);
+  }
+
+  static function checkDuplicate(name:String):Bool
+  {
+    var foundType:String = null;
+
+    if (_scriptClassDescriptors.exists(name))
+    {
+      foundType = "scripted class";
+    }
+    else if (_scriptInterfaceDescriptors.exists(name) || PolymodScriptClass.interfaceImpls.exists(name))
+    {
+      foundType = "scripted interface";
+    }
+    else if (_scriptEnumDescriptors.exists(name))
+    {
+      foundType = "enum";
+    }
+
+    if (foundType != null)
     {
       Polymod.error(
         SCRIPTED_CLASS_ALREADY_REGISTERED,
-        'An enum with the fully qualified name "$name" has already been defined. Please change the enum name to ensure a unique name.',
+        'A $foundType with the fully qualified name "$name" has already been defined. Please change the name or the package to ensure uniqueness.',
         SCRIPT_RUNTIME
       );
-      return;
+      return true;
     }
-    else
-    {
-      Polymod.debug('Registering scripted enum $name');
-      _scriptEnumDescriptors.set(name, e);
-      registryStamp++;
-      registerDeprecatedFields(name);
-    }
+
+    return false;
   }
 
   private static function registerImportForPackage(pkg:Null<Array<String>>, imp:ClassImport, isUsing:Bool = false)
