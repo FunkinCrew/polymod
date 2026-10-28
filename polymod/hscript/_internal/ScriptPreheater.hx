@@ -298,7 +298,6 @@ class ScriptPreheater
     var current = Interp._scriptClassDescriptors.get(className);
     var currentName = className;
     var depth = 0;
-    var printer = new Printer();
     while (current != null && depth++ < 64)
     {
       if (includeCurrent)
@@ -309,7 +308,7 @@ class ScriptPreheater
         if (currentName == className && ['superClass', 'createSuperClass', 'findFunction', 'callFunction'].contains(name)) return true;
       }
       if (current.extend == null) return false;
-      var superPath = printer.typeToString(current.extend);
+      var superPath = Printer.printType(current.extend);
       var superName = switch (current.extend)
       {
         case CTPath(path, _):

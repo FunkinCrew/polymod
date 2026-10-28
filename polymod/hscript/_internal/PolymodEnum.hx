@@ -17,7 +17,7 @@ class PolymodEnum
 
 
   /**
-   * Cache storing resolved enum fields, which can either be a `PolymodEnumValue` (for constants) 
+   * Cache storing resolved enum fields, which can either be a `PolymodEnumValue` (for constants)
    * or a variadic function constructor (for enums requiring arguments).
    */
   var _fieldCach:Map<String, Dynamic> = new Map<String, Dynamic>();
@@ -149,7 +149,7 @@ class PolymodEnum
     {
       if (m.name == ':using')
       {
-        var clsMetaName:String = new Printer().exprToString(m.params[0]);
+        var clsMetaName:String = Printer.toString(m.params[0]);
 
         var usingList = PolymodScriptClass.buildUsingListCache(clsMetaName);
         for (name => func in usingList ?? [])

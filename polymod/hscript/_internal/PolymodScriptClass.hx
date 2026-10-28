@@ -437,7 +437,7 @@ class PolymodScriptClass
         // Append any interfaces from within superclasses.
         if (decl.extend != null)
         {
-          var extendClsName:String = new Printer().typeToString(decl.extend);
+          var extendClsName:String = Printer.printType(decl.extend);
           var fullClsName:String = decl.imports.get(extendClsName)?.fullPath ?? extendClsName;
 
           var clsInterfaces:Array<String> = _classesExtendingInterfaces.get(fullClsName) ?? [];
@@ -446,7 +446,7 @@ class PolymodScriptClass
 
         for (extend in decl.implement)
         {
-          var extendName:String = new Printer().typeToString(extend);
+          var extendName:String = Printer.printType(extend);
           if (extendName.indexOf('<') != -1)
             extendName = extendName.split('<')[0];
 
@@ -650,7 +650,7 @@ class PolymodScriptClass
     }
 
     // Get the super class name.
-    var fullSuperClsName = new Printer().typeToString(classDecl.extend);
+    var fullSuperClsName = Printer.printType(classDecl.extend);
     var baseSuperClsName = switch (classDecl.extend)
     {
       case CTPath(pth, params):
@@ -1017,7 +1017,7 @@ class PolymodScriptClass
   {
     args ??= [];
 
-    var fullExtendString = new Printer().typeToString(_c.extend);
+    var fullExtendString = Printer.printType(_c.extend);
 
     // Build an unqualified path too.
     var fullExtendPath:String = _c.imports.get(fullExtendString)?.fullPath ?? fullExtendString;
@@ -1337,7 +1337,7 @@ class PolymodScriptClass
     _interfacesList = new Map<String, PolymodStaticInterfaceReference>();
     for (implement in _c.implement)
     {
-      var extendName:String = new Printer().typeToString(implement);
+      var extendName:String = Printer.printType(implement);
       if (extendName.indexOf('<') != -1)
         extendName = extendName.split('<')[0];
 
@@ -1648,7 +1648,7 @@ class PolymodScriptClass
     {
       if (m.name == ':using')
       {
-        var clsMetaName:String = new Printer().exprToString(m.params[0]);
+        var clsMetaName:String = Printer.toString(m.params[0]);
         var cls:String = clsDecl.imports.get(clsMetaName)?.fullPath ?? clsMetaName;
 
         for (field => func in buildUsingListCache(cls) ?? [])
