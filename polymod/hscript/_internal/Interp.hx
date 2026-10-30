@@ -3003,7 +3003,7 @@ class Interp
         });
 
         return true;
-      case EIdent(ident) if (ident != 'true' && ident != 'false'):
+      case EIdent(ident) if (ident != 'null' && ident != 'true' && ident != 'false'):
         if (isEnumValue)
         {
           // Resolve the enum value throws an error if it doesn't exist
@@ -3037,7 +3037,7 @@ class Interp
         // We'll be setting a local variable that's the same as the switch value.
         // This is a wildcard, so it's automatically a match.
         // Enum array constructor don't throw an error for this, so we check to see if we're in an enum.
-        if (!checkArrayDecl(valExpr))
+        if (valExpr != null && !checkArrayDecl(valExpr))
         {
           error(ECustom('Cannot bind matched tuple to variable "$ident", use "_" instead'));
           return false;
@@ -3091,7 +3091,7 @@ class Interp
         {
           var enumParams:Array<Dynamic> = null;
           if (isScriptEnumValue)
-            enumParams = (cast val : PolymodEnum.PolymodEnumValue).args.copy();
+            enumParams = cast(val, PolymodEnum.PolymodEnumValue).args.copy();
           else
             enumParams = Type.enumParameters(val);
 
@@ -3107,10 +3107,11 @@ class Interp
               var localVarName:Null<String> = null;
               var isFinalVar:Bool = false;
               var paramExpr:Expr = params[i];
+              var excludedNames:Array<String> = ['null', 'true', 'false', '_'];
 
               switch (Tools.expr(paramExpr))
               {
-                case EIdent(v) if (!['true', 'false', '_'].contains(v)):
+                case EIdent(v) if (!excludedNames.contains(v)):
                   localVarName = v;
                 case EVar(v, _, _):
                   localVarName = v;
@@ -3121,7 +3122,7 @@ class Interp
                 case EBinop('=', e1, e2):
                   switch (Tools.expr(e1))
                   {
-                    case EIdent(v) if (!['true', 'false', '_'].contains(v)):
+                    case EIdent(v) if (!excludedNames.contains(v)):
                       localVarName = v;
                     case EVar(v, _, _):
                       localVarName = v;

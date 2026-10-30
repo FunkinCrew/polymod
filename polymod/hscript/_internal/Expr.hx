@@ -347,7 +347,8 @@ typedef EnumFieldDecl =
 typedef EnumArgDecl =
 {
   var name:String;
-  var type:Null<CType>;
+  var ?type:CType;
+  var ?opt:Bool;
 }
 
 typedef TypeDecl =
