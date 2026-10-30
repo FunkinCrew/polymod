@@ -200,7 +200,16 @@ class PolymodEnumValue
 
     if ((args?.length ?? 0) != f.args.length)
     {
-      throw '${parent._e.name}.${value} got the wrong number of arguments.';
+      var minParams:Int = 0;
+      for (i => param in f.args)
+      {
+        if (!(param.opt ?? false)) minParams = i + 1;
+      }
+
+      if (args.length < minParams || args.length > f.args.length)
+      {
+        throw '${parent._e.name}.${value} got the wrong number of arguments.';
+      }
     }
 
     this.args = args ?? [];

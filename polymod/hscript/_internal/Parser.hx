@@ -351,10 +351,10 @@ class Parser
     exprs.push(e);
 
     var tk = token();
-    
+
     var isFinal = false;
     var isStatic = false;
-    
+
     switch (expr(e))
     {
       case EVar(_, _, _, staticVal):
@@ -2175,12 +2175,22 @@ class Parser
 
   function parseEnumArg():EnumArgDecl
   {
+    var opt = maybe(TQuestion);
     var name = getIdent();
-    var type = maybe(TDoubleDot) ? parseType() : null;
+    var type = null;
+    var hasType = opt;
+    if (opt)
+      ensure(TDoubleDot);
+    else
+      hasType = maybe(TDoubleDot);
+
+    if (hasType)
+      type = parseType();
 
     return {
       name: name,
-      type: type
+      type: type,
+      opt: opt
     };
   }
 
