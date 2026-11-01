@@ -529,6 +529,8 @@ class Printer
           output += metaToString(c.meta);
           output += c.isPrivate ? "private " : "";
           output += c.isExtern ? "extern " : "";
+          output += c.isAbstract ? "abstract " : "";
+
           output += "class " + c.name;
           if (Reflect.fields(c.params).length > 0) output += "<>"; // Once params are actually functional, this should be implemented.
           output += " ";
@@ -542,7 +544,6 @@ class Printer
           output += "\n{";
           output += classFieldsToString(c.fields);
           output += "}";
-
         case DTypedef(t):
           output += metaToString(t.meta);
           output += t.isPrivate ? "private " : "";
@@ -658,6 +659,8 @@ class Printer
             output += "dynamic ";
           case AMacro:
             output += "macro ";
+          case AAbstract:
+            output += "abstract ";
         }
       }
 
@@ -679,7 +682,7 @@ class Printer
           output += ")";
           if (f.ret != null) output += ':${this.typeToString(f.ret)}';
 
-          output += ignoreValues ? ";" : (" " + this.exprToString(f.expr));
+          output += (ignoreValues || f.expr == null) ? ";" : (" " + this.exprToString(f.expr));
 
         case KVar(v):
           output += "var " + fld.name;
