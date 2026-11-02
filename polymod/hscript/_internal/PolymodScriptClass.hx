@@ -1087,6 +1087,7 @@ class PolymodScriptClass
 
   private function validateClassFields():Void
   {
+    if (superClass == null) return;
     for (f in _c.fields)
     {
       switch (f.kind)
@@ -1166,6 +1167,12 @@ class PolymodScriptClass
             }
           }
           #end
+
+          if (func != null && (func.isfinal || PolymodFinalMacro.getFinalsOf(superClass).contains(f.name)))
+          {
+            throw 'Cannot override final function "${f.name}" from superclass.';
+          }
+
         default:
       }
     }

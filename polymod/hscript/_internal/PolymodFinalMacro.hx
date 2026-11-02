@@ -16,10 +16,24 @@ class PolymodFinalMacro
   static inline final METADATA_RESOURCE_NAME:String = 'PolymodFinalMacro_METADATA';
 
   #if !macro
+  private static var _allClassFinals:Null<Array<String>> = null;
+  private static var _allInterfacesFinals:Null<Array<String>> = null;
   private static var _allFinals:Null<Map<String, Array<String>>> = null;
   private static var _allPrivateProperties:Null<Map<String, Array<String>>> = null;
   private static var _allPrivatesFields:Null<Map<String, Array<String>>> = null;
   private static var _allNoUsingFields:Null<Map<String, Array<String>>> = null;
+
+  public static function getAllClassFinals():Array<String>
+  {
+    if (_allClassFinals == null) _allClassFinals = PolymodFinalMacro.fetchAllClassFinals();
+    return _allClassFinals;
+  }
+
+  public static function getAllInterfacesFinals():Array<String>
+  {
+    if (_allInterfacesFinals == null) _allInterfacesFinals = PolymodFinalMacro.fetchAllInterfacesFinals();
+    return _allInterfacesFinals;
+  }
 
   public static function getAllFinals():Map<String, Array<String>>
   {
@@ -114,6 +128,9 @@ class PolymodFinalMacro
       var allPrivateFields:Array<Dynamic> = [];
       var allNoUsingFields:Array<Dynamic> = [];
 
+      var allClassFinals:Array<String> = [];
+      var allInterfacesFinals:Array<String> = [];
+
       for (type in types)
       {
         switch (type)
@@ -121,7 +138,22 @@ class PolymodFinalMacro
           case TClassDecl(t):
             var classType:ClassType = t.get();
             var classPath:String = t.toString();
-            if (classType.isInterface) continue;
+
+            if (classType.isInterface)
+            {
+              if (classType.isFinal)
+              {
+                allInterfacesFinals.push(classPath);
+              }
+              continue;
+            }
+            else
+            {
+              if (classType.isFinal)
+              {
+                allClassFinals.push(classPath);
+              }
+            }
 
             var fields:Array<ClassField> = listAllFieldsOfClassType(classType);
 
@@ -161,6 +193,8 @@ class PolymodFinalMacro
 
       var metadataHXSF = haxe.Serializer.run({
         finals: allFinals,
+        classFinals: allClassFinals,
+        interfacesFinals: allInterfacesFinals,
         privateProperties: allPrivateProperties,
         privateFields: allPrivateFields,
         noUsingFields: allNoUsingFields,
@@ -172,7 +206,8 @@ class PolymodFinalMacro
       var duration:Float = endTime - startTime;
 
       Context.info('PolymodFinalMacro: '
-        + 'Detected ${allFinals.length} classes with final variables, '
+        + 'Detected ${allFinals.length} classes with final fields, '
+        + '${allClassFinals.length + allInterfacesFinals.length} final classes and interfaces, '
         + '${allPrivateProperties.length} classes with (default,null) properties, '
         + '${allPrivateFields.length} classes with private variables '
         + 'in ${duration} sec.',
@@ -278,6 +313,36 @@ class PolymodFinalMacro
     return result;
   }
   #end
+
+  public static function fetchAllClassFinals():Array<String>
+  {
+    var metaData = fetchMetadata();
+    var classFinals:Array<String> = cast metaData.classFinals;
+
+    if (classFinals != null)
+    {
+      return classFinals;
+    }
+    else
+    {
+      return [];
+    }
+  }
+
+  public static function fetchAllInterfacesFinals():Array<String>
+  {
+    var metaData = fetchMetadata();
+    var interfacesFinals:Array<String> = cast metaData.interfacesFinals;
+
+    if (interfacesFinals != null)
+    {
+      return interfacesFinals;
+    }
+    else
+    {
+      return [];
+    }
+  }
 
   public static function fetchAllFinals():Map<String, Array<String>>
   {

@@ -4612,6 +4612,7 @@ class Interp
             implement: c.implement,
             fields: instanceFields,
             isExtern: c.isExtern,
+            isFinal: c.isFinal,
             staticFields: staticFields,
           };
           registerScriptClassBlacklist(classDecl);
@@ -4630,6 +4631,7 @@ class Interp
             pkg: pkg,
             extend: i.extend,
             isExtern: i.isExtern,
+            isFinal: i.isFinal,
             fields: i.fields,
           }
           registerScriptInterface(interfaceDecl);
@@ -5047,34 +5049,31 @@ class Interp
         switch (extend)
         {
           case CTPath(path, _):
-            baseInterfaceName = path[path.length - 1];
+            var fullPath = inter.imports.get(superClassPath)?.fullPath ?? superClassPath;
 
-            // The full package was used for the interface.
-            // Check to see if said interface exists.
-            if (path.length > 1)
-            {
-              if (!PolymodScriptClass.interfaceImpls.exists(superClassPath) && !_scriptInterfaceDescriptors.exists(superClassPath))
-              {
-                Polymod.error(SCRIPTED_CLASS_NOT_REGISTERED, 'Could not import ${superClassPath}. Check to ensure the module exists and is spelled correctly.', SCRIPT_RUNTIME);
-                _scriptInterfaceDescriptors.remove(interfacePath);
-              registryStamp++;
-                break;
-              }
-            }
-            else
-            {
-              // Check to see if it's been properly imported.
-              var interfaceImport:ClassImport = inter.imports.get(baseInterfaceName);
-
-              // Interface isn't imported.
-              if (interfaceImport == null)
-              {
-                Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Interface $superClassPath has not been defined.', SCRIPT_RUNTIME);
-                _scriptInterfaceDescriptors.remove(interfacePath);
-              registryStamp++;
-                break;
-              }
-            }
+          // Check to see if said interface exists.
+          if (!PolymodScriptClass.interfaceImpls.exists(fullPath) && !_scriptInterfaceDescriptors.exists(fullPath))
+          {
+            Polymod.error(
+            SCRIPTED_CLASS_UNRESOLVED_IMPORT,
+            'Cannot extend Interface "${superClassPath}" Check to ensure it exists and is spelled correctly.',
+            SCRIPT_RUNTIME
+            );
+            _scriptInterfaceDescriptors.remove(interfacePath);
+            registryStamp++;
+            break;
+          }
+          else if (PolymodFinalMacro.getAllInterfacesFinals().contains(fullPath) || _scriptInterfaceDescriptors.get(fullPath)?.isFinal)
+          {
+            Polymod.error(
+              SCRIPTED_CLASS_UNRESOLVED_IMPORT,
+              'Cannot extend final interface "${superClassPath}".',
+              SCRIPT_RUNTIME
+            );
+            _scriptInterfaceDescriptors.remove(interfacePath);
+            registryStamp++;
+            break;
+          }
           default:
         }
       }
@@ -5304,6 +5303,13 @@ class Interp
       // Check if the scripted classes extend the right type.
       if (cls.extend == null) continue;
 
+      // Clean up invalid class descriptor to prevent further processing
+      function removeClass()
+      {
+        _scriptClassDescriptors.remove(clsPath);
+        registryStamp++;
+      }
+
       var superClassPath:String = Printer.printType(cls.extend);
 
       // Templates are ignored completely since there's no type checking in HScript.
@@ -5319,6 +5325,7 @@ class Interp
           'Class ${cls.name} cannot extend interface ${superClassPath}. Use "implements" instead of "extends".',
           SCRIPT_RUNTIME
         );
+        removeClass();
         continue;
       }
 
@@ -5329,6 +5336,7 @@ class Interp
           'Could not extend ${superClassPath}: class is blacklisted.',
           SCRIPT_RUNTIME
         );
+        removeClass();
       }
       else if (PolymodScriptClass.blacklistedScriptClasses.contains(fullPath))
       {
@@ -5337,6 +5345,16 @@ class Interp
           'Could not extend ${superClassPath}: scripted class is blacklisted.',
           SCRIPT_RUNTIME
         );
+        removeClass();
+      }
+      else if (PolymodFinalMacro.getAllClassFinals().contains(fullPath) || _scriptClassDescriptors.get(fullPath)?.isFinal)
+      {
+        Polymod.error(
+          SCRIPTED_CLASS_UNRESOLVED_IMPORT,
+          'Cannot extend final class "${superClassPath}".',
+          SCRIPT_RUNTIME
+        );
+        removeClass();
       }
       else if ((Type.resolveClass(fullPath) == null #if POLYMOD_CPPIA || PolymodCppiaClassReference.isInactiveCppiaClass(fullPath) #end)
       && !PolymodScriptClass.typedefs.exists(fullPath) && !PolymodScriptClass.importOverrides.exists(fullPath) && !_scriptClassDescriptors.exists(fullPath))
@@ -5347,6 +5365,7 @@ class Interp
           'Could not extend ${superClassPath}. Make sure the module to extend ${superClassPath.indexOf('.') != -1 ? "is a valid path" : "has been imported"} and is spelled correctly.',
           SCRIPT_RUNTIME
         );
+        removeClass();
       }
       else
       {

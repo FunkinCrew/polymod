@@ -161,6 +161,9 @@ class PolymodStaticInterfaceReference
               case ADynamic:
                 if (!foundField.access.contains(ADynamic))
                   errorList.push('Field "${foundField.name}" should be dynamic as requested by "$interfaceId"');
+              case AFinal:
+                if (!foundField.access.contains(AFinal))
+                  errorList.push('Field "${foundField.name}" should be final as requested by "$interfaceId"');
               default:
             }
           }
@@ -391,6 +394,7 @@ class PolymodStaticInterfaceReference
             expr: null,
             ret: null,
             isdynamic: fieldAccess.contains(ADynamic),
+            isfinal: fieldAccess.contains(AFinal),
           });
         default:
           null;
