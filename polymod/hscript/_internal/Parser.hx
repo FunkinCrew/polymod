@@ -1633,20 +1633,45 @@ class Parser
   {
     var meta = parseMetadata();
     var ident = getIdent();
-    var isPrivate = false, isExtern = false;
+    var isPrivate = false, isExtern = false, isFinal = false;
+
     while (true)
     {
       switch (ident)
       {
         case "private":
+          if (isPrivate)
+          {
+            error(EDuplicateAccessModifier("private"), currentPos, currentPos);
+          }
           isPrivate = true;
         case "extern":
+          if (isExtern)
+          {
+            error(EDuplicateAccessModifier("extern"), currentPos, currentPos);
+          }
           isExtern = true;
+        case "final":
+          if (isFinal)
+          {
+            error(EDuplicateAccessModifier("final"), currentPos, currentPos);
+          }
+          isFinal = true;
         default:
           break;
       }
       ident = getIdent();
     }
+
+    for (m in meta)
+    {
+      if (m.name == ':final')
+      {
+        isFinal = true;
+        break;
+      }
+    }
+
     switch (ident)
     {
       case "package":
@@ -1774,6 +1799,7 @@ class Parser
             fields: fields,
             isPrivate: isPrivate,
             isExtern: isExtern,
+            isFinal: isFinal,
 
             pkg: [],
             imports: [],
@@ -1879,12 +1905,36 @@ class Parser
             extend: extend,
             fields: fields,
             isExtern: isExtern,
+            isFinal: isFinal,
             pkg: [],
           });
       default:
         unexpected(TId(ident));
     }
     return null;
+  }
+
+  function stringToModifier(id:String):FieldAccess
+  {
+    return switch (id)
+    {
+      case "public":
+        APublic;
+      case "private":
+        APrivate;
+      case "override":
+        AOverride;
+      case "inline":
+        AInline;
+      case "static":
+        AStatic;
+      case "dynamic":
+        ADynamic;
+      case "macro":
+        AMacro;
+      default:
+        null;
+    }
   }
 
   function parseField():Null<FieldDecl>
@@ -1894,141 +1944,159 @@ class Parser
     while (true)
     {
       var id = getIdent();
-      switch (id)
+      var mod = stringToModifier(id);
+      if (mod != null)
       {
-        case "override":
-          if (access.contains(AOverride))
-            error(EDuplicateAccessModifier("override"), currentPos, currentPos);
-          else
-            access.push(AOverride);
-        case "public":
-          // Throw an error if the user tries declaring a variable as public when it's already been declared private.
-          if (access.contains(APrivate))
-            error(EConflictingAccessModifier("public"), currentPos, currentPos);
-          else if (access.contains(APublic))
-            error(EDuplicateAccessModifier('public'), currentPos, currentPos);
-          else
-            access.push(APublic);
-        case "private":
-          // Throw an error if the user tries declaring a variable as private when it's already been declared public.
-          if (access.contains(APublic))
-            error(EConflictingAccessModifier("private"), currentPos, currentPos);
-          else if (access.contains(APrivate))
-            error(EDuplicateAccessModifier('private'), currentPos, currentPos);
-          else
-            access.push(APrivate);
-        case "inline":
-          if (access.contains(AInline))
-            error(EDuplicateAccessModifier('inline'), currentPos, currentPos);
-          else
-            access.push(AInline);
-        case "static":
-          if (access.contains(AStatic))
-            error(EDuplicateAccessModifier('static'), currentPos, currentPos);
-          else
-            access.push(AStatic);
-        case "dynamic":
-          if (access.contains(ADynamic))
-            error(EDuplicateAccessModifier('dynamic'), currentPos, currentPos);
-          else
-            access.push(ADynamic);
-        case "macro":
-          if (access.contains(AMacro))
-            error(EDuplicateAccessModifier('macro'), currentPos, currentPos);
-          else
-            access.push(AMacro);
-        case "function":
-          if (access.contains(AOverride) && access.contains(AStatic))
-          {
-            error(EInvalidAccessorCombination(['override', 'static']), currentPos, currentPos);
-          }
+        if (mod == APublic && access.contains(APrivate))
+        {
+          error(EConflictingAccessModifier("public"), currentPos, currentPos);
+        }
+        else if (mod == APrivate && access.contains(APublic))
+        {
+          error(EConflictingAccessModifier("private"), currentPos, currentPos);
+        }
+        else if (access.contains(mod))
+        {
+          error(EDuplicateAccessModifier(id), currentPos, currentPos);
+        }
+        else
+        {
+          access.push(mod);
+        }
+      }
+      else
+      {
+        switch (id)
+        {
+          case "function":
+            if (access.contains(AOverride) && access.contains(AStatic))
+            {
+              error(EInvalidAccessorCombination(['override', 'static']), currentPos, currentPos);
+            }
+            else if (access.contains(AFinal) && access.contains(AStatic))
+            {
+              error(EInvalidAccessorCombination(['final', 'static']), currentPos, currentPos);
+            }
 
-          // Default private if there is none specified.
-          if (!access.contains(APrivate) && !access.contains(APublic))
-            access.push(APrivate);
+            // Default private if there is none specified.
+            if (!access.contains(APrivate) && !access.contains(APublic))
+              access.push(APrivate);
 
-          var name = getIdent();
-          var inf = parseFunctionDecl();
-          maybe(TSemicolon);
+            var name = getIdent();
+            var inf = parseFunctionDecl();
+            maybe(TSemicolon);
 
-          checkRequireMeta(meta, name, 'Function');
+            checkRequireMeta(meta, name, 'Function');
 
-          return {
-            name: name,
-            meta: meta,
-            access: access,
-            kind: KFunction(
+            return {
+              name: name,
+              meta: meta,
+              access: access,
+              kind: KFunction(
+                {
+                  args: inf.args,
+                  expr: inf.body,
+                  ret: inf.ret,
+                  isdynamic: access.contains(ADynamic),
+                  isfinal: access.contains(AFinal),
+                }),
+            };
+          case "var", "final":
+            var tk = token();
+
+            var name = switch(tk)
+            {
+              case TId(id): id;
+              default: unexpected(tk);
+            };
+
+            if (id == "final")
+            {
+              if (access.contains(AFinal))
               {
-                args: inf.args,
-                expr: inf.body,
-                ret: inf.ret,
-                isdynamic: access.contains(ADynamic),
-              }),
-          };
-        case "var", "final":
-          var name = getIdent();
-          var get = null, set = null;
-          if (maybe(TPOpen))
-          {
-            get = getIdent();
-            ensure(TComma);
-            set = getIdent();
-            ensure(TPClose);
-          }
-          var type = maybe(TDoubleDot) ? parseType() : null;
-          var expr = maybe(TOp("=")) ? parseExpr() : null;
+                unexpected(TId("final"));
+              }
+              
+              if (stringToModifier(name) != null || name == "function")
+              {
+                access.push(AFinal);
+                push(tk);
+                continue;
+              }
+              else if (name == "var")
+              {
+                error(ECustom('"final var" is not supported, use "final" instead'), currentPos, currentPos);
+              }
+            }
 
-          if (expr != null)
-          {
-            if (isBlock(expr)) maybe(TSemicolon);
+            var get = null, set = null;
+            if (maybe(TPOpen))
+            {
+              if (id == "final")
+              {
+                unexpected(TPOpen);
+              }
+
+              get = getIdent();
+              ensure(TComma);
+              set = getIdent();
+              ensure(TPClose);
+            }
+            var type = maybe(TDoubleDot) ? parseType() : null;
+            var expr = maybe(TOp("=")) ? parseExpr() : null;
+
+            if (expr != null)
+            {
+              if (isBlock(expr)) maybe(TSemicolon);
+              else
+                ensure(TSemicolon);
+            }
+            else if (type != null && type.match(CTAnon(_)))
+            {
+              maybe(TSemicolon);
+            }
             else
               ensure(TSemicolon);
-          }
-          else if (type != null && type.match(CTAnon(_)))
-          {
-            maybe(TSemicolon);
-          }
-          else
-            ensure(TSemicolon);
 
-          #if POLYMOD_STRICT_SYNTAX
-          if (access.contains(AInline) && !access.contains(AStatic))
-          {
-            error(ECustom('Invalid modifier: inline on non-static variable'), currentPos, currentPos);
-          }
-          #end
+            #if POLYMOD_STRICT_SYNTAX
+            if (access.contains(AInline) && !access.contains(AStatic))
+            {
+              error(ECustom('Invalid modifier: inline on non-static variable'), currentPos, currentPos);
+            }
+            #end
 
-          if (access.contains(AOverride))
-            error(EInvalidVariableAccessor("override"), currentPos, currentPos);
+            if (access.contains(AOverride))
+              error(EInvalidVariableAccessor("override"), currentPos, currentPos);
 
-          if (access.contains(AMacro))
-            error(EInvalidVariableAccessor("macro"), currentPos, currentPos);
+            if (access.contains(AMacro))
+              error(EInvalidVariableAccessor("macro"), currentPos, currentPos);
 
-          if (access.contains(ADynamic))
-            error(EInvalidVariableAccessor("dynamic"), currentPos, currentPos);
+            if (access.contains(ADynamic))
+              error(EInvalidVariableAccessor("dynamic"), currentPos, currentPos);
 
-          // Default private if there is none specified.
-          if (!access.contains(APrivate) && !access.contains(APublic))
-            access.push(APrivate);
+            // Default private if there is none specified.
+            if (!access.contains(APrivate) && !access.contains(APublic))
+              access.push(APrivate);
 
-          checkRequireMeta(meta, name, 'Field');
+            checkRequireMeta(meta, name, 'Field');
 
-          return {
-            name: name,
-            meta: meta,
-            access: access,
-            kind: KVar(
-              {
-                get: get,
-                set: set,
-                type: type,
-                expr: expr,
-                isfinal: (id == "final")
-              }),
-          };
-        default:
-          unexpected(TId(id));
-          break;
+            return {
+              name: name,
+              meta: meta,
+              access: access,
+              kind: KVar(
+                {
+                  get: get,
+                  set: set,
+                  type: type,
+                  expr: expr,
+                  isfinal: (id == "final")
+                }),
+            };
+          default:
+            unexpected(TId(id));
+            break;
+        }
       }
     }
     return null;
@@ -2041,113 +2109,145 @@ class Parser
     while (true)
     {
       var id = getIdent();
-      switch (id)
+      var mod = stringToModifier(id);
+
+      if (mod != null)
       {
-        case "override":
-          error(EInvalidInterfaceAccessor("override"), currentPos, currentPos);
-        case "inline":
-          error(EInvalidInterfaceAccessor("inline"), currentPos, currentPos);
-        case "macro":
-          error(EInvalidInterfaceAccessor("macro"), currentPos, currentPos);
-        case "static":
-          error(EInvalidInterfaceAccessor("static"), currentPos, currentPos);
-        case "public":
-          if (access.contains(APrivate))
-            error(EConflictingAccessModifier("public"), currentPos, currentPos);
-          else if (access.contains(APublic))
-            error(EDuplicateAccessModifier('public'), currentPos, currentPos);
-          else
-            access.push(APublic);
-        case "private":
-          if (access.contains(APublic))
-            error(EConflictingAccessModifier("private"), currentPos, currentPos);
-          else if (access.contains(APrivate))
-            error(EDuplicateAccessModifier('private'), currentPos, currentPos);
-          else
-            access.push(APrivate);
-        case "dynamic":
-          if (access.contains(ADynamic))
-            error(EDuplicateAccessModifier('dynamic'), currentPos, currentPos);
-          else
-            access.push(ADynamic);
-        case "function":
-          var name = getIdent();
-          ensure(TPOpen);
-          var args = parseFunctionArgs();
-          var ret = null;
-          if (allowTypes)
-          {
-            var tk = token();
-            if (tk != TDoubleDot) push(tk);
-            else
-              ret = parseType();
-          }
-          ensure(TSemicolon);
+        // Check for invalid interface modifiers
+        if (mod == AOverride || mod == AInline || mod == AMacro || mod == AStatic)
+        {
+          error(EInvalidInterfaceAccessor(id), currentPos, currentPos);
+        }
 
-          // Interface fields default to public.
-          if (!access.contains(APrivate) && !access.contains(APublic))
-          access.push(APublic);
+        if (mod == APublic && access.contains(APrivate))
+        {
+          error(EConflictingAccessModifier("public"), currentPos, currentPos);
+        }
+        else if (mod == APrivate && access.contains(APublic))
+        {
+          error(EConflictingAccessModifier("private"), currentPos, currentPos);
+        }
+        else if (access.contains(mod))
+        {
+          error(EDuplicateAccessModifier(id), currentPos, currentPos);
+        }
+        else
+        {
+          access.push(mod);
+        }
+      }
+      else
+      {
+        switch (id)
+        {
+          case "function":
+            // Interface fields default to public.
+            if (!access.contains(APrivate) && !access.contains(APublic)) access.push(APublic);
 
-          checkRequireMeta(meta, name, 'Interface function');
+            var name = getIdent();
+            ensure(TPOpen);
+            var args = parseFunctionArgs();
+            var ret = null;
+            if (allowTypes)
+            {
+              var tk = token();
+              if (tk != TDoubleDot) push(tk);
+              else
+                ret = parseType();
+            }
+            ensure(TSemicolon);
 
-          return {
-            name: name,
-            meta: meta,
-            access: access,
-            kind: KFunction(
-              {
+            checkRequireMeta(meta, name, 'Interface function');
+
+            return {
+              name: name,
+              meta: meta,
+              access: access,
+              kind: KFunction({
                 args: args,
                 expr: null,
                 ret: ret,
                 isdynamic: access.contains(ADynamic),
+                isfinal: access.contains(AFinal),
               }),
-          };
-        case "var", "final":
-          var name = getIdent();
-          var get = null, set = null;
-          if (maybe(TPOpen))
-          {
-            get = getIdent();
-            ensure(TComma);
-            set = getIdent();
-            ensure(TPClose);
-          }
-          var type = maybe(TDoubleDot) ? parseType() : null;
+            };
 
-          if (type != null && type.match(CTAnon(_)))
-          {
-            maybe(TSemicolon);
-          }
-          else
-            ensure(TSemicolon);
+          case "var", "final":
+            var tk = token();
+            var name = switch (tk)
+            {
+              case TId(n): n;
+              default: unexpected(tk);
+            };
 
-          if (access.contains(ADynamic))
-          {
-            error(EInvalidVariableAccessor("dynamic"), currentPos, currentPos);
-          }
-
-          // Interface fields default to public.
-          if (!access.contains(APrivate) && !access.contains(APublic))
-            access.push(APublic);
-
-          checkRequireMeta(meta, name, 'Field');
-
-          return {
-            name: name,
-            meta: meta,
-            access: access,
-            kind: KVar(
+            if (id == "final")
+            {
+              if (access.contains(AFinal))
               {
+                unexpected(TId("final"));
+              }
+
+              if (stringToModifier(name) != null || name == "function")
+              {
+                access.push(AFinal);
+                push(tk);
+                continue;
+              }
+              else if (name == "var")
+              {
+                error(ECustom('"final var" is not supported, use "final" instead'), currentPos, currentPos);
+              }
+            }
+
+            var get = null, set = null;
+            if (maybe(TPOpen))
+            {
+              if (id == "final")
+              {
+                unexpected(TPOpen);
+              }
+
+              get = getIdent();
+              ensure(TComma);
+              set = getIdent();
+              ensure(TPClose);
+            }
+            var type = maybe(TDoubleDot) ? parseType() : null;
+
+            if (type != null && type.match(CTAnon(_)))
+            {
+              maybe(TSemicolon);
+            }
+            else
+              ensure(TSemicolon);
+
+            if (access.contains(ADynamic))
+            {
+              error(EInvalidVariableAccessor("dynamic"), currentPos, currentPos);
+            }
+
+            // Interface fields default to public.
+            if (!access.contains(APrivate) && !access.contains(APublic)) access.push(APublic);
+
+            checkRequireMeta(meta, name, 'Field');
+
+            return {
+              name: name,
+              meta: meta,
+              access: access,
+              kind: KVar({
                 get: get,
                 set: set,
                 type: type,
                 expr: null,
                 isfinal: (id == "final")
               }),
-          };
-        default:
-          unexpected(TId(id));
-          break;
+            };
+
+          default:
+            unexpected(TId(id));
+            break;
+        }
       }
     }
     return null;
