@@ -115,12 +115,17 @@ cd ..
 Run the HScript regression tests from the repository root:
 
 ```sh
-haxe tests/run.hxml
+haxe tests/run-interp.hxml      # Haxe Eval
+haxe tests/run-cpp-windows.hxml # On Windows
+haxe tests/run-cpp-unix.hxml    # On Linux and macOS
+haxe tests/run-js.hxml          # JavaScript for HTML5
 ```
 
-The dedicated `tests/hmm.json` manifest keeps test setup isolated from the much larger graphics and sample dependency set. `test.sh` checks that the libraries resolve through Haxelib, installs `hmm.json` and prepares the minimal test dependencies only if needed, verifies them again, and then runs the suite. Haxe itself must already be installed. If it is missing or too old, the script shows instructions and waits before closing when run in an interactive terminal.
+`run-js.hxml` runs the suite with Node.js, which must be on your `PATH`. To build the hxcpp suite without running it, use `tests/build-cpp.hxml`.
 
-The suite uses a small standalone haxe test runner (no additional testing library), so it exercises the interpreter without starting lime or a display backend. Its script fixtures cover HScript expressions, functions and closures, control flow, and arrays. Integration fixtures cover `HScriptedClass` registration errors, inheritance, instantiation, constructor arguments, overrides, and instance/static field and method access. GitHub Actions runs this same command once per push and pull request, then builds the sample projects across its platform.
+The dedicated `tests/hmm.json` manifest keeps test setup isolated from the much larger graphics and sample dependency set. `test.sh` checks that the libraries resolve through Haxelib, installs `hmm.json` and prepares the minimal test dependencies only if needed, verifies them again, and then runs the suite on every target (Interp, HXCPP, and JS), reporting all failing targets at the end. Haxe and Node.js must already be installed. If Haxe is missing or too old, the script shows instructions and waits before closing when run in an interactive terminal.
+
+The suite uses a small standalone haxe test runner (no additional testing library), so it exercises the interpreter without starting lime or a display backend. Its script fixtures cover HScript expressions, functions and closures, control flow, arrays, and truthiness of non-Bool conditions. Integration fixtures cover `HScriptedClass` registration errors, inheritance, instantiation, constructor arguments, overrides, and instance/static field and method access. GitHub Actions runs this same command once per push and pull request, then builds the sample projects across its platform.
 
 ## Documentation
 
