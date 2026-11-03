@@ -3240,7 +3240,7 @@ class Interp
         if (c >= 'A'.code && c <= 'Z'.code)
         {
           // Wildcard expressions need to start lowercase.
-          error(ECustom('Pattern variable "$v" must be lower-case or with `var` prefix'));
+          error(ECustom('Pattern variable "$ident" must be lower-case or with `var` prefix'));
           return false;
         }
 
