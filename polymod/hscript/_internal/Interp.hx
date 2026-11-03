@@ -122,6 +122,7 @@ class Interp
   var currentFunction:Null<String> = null;
   var locals:Map<String, LocalVar>;
   var binops:Map<String, Expr->Expr->Dynamic>;
+  var unops:Map<String, Expr->Bool->Dynamic>;
   var depth:Int;
   var inTry:Bool;
   var declared:Array<{n:String, old:LocalVar}>;
@@ -400,21 +401,12 @@ class Interp
   function fcall(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic
   {
     // Override Std.isOfType to call our own function.
-    if (o != null && (o == 'Std' && f == 'isOfType'))
-    {
-      return PolymodScriptClass.isOfType(args[0], args[1]);
-    }
+    if (o != null && (o == 'Std' && f == 'isOfType')) return PolymodScriptClass.isOfType(args[0], args[1]);
 
     // OVERRIDE CHANGE: Custom logic to handle super calls to prevent infinite recursion
     if (_proxy != null && o == _proxy.superClass && !Std.isOfType(o, PolymodScriptClass))
     {
-      if (_proxy.findSuperFunction(f) == null && hasUsingFallback(o, f))
-      {
-        return tryUsingFallback(o, f, args);
-      }
-
-      // Force call super function.
-      return o.scriptCallSuper(f, args);
+      return fcall_super(o, f, args);
     }
 
     #if POLYMOD_STRICT_SYNTAX
@@ -427,8 +419,7 @@ class Interp
 
     // Check for script class blacklisted fields.
     var oScriptCls:Null<String> = Util.getScriptClassName(o);
-    if (oScriptCls != null && ((PolymodScriptClass.blacklistedScriptClassStaticFields.get(oScriptCls)?.contains(f) ?? false)
-      || (PolymodScriptClass.blacklistedScriptClassInstanceFields.get(oScriptCls)?.contains(f) ?? false)))
+    if (isBlacklistedScriptField(oScriptCls, f))
     {
       error(EBlacklistedField(f));
       return null;
@@ -439,25 +430,11 @@ class Interp
 
     if (Std.isOfType(o, PolymodStaticAbstractReference))
     {
-      var ref:PolymodStaticAbstractReference = cast(o, PolymodStaticAbstractReference);
-      try
-      {
-        ref.getField(f);
-      }
-      catch (e:Dynamic)
-      {
-        if (hasUsingFallback(o, f)) return tryUsingFallback(o, f, args);
-      }
-      return ref.callFunction(f, args);
+      return fcall_staticAbstract(o, f, args);
     }
     else if (Std.isOfType(o, PolymodStaticClassReference))
     {
-      var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
-      if (!PolymodScriptClass.hasScriptClassStaticFunction(ref.getFullyQualifiedName(), f))
-      {
-        if (hasUsingFallback(o, f)) return tryUsingFallback(o, f, args);
-      }
-      return ref.callFunction(f, args);
+      return fcall_staticClass(o, f, args);
     }
     else if (Std.isOfType(o, PolymodScriptClass))
     {
@@ -468,11 +445,11 @@ class Interp
     }
     else if (Std.isOfType(o, PolymodEnum))
     {
-      if (hasUsingFallback(o, f))
-        return tryUsingFallback(o, f, args);
+      if (hasUsingFallback(o, f)) return tryUsingFallback(o, f, args);
     }
 
-    var er:Null<Error> = null;
+    // Common path (native function on a native object).
+    var err:Null<Error> = null;
     var func:Null<Dynamic> = null;
     try
     {
@@ -480,7 +457,7 @@ class Interp
     }
     catch (e:Error)
     {
-      er = e;
+      err = e;
       func = null;
     }
     if (func != null)
@@ -488,30 +465,105 @@ class Interp
       return call(o, func, args);
     }
 
+    // Check if we are calling a function of a static extension.
     if (hasUsingFallback(o, f)) return tryUsingFallback(o, f, args);
 
+    if (isHScriptedClass(o) && o.scriptCall != null)
+    {
+      // This is a scripted class!
+      // We should try to call the function on the scripted class.
+      // If it doesn't exist, `asc.callFunction()` will handle generating an error message.
+      return o.scriptCall(f, args);
+    }
+
+    // Handle niche fallbacks in their own function.
+    return fcall_fallback(o, f, args, err);
+  }
+
+  /**
+   * Call a super-function of an object.
+   */
+  @:noInline function fcall_super(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic
+  {
+    if (_proxy.findSuperFunction(f) == null && hasUsingFallback(o, f))
+    {
+      return tryUsingFallback(o, f, args);
+    }
+
+    // Force call super function.
+    return o.scriptCallSuper(f, args);
+  }
+
+  /**
+   * Call a static function of an abstract.
+   */
+  @:noInline function fcall_staticAbstract(object:Dynamic, func:String, args:Array<Dynamic>):Dynamic
+  {
+    var ref:PolymodStaticAbstractReference = cast(object, PolymodStaticAbstractReference);
+    try
+    {
+      ref.getField(func);
+    }
+    catch (e:Dynamic)
+    {
+      if (hasUsingFallback(object, func)) return tryUsingFallback(object, func, args);
+    }
+    return ref.callFunction(func, args);
+  }
+
+  /**
+   * Call a function of a static class reference.
+   */
+  @:noInline function fcall_staticClass(object:Dynamic, func:String, args:Array<Dynamic>):Dynamic
+  {
+    var ref:PolymodStaticClassReference = cast(object, PolymodStaticClassReference);
+    if (!PolymodScriptClass.hasScriptClassStaticFunction(ref.getFullyQualifiedName(), func))
+    {
+      if (hasUsingFallback(object, func)) return tryUsingFallback(object, func, args);
+    }
+    return ref.callFunction(func, args);
+  }
+
+  /**
+   * Handle calling `.bind()` on a function to make a new function with pre-filled arguments.
+   */
+  @:noInline function fcall_bind(object:Dynamic, args:Array<Dynamic>):Dynamic
+  {
+    return Reflect.makeVarArgs((bindArgs:Array<Dynamic>) ->
+    {
+      var newArgs:Array<Dynamic> = buildBindArgs(args, bindArgs);
+      return Reflect.callMethod(null, object, newArgs.concat(bindArgs));
+    });
+  }
+
+  /**
+   * Perform special fallback behavior for when `fcall()` doesn't find a function to call.
+   */
+  @:noInline function fcall_fallback(o:Dynamic, f:String, args:Array<Dynamic>, err:Null<Error>):Dynamic
+  {
     #if html5
+    // HTML5-specific function handling!
     if (Std.isOfType(o, Array))
     {
       switch (f)
       {
-        case "copy":
+        case 'copy':
           return (cast o : Array<Dynamic>).copy();
-        case "insert":
+        case 'insert':
           if (args.length >= 2)
           {
             (cast o : Array<Dynamic>).insert(Std.int(args[0]), args[1]);
             return null;
           }
-        case "resize":
+        case 'resize':
           if (args.length >= 1)
           {
             (cast o : Array<Dynamic>).resize(Std.int(args[0]));
             return null;
           }
-        case "iterator":
+        case 'iterator':
           return (cast o : Array<Dynamic>).iterator();
-        case "keyValueIterator":
+        case 'keyValueIterator':
           return (cast o : Array<Dynamic>).keyValueIterator();
         default:
       }
@@ -521,9 +573,9 @@ class Interp
     {
       switch (f)
       {
-        case "isNaN":
+        case 'isNaN':
           return args.length == 0 ? true : Math.isNaN(cast args[0]);
-        case "isFinite":
+        case 'isFinite':
           return args.length > 0 && Math.isFinite(cast args[0]);
         default:
       }
@@ -531,12 +583,12 @@ class Interp
 
     // Workaround for an HTML5-specific issue.
     // https://github.com/HaxeFoundation/haxe/issues/11298
-    if (f == "contains")
+    if (f == 'contains')
     {
-      return get(o, "includes");
+      return get(o, 'includes');
     }
     // For web: remove is inlined so we have to use something else.
-    else if (f == "remove")
+    else if (f == 'remove')
     {
       @:privateAccess
       return HxOverrides.remove(cast o, args[0]);
@@ -544,38 +596,38 @@ class Interp
     #end
 
     // Functions natively don't have the .bind() function, so we have to do them here.
-    if (f == "bind" && Reflect.isFunction(o))
+    if (f == 'bind' && Reflect.isFunction(o))
     {
-      return Reflect.makeVarArgs(function(bindArgs:Array<Dynamic>)
-      {
-        var newArgs:Array<Dynamic> = buildBindArgs(args, bindArgs);
-        return Reflect.callMethod(null, o, newArgs.concat(bindArgs));
-      });
+      return fcall_bind(o, args);
     }
 
+
+    // Throw a different error if the object is a scripted class vs a native class.
     if (isHScriptedClass(o))
     {
-      // This is a scripted class!
-      // We should try to call the function on the scripted class.
-      // If it doesn't exist, `asc.callFunction()` will handle generating an error message.
-      if (o.scriptCall != null)
-      {
-        return o.scriptCall(f, args);
-      }
-
       return error(EInvalidScriptedFnAccess(f));
     }
     else
     {
       // Re-throw the original error captured during `get()`.
-      if (er != null)
-      {
-        throw er;
-      }
+      if (err != null) throw err;
 
       // Throw an error for a missing function.
       return error(EInvalidAccess(f));
     }
+  }
+
+  /**
+   * @param oScriptCls The scripted class name to check.
+   * @param field The field of the scripted class to check.
+   * @return Whether the field of the script class is blacklisted.
+   */
+  function isBlacklistedScriptField(oScriptCls:Null<String>, field:String):Bool
+  {
+    if (oScriptCls == null) return false;
+
+    return (PolymodScriptClass.blacklistedScriptClassStaticFields.get(oScriptCls)?.contains(field) ?? false)
+      || (PolymodScriptClass.blacklistedScriptClassInstanceFields.get(oScriptCls)?.contains(field) ?? false);
   }
 
   /**
@@ -1089,7 +1141,7 @@ class Interp
     _scriptPersistentFields.clear();
   }
 
-  function initOps()
+  function initOps():Void
   {
     var me = this;
     binops = new Map();
@@ -1128,6 +1180,15 @@ class Interp
     assignOp(">>=", function(v1, v2) return v1 >> v2);
     assignOp(">>>=", function(v1, v2) return v1 >>> v2);
     assignOp("??" + "=", function(v1, v2) return v1 ?? v2);
+
+    unops = new Map();
+    unops.set('!', function(e, _) return expr(e) != true);
+    unops.set('-', function(e, _) return -expr(e));
+    unops.set('~', function(e, _) return ~expr(e));
+    unops.set('++', function(e, prefix) return increment(e, prefix, 1));
+    unops.set('--', function(e, prefix) return increment(e, prefix, -1));
+    @:privateAccess
+    unops.set('...', function(e, _) return new haxe.Rest(expr(e)));
   }
 
   function setVar(id:String, v:Dynamic):Dynamic
@@ -1171,15 +1232,20 @@ class Interp
 
     if (fn.args[fn.args.length - 1]?.rest)
     {
-      var restArgs = [];
+      var restArgs:Array<Dynamic> = [];
       for (i in fn.args.length - 1...args.length)
       {
         var restArg = args[i];
 
         // Add the list for if the user used an array as their rest arg.
-        if (restArg is Array) restArgs = restArgs.concat(cast restArg);
+        if (restArg is Array)
+        {
+          restArgs = restArgs.concat(cast restArg);
+        }
         else
+        {
           restArgs.push(cast restArg);
+        }
       }
       for (i in fn.args.length - 1...args.length) args.pop();
       args.push(restArgs);
@@ -1795,14 +1861,6 @@ class Interp
       }
     }
     return null;
-    // catch (err:Expr.Error)
-    // {
-    // 	#if hscriptPos
-    // 	throw err;
-    // 	#else
-    // 	throw err;
-    // 	#end
-    // }
   }
 
   function duplicate<T>(h:Map<String, T>)
@@ -1821,7 +1879,7 @@ class Interp
     }
   }
 
-  public inline function error(e:#if hscriptPos ErrorDef #else Error #end,
+  public function error(e:#if hscriptPos ErrorDef #else Error #end,
     rethrow = false):Null<Dynamic>
   {
     #if hscriptPos var e = new Error(e, curExpr?.pmin ?? 0, curExpr?.pmax ?? 0, curExpr?.origin ?? 'unknown', curExpr?.line ?? 0); #end
@@ -2166,6 +2224,14 @@ class Interp
     return true;
   }
 
+  /**
+   * Resolves an expression based on its type.
+   *
+   * @param e The expression to resolve.
+   * @return The result of that expression.
+   *   For example, a function call returns its return value, and a constructor call returns the constructed object.
+   */
+  @:noDebug // Greatly reduce the size of stack frames at the expense of worse debugging for this function.
   public function expr(e:Expr):Null<Dynamic>
   {
     #if hscriptPos
@@ -2174,146 +2240,481 @@ class Interp
     switch (Tools.expr(e))
     {
       case EConst(c):
-        switch (c)
-        {
-          case CInt(v):
-            return v;
-          case CFloat(f):
-            return f;
-          case CString(s):
-            return s;
-        }
+        // A constant, such as a number or hardcoded string.
+        return expr_EConst(c);
+
       case EIdent(id):
-        if (id == '_' && inSwitchBinop)
+        // Resolves an identifier, like a variable name.
+        return expr_EIdent(id);
+
+      case EVar(_) | EFinal(_):
+        // A variable declaration, final or var.
+        return expr_EVar(e);
+
+      case EParent(ei):
+        return expr(ei);
+
+      case EBlock(exprs):
+        // Resolve an expression block.
+        return expr_EBlock(exprs);
+
+      case EField(e, f):
+        // Resolve a member field access.
+        return expr_EField(e, f);
+
+      case EBinop(op, e1, e2):
+        // Resolve a binary operation (two arguments, like x + y).
+        return expr_EBinop(op, e1, e2);
+
+      case EUnop(op, prefix, e):
+        // Resolve a unary operation (one argument, like !x).
+        return expr_EUnop(op, prefix, e);
+
+      case ECall(e, params):
+        // Resolve a call to a given function, with a given set of parameters.
+        return expr_ECall(e, params);
+
+      case EIf(econd, e1, e2):
+        // Resolve an if/else block.
+        // We MUST compare with true here for multi-platform consistency.
+        if (expr(econd) == true) return expr(e1);
+
+        return (e2 != null) ? expr(e2) : null;
+
+      case EWhile(econd, e):
+        // Resolve a while loop.
+        whileLoop(econd, expr.bind(e));
+        return null;
+
+      case EFor(v, it, e):
+        // Resolve a for loop.
+        forLoop(v, it, expr.bind(e));
+        return null;
+
+      case EBreak:
+        // `break;` in a loop.
+        throw SBreak;
+
+      case EContinue:
+        // `continue;` in a loop.
+        throw SContinue;
+
+      case ECast(ei, _type):
+        // Cast an expression.
+        return expr(ei);
+
+      case EFunction(params, fexpr, name, ret):
+        // Resolve a function definition.
+        return expr_EFunction(params, fexpr, name, ret);
+
+      case EReturn(e):
+        // Resolve a return expression.
+        returnValue = e == null ? null : expr(e);
+        throw SReturn;
+
+      case EArray(e, index):
+        // Resolve an array access.
+        return expr_EArray(e, index);
+
+      case EArrayDecl(exprs):
+        // Resolve an array access.
+        return expr_EArrayDecl(exprs);
+
+      case EComprehension(e, index):
+        // Resolve an array comprehension.
+        return expr_EComprehension(e, index);
+
+      case ENew(cl, params):
+        // Construct a new class member with the given constructor arguments.
+        return expr_ENew(cl, params);
+
+      case EThrow(e):
+        // If there is a try/catch block, the error will be caught.
+        // If there is no try/catch block, the error will be reported.
+        error(EScriptThrow('${expr(e)}'));
+
+      case ETry(e, catches):
+        // Resolve a try/catch block.
+        return expr_ETry(e, catches);
+
+      case EObject(fl):
+        // Construct an anonymous object with the given fields.
+        return expr_EObject(fl);
+
+      case ETernary(econd, e1, e2):
+        // Resolve a ternary expression.
+        return (expr(econd) == true) ? expr(e1) : expr(e2);
+
+      case ESwitch(e, cases, defaultCase):
+        // Resolve a switch/case expression.
+        return expr_ESwitch(e, cases, defaultCase);
+
+      case EDoWhile(econd, e):
+        // Resolve a do/while loop.
+        doWhileLoop(econd, expr.bind(e));
+        return null;
+
+      case EMeta(name, args, e):
+        // Resolve @:metadata attached to an expression.
+        return expr_EMeta(name, args, e);
+
+      case ECheckType(ei, _type):
+        return expr(ei);
+
+      case EForGen(it, e):
+        return expr_EForGen(it, e);
+
+    }
+    return null;
+  }
+
+  @:noInline function expr_EForGen(it:Expr, e:Expr):Null<Dynamic>
+  {
+    Tools.getKeyIterator(it, (vk, vv, it) ->
+    {
+      if (vk == null)
+      {
+        #if hscriptPos
+        curExpr = it;
+        #end
+        error(ECustom('Invalid for expression'));
+        return;
+      }
+      forKeyValueLoop(vk, vv, it, expr.bind(e));
+    });
+    return null;
+  }
+
+  @:noInline function expr_ENew(cl:String, params:Array<Expr>):Null<Dynamic>
+  {
+    var a = new Array();
+    for (e in params) a.push(expr(e));
+    return cnew(cl, a);
+  }
+
+  @:noInline function expr_EObject(fl:Array<{name:String, e:Expr}>):Null<Dynamic>
+  {
+    var o = {};
+    for (f in fl) set(o, f.name, expr(f.e));
+    return o;
+  }
+
+  @:noInline function expr_EArray(e:Expr, index:Expr):Null<Dynamic>
+  {
+    // NOTE: This is for array ACCESS, not array declaration.
+
+    var arr:Dynamic = expr(e);
+    var index:Dynamic = expr(index);
+
+    if (arr == null) error(ENullObjectReference('array[$index]'));
+    if (isMap(arr)) return getMapValue(arr, index);
+
+    return arr[index];
+  }
+
+  @:noInline function expr_EFunction(params:Array<Argument>, fexpr:Expr, ?name:String, ?ret:CType):Null<Dynamic>
+  {
+    var capturedLocals = duplicate(this.locals);
+    var capturedCallObject = this._nextCallObject;
+    var capturedClassDeclOverride = this._classDeclOverride;
+    var capturedFunctionName = this.currentFunction;
+    var me = this;
+
+    // This CREATES a new function in memory, that we call later.
+    var newFun:Dynamic = Reflect.makeVarArgs((args:Array<Dynamic>)->
+    {
+      if (args == null) args = [];
+
+      validateArgumentCount(params, args, name);
+
+      // make sure mandatory args are forced
+      var args2 = [];
+      var pos = 0;
+      for (p in params)
+      {
+        if (pos < args.length)
         {
-          // We're currently in a binop switch expression.
-          // There's a chance a right-side function might try using this while evaluating expressions.
-          return curSwitchBinopValue;
+          var arg = args[pos++];
+          if (arg == null && p.value != null)
+          {
+            args2.push(expr(p.value));
+          }
+          else
+          {
+            args2.push(arg);
+          }
+        }
+        else
+        {
+          if (p.value != null)
+          {
+            args2.push(expr(p.value));
+          }
+          else
+          {
+            args2.push(null);
+          }
+        }
+      }
+      args = args2;
+
+      var old = me.locals;
+      var oldDepth = me.depth;
+      var oldCallObject = me._nextCallObject;
+      var oldClsDeclOverride = me._classDeclOverride;
+      var oldFunctionName = me.currentFunction;
+      me.depth++;
+      me.locals = duplicate(capturedLocals);
+      me._nextCallObject = capturedCallObject;
+      me._classDeclOverride = capturedClassDeclOverride;
+      me.currentFunction = capturedFunctionName;
+
+      name ??= capturedFunctionName;
+
+      for (i in 0...params.length)
+      {
+        me.locals.set(params[i].name, {
+          r: args[i]
+        });
+      }
+      var oldDecl = declared.length;
+      var r = null;
+
+      inline function restoreContext()
+      {
+        restore(oldDecl);
+        me.locals = old;
+        me.depth = oldDepth;
+        me._nextCallObject = oldCallObject;
+        me._classDeclOverride = oldClsDeclOverride;
+        me.currentFunction = oldFunctionName;
+      }
+
+      if (inTry)
+      {
+        // True if the SCRIPT wraps the function in a try/catch block.
+        try
+        {
+          r = me.exprReturn(fexpr);
+        }
+        catch (e:Dynamic)
+        {
+          restoreContext();
+          #if neko
+          neko.Lib.rethrow(e);
+          #else
+          throw e;
+          #end
+        }
+      }
+      else
+      {
+        // There is no try/catch block. We can add some custom error handling.
+        try
+        {
+          r = me.exprReturn(fexpr);
+        }
+        catch (err:Expr.Error)
+        {
+          PolymodScriptClass.reportError(err, getClassFullyQualifiedName(), name);
+          r = null;
+        }
+        catch (err:Dynamic)
+        {
+          restoreContext();
+          throw err;
+        }
+      }
+
+      restoreContext();
+      return r;
+    });
+
+    if (name != null)
+    {
+      // function-in-function is a local function
+      declared.push({
+        n: name,
+        old: locals.get(name)
+      });
+      var ref = {
+        r: newFun
+      };
+      locals.set(name, ref);
+      capturedLocals.set(name, ref); // allow self-recursion
+    }
+    return newFun;
+  }
+
+  @:noInline function expr_ETry(e:Expr, catches:Array<{name:String, t:Null<CType>, e:Expr}>):Null<Dynamic>
+  {
+    var old = declared.length;
+    var oldTry = inTry;
+    var catchList = catches.copy();
+    try
+    {
+      inTry = true;
+      var v:Dynamic = expr(e);
+      restore(old);
+      inTry = oldTry;
+      return v;
+    }
+    catch (e:Stop)
+    {
+      // Continue to throw the original error.
+      inTry = oldTry;
+      throw e;
+    }
+    catch (error:Dynamic)
+    {
+      // This function'll call recurively so that multiple catch functions can still be called.
+      return handleCatch(error, catchList, old, oldTry);
+    }
+  }
+
+  @:noInline function expr_EConst(c:Const):Null<Dynamic>
+  {
+    switch (c)
+    {
+      case CInt(v):
+        return v;
+
+      case CFloat(f):
+        return f;
+
+      case CString(s):
+        return s;
+    }
+  }
+
+  @:noInline function expr_EIdent(id:String):Null<Dynamic>
+  {
+    if (id == '_' && inSwitchBinop)
+    {
+      // We're currently in a binop switch expression.
+      // There's a chance a right-side function might try using this while evaluating expressions.
+      return curSwitchBinopValue;
+    }
+
+    // When resolving a variable, check if it is a property with a getter, and call it if necessary.
+    @:privateAccess
+    {
+      if (_proxy != null)
+      {
+        var decl = _proxy.findVar(id);
+        if (decl != null)
+        {
+          var hasIsVar:Bool = _proxy.findField(id)?.meta.findIndex((m) -> m.name == ':isVar') != -1;
+          switch (decl.get)
+          {
+            case 'get':
+              final getName = 'get_$id';
+              if (_propTrack.exists(getName))
+              {
+                switch (decl.set)
+                {
+                  case 'set', 'never':
+                    if (!hasIsVar) return error(EPropVarNotReal(id));
+
+                  default:
+                }
+              }
+              else
+              {
+                _propTrack.set(getName, true);
+                var result = _proxy.callFunction(getName);
+                _propTrack.remove(getName);
+                return result;
+              }
+
+            case 'never':
+              if (!hasIsVar) return error(EPropVarNotReal(id));
+
+            case 'null':
+
+          }
+        }
+      }
+    }
+
+    var l = locals.get(id);
+    if (l != null) return l.r;
+
+    return resolve(id);
+  }
+
+  @:noInline function expr_EVar(e:Expr):Null<Dynamic>
+  {
+    switch (Tools.expr(e))
+    {
+      case EVar(name, type, expression, isStatic):
+        return declareVariable(name, type, expression, isStatic, false);
+      case EFinal(name, type, expression, isStatic):
+        return declareVariable(name, type, expression, isStatic, true);
+      default:
+        throw 'Expected EVar or EFinal, got ${Tools.expr(e)}';
+    }
+  }
+
+  function declareVariable(name:String, type:Null<CType>, expression:Null<Expr>, isStatic:Bool, isFinal:Bool):Null<Dynamic>
+  {
+    validateAssignment(expression);
+
+    if (isStatic)
+    {
+      var varName = '${this.currentFunction}_$name';
+      var clsName = getClassFullyQualifiedName();
+      var result:Dynamic = null;
+      if (clsName != null && this.currentFunction != null)
+      {
+        if ((locals.exists(name) && locals.get(name).isstatic) || PolymodScriptClass.hasScriptClassStaticField(clsName, varName))
+        {
+          error(ECustom('The expanded name of static local "$varName" conflicts with another static field'));
+          return null;
         }
 
-        // When resolving a variable, check if it is a property with a getter, and call it if necessary.
-        @:privateAccess
+        // Special name for static locals so they get stored in the class static variables
+        var fullName = '$clsName#${this.currentFunction}#$name';
+        if (PolymodScriptClass.scriptInterp.variables.exists(fullName))
         {
-          if (_proxy != null)
+          result = PolymodScriptClass.scriptInterp.variables.get(fullName);
+        }
+        else
+        {
+          var id:String = switch (Tools.expr(expression))
           {
-            var decl = _proxy.findVar(id);
-            if (decl != null)
-            {
-              var hasIsVar:Bool = _proxy.findField(id)?.meta.findIndex((m) -> m.name == ':isVar') != -1;
-              switch (decl.get)
-              {
-                case "get":
-                  final getName = 'get_$id';
-                  if (_propTrack.exists(getName))
-                  {
-                    switch (decl.set)
-                    {
-                      case 'set', 'never':
-                        if (!hasIsVar)
-                          return error(EPropVarNotReal(id));
-                      default:
-                    }
-                  }
-                  else
-                  {
-                    _propTrack.set(getName, true);
-                    var result = _proxy.callFunction(getName);
-                    _propTrack.remove(getName);
-                    return result;
-                  }
-                case 'never':
-                  if (!hasIsVar)
-                    return error(EPropVarNotReal(id));
-                case 'null':
+            case ESwitch(_):
+              error(EInvalidStaticLocalInit(varName, 'cannot use a switch expression as an initializer'));
+              null;
+            case EIdent(i):
+              i;
+            case EField(e, _):
+              getIdent(e);
+            default:
+              null;
+          }
 
+          if (id != null)
+          {
+            if (locals.exists(id) && !(locals.get(id).isstatic ?? false))
+            {
+              error(EInvalidStaticLocalInit(varName, 'cannot use local variable "$id" as an initializer'));
+            }
+            else if (_proxy != null)
+            {
+              if (id == 'this' || id == 'super')
+              {
+                error(EInvalidStaticLocalInit(varName, 'cannot use "this" as initialization'));
+              }
+              else if (_proxy.findField(id) != null)
+              {
+                error(EInvalidStaticLocalInit(varName, 'cannot use instance field "$id" as an initializer'));
               }
             }
           }
-        }
 
-        var l = locals.get(id);
-        if (l != null) return l.r;
-
-        return resolve(id);
-      case EVar(name, type, expression, isStatic) | EFinal(name, type, expression, isStatic):
-        validateAssignment(expression);
-
-        var isFinal = switch (Tools.expr(e))
-        {
-          case EFinal(_): true;
-          default: false;
-        };
-
-        if (isStatic)
-        {
-          var varName = '${this.currentFunction}_$name';
-          var clsName = getClassFullyQualifiedName();
-          var result:Dynamic = null;
-          if (clsName != null && this.currentFunction != null)
-          {
-            if ((locals.exists(name) && locals.get(name).isstatic) || PolymodScriptClass.hasScriptClassStaticField(clsName, varName))
-            {
-              error(ECustom('The expanded name of static local "$varName" conflicts with another static field'));
-              return null;
-            }
-
-            // Special name for static locals so they get stored in the class static variables
-            var fullName = '$clsName#${this.currentFunction}#$name';
-            if (PolymodScriptClass.scriptInterp.variables.exists(fullName))
-            {
-              result = PolymodScriptClass.scriptInterp.variables.get(fullName);
-            }
-            else
-            {
-              var id:String = switch (Tools.expr(expression))
-              {
-                case ESwitch(_):
-                  error(EInvalidStaticLocalInit(varName, "cannot use a switch expression as an initializer"));
-                  null;
-                case EIdent(i):
-                  i;
-                case EField(e, _):
-                  getIdent(e);
-                default:
-                  null;
-              }
-
-              if (id != null)
-              {
-                if (locals.exists(id) && !(locals.get(id).isstatic ?? false))
-                {
-                  error(EInvalidStaticLocalInit(varName, 'cannot use local variable "$id" as an initializer'));
-                }
-                else if (_proxy != null)
-                {
-                  if (id == "this" || id == "super")
-                  {
-                    error(EInvalidStaticLocalInit(varName, 'cannot use "this" as initialization'));
-                  }
-                  else if (_proxy.findField(id) != null)
-                  {
-                    error(EInvalidStaticLocalInit(varName, 'cannot use instance field "$id" as an initializer'));
-                  }
-                }
-              }
-
-              result = expression != null ? exprWithType(expression, type) : null;
-              PolymodScriptClass.scriptInterp.variables.set(fullName, result);
-            }
-
-            declared.push({
-              n: name,
-              old: locals.get(name)
-            });
-
-            locals.set(name, {
-              r: result,
-              isfinal: isFinal,
-              isstatic: true
-            });
-
-            return null;
-          }
+          result = expression != null ? exprWithType(expression, type) : null;
+          PolymodScriptClass.scriptInterp.variables.set(fullName, result);
         }
 
         declared.push({
@@ -2321,435 +2722,236 @@ class Interp
           old: locals.get(name)
         });
 
-        var result:Dynamic = (expression != null) ? exprWithType(expression, type) : null;
-
         locals.set(name, {
           r: result,
           isfinal: isFinal,
-          isstatic: false
+          isstatic: true
         });
 
         return null;
-      case EParent(e0):
-        return expr(e0);
-      case EBlock(exprs):
-        var old = declared.length;
-        var v = null;
-        for (e in exprs) v = expr(e);
-        restore(old);
-        return v;
-      case EField(e, f):
+      }
+    }
+
+    declared.push({
+      n: name,
+      old: locals.get(name)
+    });
+
+    var result:Dynamic = (expression != null) ? exprWithType(expression, type) : null;
+
+    locals.set(name, {
+      r: result,
+      isfinal: isFinal,
+      isstatic: false
+    });
+
+    return null;
+  }
+
+  @:noInline function expr_ESwitch(e:Expr, cases:Array<{values:Array<Expr>, guard:Expr, expr:Expr}>, ?defaultExpr:Expr):Null<Dynamic>
+  {
+    var val:Dynamic = expr(e);
+
+    var old:Int = declared.length;
+    var match = false;
+    for (c in cases)
+    {
+      inSwitchCase = true;
+      for (v in c.values)
+      {
+        if (evalSwitchCase(val, v, e))
+        {
+          match = true;
+          break;
+        }
+      }
+
+      // Clear these as we shouldn't need this anymore.
+      // `_` is never supposed to be a local wildcard variable in expressions.
+      curSwitchBinopValue = null;
+      locals.remove('_');
+
+      // Continue to the next case if the guard for this one isn't met.
+      // We evaluate later to make sure any wildcard variables don't error.
+      if (c.guard != null && expr(c.guard) == false) continue;
+
+      inSwitchCase = false;
+      if (match)
+      {
         try
         {
-          return get(fieldTarget(e), f);
+          val = expr(c.expr);
         }
-        catch (er:Error)
+        catch (e:Stop)
         {
-          var ref = resolveDottedPath('${dottedPath(e)}.$f');
-          if (ref == null) throw er;
-          return ref;
+          restore(old);
+          throw e;
         }
-      case EBinop(op, e1, e2):
-        var fop = binops.get(op);
-        if (fop == null) error(EInvalidOp(op));
-        return fop(e1, e2);
-      case EUnop(op, prefix, e):
-        switch (op)
-        {
-          case "!":
-            return expr(e) != true;
-          case "-":
-            return -expr(e);
-          case "++":
-            return increment(e, prefix, 1);
-          case "--":
-            return increment(e, prefix, -1);
-          case "~":
-            return ~expr(e);
-          case "...":
-            @:privateAccess return new haxe.Rest(expr(e));
-          default:
-            error(EInvalidOp(op));
-        }
-      case ECall(e, params):
-        switch (Tools.expr(e))
-        {
-          case EField(e, f):
-            var name = getIdent(e);
-            var fullPath:Null<String> = null;
-            var abs:Null<PolymodStaticAbstractReference> = null;
-            if (name != null)
-            {
-              var imp = getClassDecl().imports.get(name);
-              if (imp != null)
-              {
-                fullPath = imp.fullPath;
-                abs = imp.abs;
-              }
-            }
-            else if (!startsAtValue(e))
-            {
-              fullPath = dottedPath(e);
-              if (fullPath != null)
-              {
-                freshLookups();
-                if (!_missedPaths.exists(fullPath))
-                {
-                  var resolvedPath = resolveDottedPath(fullPath);
-                  if (resolvedPath is PolymodStaticAbstractReference)
-                  {
-                    abs = resolvedPath;
-                  }
-                  else if (resolvedPath == null)
-                  {
-                    _missedPaths.set(fullPath, true);
-                  }
-                }
-              }
-            }
+        restore(old);
+        break;
+      }
+    }
 
-            if (abs != null && abs.hasInlineFunction(f))
-            {
-              var args = new Array();
-              for (p in params) args.push(expr(p));
+    try
+    {
+      if (!match) val = defaultExpr == null ? null : expr(defaultExpr);
+    }
+    catch (e:Stop)
+    {
+      // See above, always rethrow so `return`/`break`/`continue` propagate out of the switch.
+      restore(old);
+      throw e;
+    }
+    restore(old);
+    return val;
+  }
 
-              return abs.callInlineFunction(this, params[0], f, args);
-            }
-          default:
-        }
-
-        var args = new Array<Dynamic>();
-        for (p in params)
-        {
-          // We push a special `_` string so it's easily identifiable when using `bind`
-          // We will later evaluate this when the function itself is called.
-          switch (Tools.expr(p))
-          {
-            case EIdent('_'):
-              switch (Tools.expr(e))
-              {
-                case EField(_, 'bind'):
-                  args.push('_');
-                  continue;
-                default:
-              }
-            default:
-          }
-          args.push(expr(p));
-        }
-
-        switch (Tools.expr(e))
-        {
-          case EField(e, f):
-            var obj = fieldTarget(e);
-            if (obj == null) error(ENullObjectReference(f));
-            return fcall(obj, f, args);
-          default:
-            return call(null, expr(e), args);
-        }
-      case EIf(econd, e1, e2):
-        return if (expr(econd) == true) expr(e1) else if (e2 == null) null else expr(e2);
-      case EWhile(econd, e):
-        whileLoop(econd, expr.bind(e));
-        return null;
-      case EDoWhile(econd, e):
-        doWhileLoop(econd, expr.bind(e));
-        return null;
-      case EFor(v, it, e):
-        forLoop(v, it, expr.bind(e));
-        return null;
-      case EForGen(it, e):
-        Tools.getKeyIterator(it, function(vk, vv, it)
-        {
-          if (vk == null)
-          {
-            #if hscriptPos
-            curExpr = it;
-            #end
-            error(ECustom("Invalid for expression"));
-            return;
-          }
-          forKeyValueLoop(vk, vv, it, expr.bind(e));
-        });
-        return null;
-      case EBreak:
-        throw SBreak;
-      case EContinue:
-        throw SContinue;
-      case ECast(e, t):
-        return expr(e);
-      case EReturn(e):
-        returnValue = e == null ? null : expr(e);
-        throw SReturn;
-      case EFunction(params, fexpr, name, _):
-        var capturedLocals = duplicate(this.locals);
-        var capturedCallObject = this._nextCallObject;
-        var capturedClassDeclOverride = this._classDeclOverride;
-        var capturedFunctionName = this.currentFunction;
-        var me = this;
-
-        // This CREATES a new function in memory, that we call later.
-        var newFun:Dynamic = Reflect.makeVarArgs((args:Array<Dynamic>)->
-        {
-          if (args == null) args = [];
-
-          validateArgumentCount(params, args, name);
-
-          // make sure mandatory args are forced
-          var args2 = [];
-          var pos = 0;
-          for (p in params)
-          {
-            if (pos < args.length)
-            {
-              var arg = args[pos++];
-              if (arg == null && p.value != null)
-              {
-                args2.push(expr(p.value));
-              }
-              else
-              {
-                args2.push(arg);
-              }
-            }
-            else
-            {
-              if (p.value != null)
-              {
-                args2.push(expr(p.value));
-              }
-              else
-              {
-                args2.push(null);
-              }
-            }
-          }
-          args = args2;
-
-          var old = me.locals;
-          var oldDepth = me.depth;
-          var oldCallObject = me._nextCallObject;
-          var oldClsDeclOverride = me._classDeclOverride;
-          var oldFunctionName = me.currentFunction;
-          me.depth++;
-          me.locals = duplicate(capturedLocals);
-          me._nextCallObject = capturedCallObject;
-          me._classDeclOverride = capturedClassDeclOverride;
-          me.currentFunction = capturedFunctionName;
-
-          name ??= capturedFunctionName;
-
-          for (i in 0...params.length)
-          {
-            me.locals.set(params[i].name, {
-              r: args[i]
-            });
-          }
-          var oldDecl = declared.length;
-          var r = null;
-
-          inline function restoreContext()
-          {
-            restore(oldDecl);
-            me.locals = old;
-            me.depth = oldDepth;
-            me._nextCallObject = oldCallObject;
-            me._classDeclOverride = oldClsDeclOverride;
-            me.currentFunction = oldFunctionName;
-          }
-
-          if (inTry)
-          {
-            // True if the SCRIPT wraps the function in a try/catch block.
-            try
-            {
-              r = me.exprReturn(fexpr);
-            }
-            catch (e:Dynamic)
-            {
-              restoreContext();
-              #if neko
-              neko.Lib.rethrow(e);
-              #else
-              throw e;
-              #end
-            }
-          }
-          else
-          {
-            // There is no try/catch block. We can add some custom error handling.
-            try
-            {
-              r = me.exprReturn(fexpr);
-            }
-            catch (err:Expr.Error)
-            {
-              PolymodScriptClass.reportError(err, getClassFullyQualifiedName(), name);
-              r = null;
-            }
-            catch (err:Dynamic)
-            {
-              restoreContext();
-              throw err;
-            }
-          }
-
-          restoreContext();
-          return r;
-        });
-
+  @:noInline function expr_ECall(e:Expr, params:Array<Expr>):Null<Dynamic>
+  {
+    switch (Tools.expr(e))
+    {
+      case EField(e, f):
+        var name = getIdent(e);
+        var fullPath:Null<String> = null;
+        var abs:Null<PolymodStaticAbstractReference> = null;
         if (name != null)
         {
-          // function-in-function is a local function
-          declared.push({
-            n: name,
-            old: locals.get(name)
-          });
-          var ref = {
-            r: newFun
-          };
-          locals.set(name, ref);
-          capturedLocals.set(name, ref); // allow self-recursion
-        }
-        return newFun;
-      case EComprehension(body, isMap):
-        // Initialize an array (or map) from a comprehension body.
-        return exprCompr(body, isMap);
-      case EArrayDecl(arr):
-        // Initialize an array (or map) from a declaration.
-        return exprArrayDecl(arr);
-      case EArray(e, index):
-        var arr:Dynamic = expr(e);
-        var index:Dynamic = expr(index);
-
-        if (arr == null) error(ENullObjectReference('array[$index]'));
-        if (isMap(arr)) return getMapValue(arr, index);
-
-        return arr[index];
-      case ENew(cl, params):
-        var a = new Array();
-        for (e in params) a.push(expr(e));
-        return cnew(cl, a);
-      case EThrow(e):
-        // If there is a try/catch block, the error will be caught.
-        // If there is no try/catch block, the error will be reported.
-        error(EScriptThrow('${expr(e)}'));
-      case ETry(e, catches):
-        var old = declared.length;
-        var oldTry = inTry;
-        var catchList = catches.copy();
-        try
-        {
-          inTry = true;
-          var v:Dynamic = expr(e);
-          restore(old);
-          inTry = oldTry;
-          return v;
-        }
-        catch (e:Stop)
-        {
-          // Continue to throw the original error.
-          inTry = oldTry;
-          throw e;
-        }
-        catch (error:Dynamic)
-        {
-          // This function'll call recurively so that multiple catch functions can still be called.
-          return handleCatch(error, catchList, old, oldTry);
-        }
-      case EObject(fl):
-        var o = {};
-        for (f in fl) set(o, f.name, expr(f.e));
-        return o;
-      case ETernary(econd, e1, e2):
-        return if (expr(econd) == true) expr(e1) else expr(e2);
-      case ESwitch(e, cases, def):
-        var val:Dynamic = expr(e);
-
-        var old:Int = declared.length;
-        var match = false;
-        for (c in cases)
-        {
-          inSwitchCase = true;
-          for (v in c.values)
+          var imp = getClassDecl().imports.get(name);
+          if (imp != null)
           {
-            if (evalSwitchCase(val, v, e))
-            {
-              match = true;
-              break;
-            }
+            fullPath = imp.fullPath;
+            abs = imp.abs;
           }
-
-          // Clear these as we shouldn't need this anymore.
-          // `_` is never supposed to be a local wildcard variable in expressions.
-          curSwitchBinopValue = null;
-          locals.remove('_');
-
-          // Continue to the next case if the guard for this one isn't met.
-          // We evaluate later to make sure any wildcard variables don't error.
-          if (c.guard != null && !expr(c.guard))
-            continue;
-
-          inSwitchCase = false;
-          if (match)
+        }
+        else if (!startsAtValue(e))
+        {
+          fullPath = dottedPath(e);
+          if (fullPath != null)
           {
-            try
+            freshLookups();
+            if (!_missedPaths.exists(fullPath))
             {
-              val = expr(c.expr);
+              var resolvedPath = resolveDottedPath(fullPath);
+              if (resolvedPath is PolymodStaticAbstractReference)
+              {
+                abs = resolvedPath;
+              }
+              else if (resolvedPath == null)
+              {
+                _missedPaths.set(fullPath, true);
+              }
             }
-            catch (e:Stop)
-            {
-              restore(old);
-              throw e;
-            }
-            restore(old);
-            break;
           }
         }
 
-        try
+        if (abs != null && abs.hasInlineFunction(f))
         {
-          if (!match) val = def == null ? null : expr(def);
+          var args:Array<Dynamic> = [];
+          for (p in params) args.push(expr(p));
+
+          return abs.callInlineFunction(this, params[0], f, args);
         }
-        catch (e:Stop)
+      default:
+    }
+
+    var args:Array<Dynamic> = [];
+    for (p in params)
+    {
+      // We push a special `_` string so it's easily identifiable when using `bind`
+      // We will later evaluate this when the function itself is called.
+      switch (Tools.expr(p))
+      {
+        case EIdent('_'):
+          switch (Tools.expr(e))
+          {
+            case EField(_, 'bind'):
+              args.push('_');
+              continue;
+            default:
+          }
+        default:
+      }
+      args.push(expr(p));
+    }
+
+    switch (Tools.expr(e))
+    {
+      case EField(e, f):
+        var obj = fieldTarget(e);
+        if (obj == null) error(ENullObjectReference(f));
+        return fcall(obj, f, args);
+      default:
+        return call(null, expr(e), args);
+    }
+  }
+
+  @:noInline function expr_EBlock(exprs:Array<Expr>):Null<Dynamic>
+  {
+    var old = declared.length;
+    var v = null;
+    for (e in exprs) v = expr(e);
+    restore(old);
+    return v;
+  }
+
+  @:noInline function expr_EField(e:Expr, f:String):Null<Dynamic>
+  {
+    try
+    {
+      return get(fieldTarget(e), f);
+    }
+    catch (err:Error)
+    {
+      var ref = resolveDottedPath('${dottedPath(e)}.$f');
+      if (ref == null) throw err;
+      return ref;
+    }
+  }
+
+  @:noInline function expr_EBinop(op:String, e1:Expr, e2:Expr):Null<Dynamic>
+  {
+    var fop = binops.get(op);
+    if (fop == null) error(EInvalidOp(op));
+    return fop(e1, e2);
+  }
+
+  @:noInline function expr_EUnop(op:String, prefix:Bool, e:Expr):Null<Dynamic>
+  {
+    var fop = unops.get(op);
+    if (fop == null) error(EInvalidOp(op));
+    return fop(e, prefix);
+  }
+
+  @:noInline function expr_EMeta(name:String, args:Array<Expr>, e:Expr):Null<Dynamic>
+  {
+    switch (name)
+    {
+      case ':privateAccess':
+        // Check to make sure we aren't already in a private access block.
+        // Otherwise the state'll be overwritten and the original block won't work anymore.
+        if (!inPrivateAccess)
         {
-          // See above, always rethrow so `return`/`break`/`continue` propagate out of the switch.
-          restore(old);
-          throw e;
+          inPrivateAccess = true;
+          var obj = expr(e); // We evaulate the expression knowing we're in a private access.
+          inPrivateAccess = false;
+          return obj;
         }
-        restore(old);
-        return val;
-      case EMeta(name, args, e):
-        switch (name)
+        return expr(e);
+
+      case ':noPrivateAccess':
+        // Side note: I really do not see the point of this metadata field, I guess maybe for if you're inside a private access block, but still.
+        if (!inNoPrivateAccess)
         {
-          case ':privateAccess':
-            // Check to make sure we aren't already in a private access block.
-            // Otherwise the state'll be overwritten and the original block won't work anymore.
-            if (!inPrivateAccess)
-            {
-              inPrivateAccess = true;
-              var obj = expr(e); // We evaulate the expression knowing we're in a private access.
-              inPrivateAccess = false;
-              return obj;
-            }
-            return expr(e);
-          case ':noPrivateAccess':
-            // Side note: I really do not see the point of this metadata field, I guess maybe for if you're inside a private access block, but still.
-            if (!inNoPrivateAccess)
-            {
-              inNoPrivateAccess = true;
-              var obj = expr(e);
-              inNoPrivateAccess = false;
-              return obj;
-            }
-            return expr(e);
-          default:
-            return expr(e);
+          inNoPrivateAccess = true;
+          var obj = expr(e);
+          inNoPrivateAccess = false;
+          return obj;
         }
-      case ECheckType(e, _):
+        return expr(e);
+
+      default:
         return expr(e);
     }
-    return null;
   }
 
   /**
@@ -2773,10 +2975,10 @@ class Interp
     {
       case EArrayDecl(arr):
         // Initialize an array (or map) from a declaration.
-        return exprArrayDecl(arr, t);
+        return expr_EArrayDecl(arr, t);
       case EComprehension(body, isMap):
         // Initialize an array (or map) from a comprehension.
-        return exprCompr(body, isMap, t);
+        return expr_EComprehension(body, isMap, t);
       default:
         // Whatever.
     }
@@ -2785,7 +2987,7 @@ class Interp
     return this.expr(e);
   }
 
-  function exprMap(entries:Array<Expr>, ?typeHint:CType):Dynamic
+  function expr_EMap(entries:Array<Expr>, ?typeHint:CType):Dynamic
   {
     var keys = [];
     var values = [];
@@ -2793,7 +2995,7 @@ class Interp
     {
       switch (Tools.expr(e))
       {
-        case EBinop("=>", eKey, eValue):
+        case EBinop('=>', eKey, eValue):
           // Look for map entries.
           keys.push(expr(eKey));
           values.push(expr(eValue));
@@ -2847,8 +3049,10 @@ class Interp
               }
           }
         }
+
       case CTAnon(_):
         return new Map<{}, Dynamic>();
+
       default:
         // Whatever.
         error(ECustom('Invalid key type for empty map initialization (${Printer.printType(keyType)}).'));
@@ -2856,7 +3060,7 @@ class Interp
     return makeMap([], [], keyType);
   }
 
-  function exprArrayDecl(entries:Array<Expr>, ?typeHint:CType):Dynamic
+  @:noInline function expr_EArrayDecl(entries:Array<Expr>, ?typeHint:CType):Dynamic
   {
     var hasElements:Bool = entries.length > 0;
     var hasMapElements:Bool = hasElements && Tools.expr(entries[0]).match(EBinop('=>', _, _));
@@ -2878,7 +3082,7 @@ class Interp
               }
               else if (hasMapElements)
               {
-                return exprMap(entries, params[0]);
+                return expr_EMap(entries, params[0]);
               }
               else
               {
@@ -2896,60 +3100,66 @@ class Interp
               }
               else
               {
-                // Create an array of elements, if any.
-                return exprArray(entries);
+                // Simply create an array of elements without special typing.
+                return [for (entry in entries) expr(entry)];
               }
             }
           }
+
         default:
       }
     }
 
-    return hasMapElements ? exprMap(entries) : exprArray(entries);
+    if (hasMapElements) return expr_EMap(entries);
+
+    return [for (entry in entries) expr(entry)];
   }
 
-  inline function exprArray(entries:Array<Expr>):Array<Dynamic>
-  {
-    return entries.map((e) -> expr(e));
-  }
-
-  function exprCompr(body:Expr, isMap:Bool, ?typeHint:CType):Dynamic
+  @:noInline function expr_EComprehension(body:Expr, isMap:Bool, ?typeHint:CType):Dynamic
   {
     var entries:Array<Dynamic> = [];
     var keys:Array<Dynamic> = [];
     var values:Array<Dynamic> = [];
 
-    function visitExpr(e:Expr):Void
+    function visitExpr(e:Expr)
     {
       switch (Tools.expr(e))
       {
         case EFor(v, it, e):
           forLoop(v, it, visitExpr.bind(e));
+
         case EWhile(cond, e):
           whileLoop(cond, visitExpr.bind(e));
+
         case EDoWhile(cond, e):
           doWhileLoop(cond, visitExpr.bind(e));
+
         case EForGen(it, e):
-          Tools.getKeyIterator(it, function(vk, vv, it)
+          Tools.getKeyIterator(it, (vk, vv, it) ->
           {
             if (vk == null)
             {
               #if hscriptPos
               curExpr = it;
               #end
-              error(ECustom("Invalid for expression"));
+              error(ECustom('Invalid for expression'));
               return;
             }
             forKeyValueLoop(vk, vv, it, visitExpr.bind(e));
           });
+
         case EParent(e):
           visitExpr(e);
+
         case EBlock([e]):
           visitExpr(e);
+
         case EMeta(_, _, e):
           visitExpr(e);
+
         case EIf(cond, e1, e2):
-          visitExpr(expr(cond) ? e1 : (e2 ?? return));
+          visitExpr((expr(cond) == true) ? e1 : (e2 ?? return));
+
         case EBinop('=>', e1, e2):
           if (!isMap)
           {
@@ -2957,6 +3167,7 @@ class Interp
           }
           keys.push(expr(e1));
           values.push(expr(e2));
+
         default:
           if (isMap)
           {
@@ -2987,6 +3198,7 @@ class Interp
     {
       case EParent(e):
         if (evalSwitchCase(val, e, valExpr)) return true;
+
       case EVar(n), EFinal(n, _, _):
         var isFinal = switch (Tools.expr(v))
         {
@@ -3010,7 +3222,9 @@ class Interp
           var enumValue = resolve(ident);
 
           if ((isScriptEnumValue && PolymodEnum.enumEq(val, enumValue)) || (Reflect.isEnumValue(enumValue) && Type.enumEq(val, enumValue)))
+          {
             return true;
+          }
         }
 
         var c:Int = ident.fastCodeAt(0);
@@ -3021,7 +3235,7 @@ class Interp
           return false;
         }
 
-        function checkArrayDecl(e:Expr):Bool
+        function checkArrayDecl(e:Expr)
         {
           switch (Tools.expr(e))
           {
@@ -3053,12 +3267,13 @@ class Interp
         locals.set(ident, {r: val});
 
         return true;
+
       case EField(e, f) if (isScriptEnumValue):
         var enumValue:Dynamic = expr(v);
 
         // Special case checking for scripted enums as native enums should work fine.
-        if (PolymodEnum.enumEq(val, enumValue))
-          return true;
+        if (PolymodEnum.enumEq(val, enumValue)) return true;
+
       case EArrayDecl(_), EObject(_):
         // There's a chance we have an array inside this array so we do this to allow for recursion.
         var matchVal = evalSwitchObject(v, val);
@@ -3437,14 +3652,14 @@ class Interp
     do
     {
       if (!loopRun(bodyFn)) break;
-    } while (expr(econd));
+    } while (expr(econd) == true);
     restore(old);
   }
 
   function whileLoop(econd:Expr, bodyFn:Void->Void):Void
   {
     var old = declared.length;
-    while (expr(econd))
+    while (expr(econd) == true)
     {
       if (!loopRun(bodyFn)) break;
     }
@@ -3874,8 +4089,7 @@ class Interp
 
     // Check for script class blacklisted fields.
     var oScriptCls:Null<String> = Util.getScriptClassName(o);
-    if (oScriptCls != null && ((PolymodScriptClass.blacklistedScriptClassStaticFields.get(oScriptCls)?.contains(f) ?? false)
-      || (PolymodScriptClass.blacklistedScriptClassInstanceFields.get(oScriptCls)?.contains(f) ?? false)))
+    if (isBlacklistedScriptField(oScriptCls, f))
     {
       error(EBlacklistedField(f));
       return null;
@@ -4045,8 +4259,7 @@ class Interp
 
     // Check for script class blacklisted.
     var oScriptCls:Null<String> = Util.getScriptClassName(o);
-    if (oScriptCls != null && ((PolymodScriptClass.blacklistedScriptClassStaticFields.get(oScriptCls)?.contains(f) ?? false)
-      || (PolymodScriptClass.blacklistedScriptClassInstanceFields.get(oScriptCls)?.contains(f) ?? false)))
+    if (isBlacklistedScriptField(oScriptCls, f))
     {
       error(EBlacklistedField(f));
       return null;
