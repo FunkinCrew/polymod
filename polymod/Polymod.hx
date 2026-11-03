@@ -36,20 +36,17 @@ typedef PolymodParams =
    * On `SysFileSystem` (the default filesystem for desktop platforms), this parameter is required.
    */
   ?modRoot:String,
-
   /**
    * (optional) The mods that should be loaded, listed as their mod IDs.
    * If not provided, Polymod will initialize with no mods loaded.
    */
   ?modIds:Array<String>,
-
   /**
    * (optional) The mods that should be loaded, listed as their directory names relative to modRoot
    * If not provided, Polymod will initialize with no mods loaded.
    * DEPRECATED: Use `modIds` instead.
    */
   ?dirs:Array<String>,
-
   /**
    * (optional) The Haxe framework currently in use.
    * This is used to determine the proper backend injection methods to use.
@@ -136,7 +133,6 @@ typedef PolymodParams =
    * Defaults to `false`.
    */
   ?skipDependencyErrors:Bool,
-
   /**
    * (optional) A FireTongue instance for Polymod to hook into.
    * This is used for robust support for asset localization
@@ -150,7 +146,6 @@ typedef PolymodParams =
    * Defaults to `false`.
    */
   ?useScriptedClasses:Bool,
-
   /**
    * (optional) If `useScriptedClasses` is true, perform script loading asynchronously.
    *
@@ -169,7 +164,6 @@ typedef FrameworkParams =
    * (optional) if you're using Lime/OpenFL AND you're using custom or non-default asset libraries, then you must provide a key=>value store mapping the name of each asset library to a path prefix in your mod structure
    */
   ?assetLibraryPaths:Map<String, String>,
-
   /**
    * (optional) specify this path to redirect core asset loading to a different path
    * you can set this up to load core assets from a parent directory!
@@ -219,7 +213,6 @@ class Polymod
   public static var onError:Null<PolymodError->Void> = null;
 
   public static var onScriptsLoaded:Null<Void->Void> = null;
-
   public static var modRoot(get, never):String;
 
   static function get_modRoot():String
@@ -279,7 +272,9 @@ class Polymod
     params.dirs ??= [];
     params.ignoredFiles ??= [];
 
-    if (params.fileSystemParams == null) params.fileSystemParams = {modRoot: modRoot};
+    if (params.fileSystemParams == null) params.fileSystemParams = {
+      modRoot: modRoot
+    };
     if (params.fileSystemParams.modRoot == null) params.fileSystemParams.modRoot = modRoot;
     if (params.apiVersionRule == null) params.apiVersionRule = VersionUtil.DEFAULT_VERSION_RULE;
     var fileSystem = PolymodFileSystem.makeFileSystem(params.customFilesystem, params.fileSystemParams);
@@ -299,8 +294,11 @@ class Polymod
         {
           if (!meta.isCompatible(params.apiVersionRule))
           {
-            error(MOD_API_VERSION_MISMATCH,
-              'Mod "${modId}" was built for incompatible API version ${meta.apiVersion.toString()}, expected "${params.apiVersionRule.toString()}"', INIT);
+            error(
+              MOD_API_VERSION_MISMATCH,
+              'Mod "${modId}" was built for incompatible API version ${meta.apiVersion.toString()}, expected "${params.apiVersionRule.toString()}"',
+              INIT
+            );
           }
 
           // API version matches
@@ -319,8 +317,11 @@ class Polymod
         {
           if (!meta.isCompatible(params.apiVersionRule))
           {
-            error(MOD_API_VERSION_MISMATCH,
-              'Mod "${modDir}" was built for incompatible API version ${meta.apiVersion.toString()}, expected "${params.apiVersionRule.toString()}"', INIT);
+            error(
+              MOD_API_VERSION_MISMATCH,
+              'Mod "${modDir}" was built for incompatible API version ${meta.apiVersion.toString()}, expected "${params.apiVersionRule.toString()}"',
+              INIT
+            );
           }
 
           // API version matches
@@ -343,29 +344,30 @@ class Polymod
     }
 
     // Get the file path for each mod to load, in order.
-    var sortedModIds:Array<String> = sortedModsToLoad.map(function(meta:ModMetadata):String {
+    var sortedModIds:Array<String> = sortedModsToLoad.map(function(meta:ModMetadata):String
+    {
       return meta.id;
     });
-    var sortedModPaths:Array<String> = sortedModsToLoad.map(function(meta:ModMetadata):String {
+    var sortedModPaths:Array<String> = sortedModsToLoad.map(function(meta:ModMetadata):String
+    {
       return meta.modPath;
     });
 
-    assetLibrary = PolymodAssetLibrary.build(
-      {
-        framework: params.framework,
-        modIds: sortedModIds,
-        modDirs: sortedModPaths,
-        parseRules: params.parseRules,
-        ignoredFiles: params.ignoredFiles,
-        customBackend: params.customBackend,
-        extensionMap: params.extensionMap,
-        frameworkParams: params.frameworkParams,
-        fileSystem: fileSystem,
-        assetPrefix: params.assetPrefix,
-        #if firetongue
-        firetongue: params.firetongue,
-        #end
-      });
+    assetLibrary = PolymodAssetLibrary.build({
+      framework: params.framework,
+      modIds: sortedModIds,
+      modDirs: sortedModPaths,
+      parseRules: params.parseRules,
+      ignoredFiles: params.ignoredFiles,
+      customBackend: params.customBackend,
+      extensionMap: params.extensionMap,
+      frameworkParams: params.frameworkParams,
+      fileSystem: fileSystem,
+      assetPrefix: params.assetPrefix,
+      #if firetongue
+      firetongue: params.firetongue,
+      #end
+    });
 
     if (assetLibrary == null)
     {
@@ -789,7 +791,9 @@ class Polymod
         }
         else
         {
-          scanParams.fileSystem = PolymodFileSystem.makeFileSystem(null, {modRoot: scanParams.modRoot});
+          scanParams.fileSystem = PolymodFileSystem.makeFileSystem(null, {
+            modRoot: scanParams.modRoot
+          });
         }
       }
 
@@ -804,7 +808,8 @@ class Polymod
    * @param strict If `true`, return `[]` if a required dependency is unmet.
    * @return The sorted list.
    */
-  public static function sortModsByDependencies(modMetadatas:Array<ModMetadata>, strict:Bool = false):Array<ModMetadata>
+  public static function sortModsByDependencies(modMetadatas:Array<ModMetadata>,
+    strict:Bool = false):Array<ModMetadata>
   {
     return DependencyUtil.sortByDependencies(modMetadatas, !strict);
   }
@@ -849,7 +854,9 @@ class Polymod
     {
       if (Reflect.field(target, '_asc') != null) return true;
     }
-    catch (_:Dynamic) {}
+    catch (_:Dynamic)
+    {
+    }
 
     return isCompiledScriptClass(target);
   }
@@ -883,8 +890,7 @@ class Polymod
   public static function clearScripts():Void
   {
     // Don't clear scripts several times.
-    if (!polymod.hscript._internal.PolymodScriptClass.scriptsInitialized)
-      return;
+    if (!polymod.hscript._internal.PolymodScriptClass.scriptsInitialized) return;
 
     polymod.hscript._internal.PolymodScriptClass.scriptsInitialized = false;
 
@@ -966,8 +972,7 @@ class Polymod
 
         if (registered.length == 0)
         {
-          Polymod.warning(SCRIPT_PARSE_FAILED,
-            'Compiled script "$path" registered no classes, so nothing in it can be used.', SCRIPT_RUNTIME);
+          Polymod.warning(SCRIPT_PARSE_FAILED, 'Compiled script "$path" registered no classes, so nothing in it can be used.', SCRIPT_RUNTIME);
         }
       }
       polymod.hscript._internal.PolymodCppiaClassReference.unloadInactiveModules();
@@ -1221,7 +1226,9 @@ class Polymod
    * @param message The message to display.
    * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc).
    */
-  public static function error(code:PolymodErrorCode, message:String, origin:PolymodErrorOrigin = UNKNOWN):Void
+  public static function error(code:PolymodErrorCode,
+    message:String,
+    origin:PolymodErrorOrigin = UNKNOWN):Void
   {
     if (onError != null)
     {
@@ -1236,7 +1243,9 @@ class Polymod
    * @param message The message to display.
    * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc).
    */
-  public static function warning(code:PolymodErrorCode, message:String, origin:PolymodErrorOrigin = UNKNOWN):Void
+  public static function warning(code:PolymodErrorCode,
+    message:String,
+    origin:PolymodErrorOrigin = UNKNOWN):Void
   {
     if (onError != null)
     {
@@ -1251,7 +1260,9 @@ class Polymod
    * @param message The message to display.
    * @param origin The context the error occurred in (while scanning for mods, while initializing mods, etc).
    */
-  public static function info(code:PolymodErrorCode, message:String, origin:PolymodErrorOrigin = UNKNOWN):Void
+  public static function info(code:PolymodErrorCode,
+    message:String,
+    origin:PolymodErrorOrigin = UNKNOWN):Void
   {
     if (onError != null)
     {
@@ -1354,6 +1365,22 @@ class Polymod
   }
 
   /**
+   * Blacklists a scripted class as well as all applicable instance and static fields.
+   * @param importPath The full import path to blacklist, as a string.
+  **/
+  public static function blacklistImportSecure(importPath:String):Void
+  {
+    addImportAlias(importPath, null);
+
+    var cls = Type.resolveClass(importPath);
+    var instanceFields:Array<String> = Type.getInstanceFields(cls);
+    var staticFields:Array<String> = Type.getClassFields(cls);
+
+    blacklistInstanceFields(cls, instanceFields);
+    blacklistStaticFields(cls, staticFields);
+  }
+
+  /**
    * When a static field is being called, you can blacklist it from being used.
    * @param parentClass The class type with the fields.
    * @param fields The static fields you want to blacklist.
@@ -1402,8 +1429,7 @@ class Polymod
   {
     if (current == null || next == null || current.length != next.length) return false;
 
-    for (i in 0...current.length)
-      if (current[i] != next[i]) return false;
+    for (i in 0...current.length) if (current[i] != next[i]) return false;
 
     return true;
   }
@@ -1579,7 +1605,9 @@ class ModMetadata
   {
     if (contributors.length == 0)
     {
-      contributors.push({name: v});
+      contributors.push({
+        name: v
+      });
     }
     else
     {
@@ -1752,7 +1780,10 @@ class PolymodError
    */
   public var origin:PolymodErrorOrigin;
 
-  public function new(severity:PolymodErrorType, code:PolymodErrorCode, message:String, ?origin:PolymodErrorOrigin = UNKNOWN)
+  public function new(severity:PolymodErrorType,
+    code:PolymodErrorCode,
+    message:String,
+    ?origin:PolymodErrorOrigin = UNKNOWN)
   {
     this.severity = severity;
     this.code = code;
