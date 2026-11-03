@@ -1,4 +1,5 @@
 import stage.ScriptedStage;
+import stage.Stage;
 import openfl.display.Sprite;
 import openfl.Lib;
 import polymod.Polymod;
@@ -21,7 +22,7 @@ class Main extends Sprite
   function test()
   {
     var defaultStageId:String = 'STAGE_${Std.random(256)}';
-    var stage:ScriptedStage = ScriptedStage.scriptInit('BasicStage', defaultStageId);
+    var stage:Stage = ScriptedStage.scriptInit('BasicStage', defaultStageId);
     stage.create();
   }
 

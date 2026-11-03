@@ -510,10 +510,12 @@ class PolymodBaseClassMacro
     var complexType:ComplexType = getComplexTypeFromClass(cls);
 
     // BACKWARDS COMPAT: If a class has the `:hscriptClass` metadata, we should use the class its extending as the underlying class.
+    // `scriptInit` returns an instance of that class, so it is typed as that class too; hxcpp turns a cast to the wrong class into `null`.
     if (cls.meta.has(':hscriptClass') && cls.superClass != null)
     {
       var superCls:ClassType = cls.superClass.t.get();
       underlyingClass = formatClassString(superCls);
+      complexType = getComplexTypeFromClass(superCls);
     }
 
     var buildPos = Context.currentPos();

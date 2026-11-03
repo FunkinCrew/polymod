@@ -1141,6 +1141,18 @@ class Interp
     _scriptPersistentFields.clear();
   }
 
+  /**
+   * Perform a platform-independent check to convert an expression value to a boolean.
+   *
+   * @param value A script value used in a boolean condition.
+   * @return `true` only if `value` is... :true:...
+   *   `false` for any other values (including strings, numbers, etc).
+   */
+  static inline function isTrue(value:Dynamic):Bool
+  {
+    return (value is Bool) && (value : Bool);
+  }
+
   function initOps():Void
   {
     var me = this;
@@ -1162,8 +1174,8 @@ class Interp
     binops.set("<=", function(e1, e2) return me.expr(e1) <= me.expr(e2));
     binops.set(">", function(e1, e2) return me.expr(e1) > me.expr(e2));
     binops.set("<", function(e1, e2) return me.expr(e1) < me.expr(e2));
-    binops.set("||", function(e1, e2) return me.expr(e1) == true || me.expr(e2) == true);
-    binops.set("&&", function(e1, e2) return me.expr(e1) == true && me.expr(e2) == true);
+    binops.set("||", function(e1, e2) return isTrue(me.expr(e1)) || isTrue(me.expr(e2)));
+    binops.set("&&", function(e1, e2) return isTrue(me.expr(e1)) && isTrue(me.expr(e2)));
     binops.set("=", assign);
     binops.set("...", function(e1, e2) return new IntIterator(me.expr(e1), me.expr(e2)));
     binops.set("is", function(e1, e2) return PolymodScriptClass.isOfType(me.expr(e1), me.expr(e2))); // We use a special Std.isOfType to fix scripted classes.
@@ -1182,7 +1194,7 @@ class Interp
     assignOp("??" + "=", function(v1, v2) return v1 ?? v2);
 
     unops = new Map();
-    unops.set('!', function(e, _) return expr(e) != true);
+    unops.set('!', function(e, _) return !isTrue(expr(e)));
     unops.set('-', function(e, _) return -expr(e));
     unops.set('~', function(e, _) return ~expr(e));
     unops.set('++', function(e, prefix) return increment(e, prefix, 1));
@@ -2276,8 +2288,8 @@ class Interp
 
       case EIf(econd, e1, e2):
         // Resolve an if/else block.
-        // We MUST compare with true here for multi-platform consistency.
-        if (expr(econd) == true) return expr(e1);
+        // Use `isTrue()` for conditions so every target agrees on which values count as true.
+        if (isTrue(expr(econd))) return expr(e1);
 
         return (e2 != null) ? expr(e2) : null;
 
@@ -2343,7 +2355,7 @@ class Interp
 
       case ETernary(econd, e1, e2):
         // Resolve a ternary expression.
-        return (expr(econd) == true) ? expr(e1) : expr(e2);
+        return isTrue(expr(econd)) ? expr(e1) : expr(e2);
 
       case ESwitch(e, cases, defaultCase):
         // Resolve a switch/case expression.
@@ -3158,7 +3170,7 @@ class Interp
           visitExpr(e);
 
         case EIf(cond, e1, e2):
-          visitExpr((expr(cond) == true) ? e1 : (e2 ?? return));
+          visitExpr(isTrue(expr(cond)) ? e1 : (e2 ?? return));
 
         case EBinop('=>', e1, e2):
           if (!isMap)
@@ -3652,14 +3664,14 @@ class Interp
     do
     {
       if (!loopRun(bodyFn)) break;
-    } while (expr(econd) == true);
+    } while (isTrue(expr(econd)));
     restore(old);
   }
 
   function whileLoop(econd:Expr, bodyFn:Void->Void):Void
   {
     var old = declared.length;
-    while (expr(econd) == true)
+    while (isTrue(expr(econd)))
     {
       if (!loopRun(bodyFn)) break;
     }
