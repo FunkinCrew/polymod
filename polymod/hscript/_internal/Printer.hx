@@ -774,6 +774,7 @@ class Printer
       case EConflictingAccessModifier(access): 'Conflicting access modifier "$access"';
       case EInvalidVariableAccessor(access): 'Invalid modifier: "$access" on variable';
       case EInvalidStaticLocalInit(name, reason): 'Cannot initialize static variable "${name}": $reason';
+      case EInvalidConstructorCall(clsName): 'Invalid constructor call, use "new ${clsName}()" instead';
       case ECustom(msg): msg;
     };
     #if hscriptPos

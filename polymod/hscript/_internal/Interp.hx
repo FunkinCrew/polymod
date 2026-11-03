@@ -425,6 +425,12 @@ class Interp
     checkTypeForDeprecation(oScriptCls);
     checkFieldForDeprecation(oScriptCls, f);
 
+    if (f == "new" && (o is Class || o is PolymodStaticClassReference))
+    {
+      var clsName = o is Class ? Type.getClassName(o) : cast(o, PolymodStaticClassReference).getFullyQualifiedName();
+      return error(EInvalidConstructorCall(clsName));
+    }
+
     if (Std.isOfType(o, PolymodStaticAbstractReference))
     {
       return fcall_staticAbstract(o, f, args);
@@ -4121,6 +4127,16 @@ class Interp
         error(EBlacklistedField(f));
         return null;
       }
+    }
+
+    if (f == "new" && (o is Class || o is PolymodStaticClassReference))
+    {
+      return Reflect.makeVarArgs((args:Array<Dynamic>) -> {
+      if (o is Class)
+        return Type.createInstance(cast o, args);
+      else
+        return cast(o, PolymodStaticClassReference).instantiate(args);
+      });
     }
 
     #if html5

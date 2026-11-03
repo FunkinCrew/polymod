@@ -192,6 +192,7 @@ enum Error
   EConflictingAccessModifier(access:String);
   EInvalidVariableAccessor(access:String);
   EInvalidStaticLocalInit(name:String, reason:String);
+  EInvalidConstructorCall(clsName:String);
   // Fallback error type.
   ECustom(msg:String);
 }
