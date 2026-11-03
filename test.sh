@@ -60,14 +60,12 @@ fi
 
 check_libraries
 if (( ${#missing_libraries[@]} > 0 )); then
-  printf 'Installing HMM and preparing the minimal test dependencies...\n'
-  if ! haxelib --global path hmm >/dev/null 2>&1; then
-    printf 'Installing HMM...\n'
-    haxelib --global install hmm || fail 'Could not install HMM. Check the Haxelib output above.'
-  fi
+  printf 'Preparing the minimal test dependencies with hmm-rs...\n'
+  command -v hmm-rs >/dev/null 2>&1 \
+    || fail 'hmm-rs was not found on PATH. Install it with "cargo install hmm-rs" or download a release from https://github.com/FunkinCrew/hmm-rs/releases and retry.'
 
-  (cd tests && haxelib run hmm install --quiet) \
-    || fail 'Dependency setup failed. Check the Haxe/Haxelib output and confirm your internet connection.'
+  (cd tests && hmm-rs install) \
+    || fail 'Dependency setup failed. Check the hmm-rs output above and confirm your internet connection.'
 
   check_libraries
   if (( ${#missing_libraries[@]} > 0 )); then

@@ -103,12 +103,11 @@ This will return either the default asset, or a modified version if it's been re
 
 The test suite requires Haxe 4.3.7 or newer and Bash. Run `bash test.sh` from the repository root in Git Bash on Windows or a terminal on Linux/macOS. The script installs only the libraries needed by the suite if they are missing and prints clear setup instructions if Haxe is missing or too old.
 
-To prepare the test dependencies manually on any platform:
+The test dependencies are installed with [hmm-rs](https://github.com/FunkinCrew/hmm-rs). Install it with `cargo install hmm-rs`, or download a binary from its [releases](https://github.com/FunkinCrew/hmm-rs/releases) and put it on your `PATH`. To prepare the test dependencies manually on any platform:
 
 ```sh
-haxelib --global install hmm
 cd tests
-haxelib run hmm install --quiet
+hmm-rs install
 cd ..
 ```
 
@@ -123,7 +122,7 @@ haxe tests/run-js.hxml          # JavaScript for HTML5
 
 `run-js.hxml` runs the suite with Node.js, which must be on your `PATH`. To build the hxcpp suite without running it, use `tests/build-cpp.hxml`.
 
-The dedicated `tests/hmm.json` manifest keeps test setup isolated from the much larger graphics and sample dependency set. `test.sh` checks that the libraries resolve through Haxelib, installs `hmm.json` and prepares the minimal test dependencies only if needed, verifies them again, and then runs the suite on every target (Interp, HXCPP, and JS), reporting all failing targets at the end. Haxe and Node.js must already be installed. If Haxe is missing or too old, the script shows instructions and waits before closing when run in an interactive terminal.
+The dedicated `tests/hmm.json` manifest keeps test setup isolated from the much larger graphics and sample dependency set. `test.sh` checks that the libraries resolve through Haxelib, installs `tests/hmm.json` with hmm-rs only if something is missing, verifies them again, and then runs the suite on every target (Interp, HXCPP, and JS), reporting all failing targets at the end. Haxe and Node.js must already be installed, and hmm-rs too if any test library is missing. If Haxe is missing or too old, the script shows instructions and waits before closing when run in an interactive terminal.
 
 The suite uses a small standalone haxe test runner (no additional testing library), so it exercises the interpreter without starting lime or a display backend. Its script fixtures cover HScript expressions, functions and closures, control flow, arrays, and truthiness of non-Bool conditions. Integration fixtures cover `HScriptedClass` registration errors, inheritance, instantiation, constructor arguments, overrides, and instance/static field and method access. GitHub Actions runs this same command once per push and pull request, then builds the sample projects across its platform.
 

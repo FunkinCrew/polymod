@@ -2,15 +2,18 @@
   "dependencies": [
     {
       "name": "hxcpp",
-      "type": "haxelib"
+      "type": "haxelib",
+      "version": "4.3.2"
     },
     {
       "name": "jsonpatch",
-      "type": "haxelib"
+      "type": "haxelib",
+      "version": "1.1.0"
     },
     {
       "name": "jsonpath",
-      "type": "haxelib"
+      "type": "haxelib",
+      "version": "1.1.0"
     },
     {
       "name": "polymod",

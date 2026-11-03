@@ -56,10 +56,14 @@ jobs:
         run: |
           hmm install --quiet
 
+      - name: Setup hmm-rs
+        run: cargo install hmm-rs --version 0.1.8 --locked
+
+      # Runs even on a cache hit: hmm-rs only installs what's missing or outdated,
+      # which also repoints the cached Polymod dev path at this checkout.
       - name: Install HScript test dependencies
-        if: steps.haxelibs-cache.outputs.cache-hit != 'true'
         working-directory: ./tests
-        run: haxelib run hmm install --quiet
+        run: hmm-rs install
 
       - name: Set up Polymod as dev haxelib
         if: steps.haxelibs-cache.outputs.cache-hit == 'true'
