@@ -400,9 +400,6 @@ class Interp
    */
   function fcall(o:Dynamic, f:String, args:Array<Dynamic>):Dynamic
   {
-    // Override Std.isOfType to call our own function.
-    if (o != null && (o == 'Std' && f == 'isOfType')) return PolymodScriptClass.isOfType(args[0], args[1]);
-
     // OVERRIDE CHANGE: Custom logic to handle super calls to prevent infinite recursion
     if (_proxy != null && o == _proxy.superClass && !Std.isOfType(o, PolymodScriptClass))
     {
@@ -4073,6 +4070,12 @@ class Interp
   function get(o:Dynamic, f:String):Null<Dynamic>
   {
     if (o == null) error(ENullObjectReference(f));
+
+    // Override Std.isOfType to get our own function.
+    if (o != null && (o == Std && f == 'isOfType'))
+    {
+      return PolymodScriptClass.isOfType;
+    }
 
     // Backwards compatibility for scripts using HScriptedClass.init
     // isHScriptedClass(o) only works with class instances
