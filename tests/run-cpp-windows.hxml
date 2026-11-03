@@ -1,0 +1,3 @@
+# Builds and runs the test suite with hxcpp on Windows.
+tests/build-cpp.hxml
+--cmd bin\cpp\TestMain.exe

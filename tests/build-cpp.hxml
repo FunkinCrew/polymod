@@ -1,0 +1,9 @@
+# Builds the test suite with hxcpp without running it.
+# To build and run it, use run-cpp-windows.hxml or run-cpp-unix.hxml.
+--cwd tests
+-cp .
+-lib polymod
+-main TestMain
+# Build 64-bit binaries like the games that use Polymod; hxcpp defaults to 32-bit on Windows.
+-D HXCPP_M64
+-cpp bin/cpp

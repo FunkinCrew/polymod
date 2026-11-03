@@ -2,6 +2,7 @@
 docs/Gemfile.lock
 samples/*/.haxelib/
 tests/.haxelib/
+tests/bin/
 samples/*/[Ee]xport/
 samples/*/bin/
 samples/*/dump/

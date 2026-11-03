@@ -1,0 +1,6 @@
+--cwd tests
+-cp .
+-lib polymod
+-main TestMain
+-js bin/js/TestMain.js
+--cmd node bin/js/TestMain.js

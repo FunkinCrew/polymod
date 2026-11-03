@@ -1,6 +1,10 @@
 {
   "dependencies": [
     {
+      "name": "hxcpp",
+      "type": "haxelib"
+    },
+    {
       "name": "jsonpatch",
       "type": "haxelib"
     },

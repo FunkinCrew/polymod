@@ -19,19 +19,20 @@ class TestMain
     run("closures", testClosures);
     run("control flow", testControlFlow);
     run("array indexing", testArrayIndexing);
+    run("truthiness", testTruthiness);
     run("invalid syntax", testInvalidSyntax);
     run("script asset loading and cache", testScriptAssetLoading);
     run("HScriptedClass integration", testScriptedClass);
 
-    Sys.println('$passed/${passed + failed.length} tests passed');
+    println('$passed/${passed + failed.length} tests passed');
 
     if (failed.length > 0)
     {
       for (failure in failed)
       {
-        Sys.println('FAIL: $failure');
+        println('FAIL: $failure');
       }
-      Sys.exit(1);
+      exitWithFailure();
     }
   }
 
@@ -41,7 +42,7 @@ class TestMain
     {
       test();
       passed++;
-      Sys.println('PASS: $name');
+      println('PASS: $name');
     }
     catch (error:Dynamic)
     {
@@ -84,6 +85,11 @@ class TestMain
   static function testArrayIndexing():Void
   {
     assertEquals(7, executeFixture("array_indexing.hxs"));
+  }
+
+  static function testTruthiness():Void
+  {
+    assertEquals("if:FFFFFT not:TTTTTF ternary:FFFFFT and:FFFFFT or:FFFFFT", executeFixture("truthiness.hxs"));
   }
 
   static function testInvalidSyntax():Void
@@ -261,7 +267,32 @@ class TestMain
 
   static function readFixture(name:String):String
   {
-    return sys.io.File.getContent('../tests/fixtures/hscript/$name');
+    var path:String = '../tests/fixtures/hscript/$name';
+    #if js
+    // The JS suite runs under Node.js, which has no `sys` API.
+    return js.Lib.require('fs').readFileSync(path, 'utf8');
+    #else
+    return sys.io.File.getContent(path);
+    #end
+  }
+
+  static function println(line:String):Void
+  {
+    #if js
+    js.Syntax.code('console.log({0})', line);
+    #else
+    Sys.println(line);
+    #end
+  }
+
+  static function exitWithFailure():Void
+  {
+    #if js
+    // Let Node.js exit normally so pending output is flushed.
+    js.Syntax.code('process.exitCode = 1');
+    #else
+    Sys.exit(1);
+    #end
   }
 
   static function addFixture(fileSystem:MemoryFileSystem, path:String, fixtureName:String):Void

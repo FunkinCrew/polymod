@@ -1,0 +1,25 @@
+// Ensure only the value `true` acts like true.
+// Other objects (like numbers or objects) should behave like `false`.
+// TODO: Should some sort of type error be thrown when expecting a boolean and not getting one?
+
+function ifResult(value) {
+  if (value) return 'T';
+  return 'F';
+}
+function notResult(value) {
+  return !value ? 'T' : 'F';
+}
+function ternaryResult(value) {
+  return value ? 'T' : 'F';
+}
+function andResult(value) {
+  return (value && true) ? 'T' : 'F';
+}
+function orResult(value) {
+  return (value || false) ? 'T' : 'F';
+}
+// Applies a check to each value, in order: 2, 'abc', an object, null, false, true.
+function row(check) {
+  return check(2) + check('abc') + check({value: 1}) + check(null) + check(false) + check(true);
+}
+'if:' + row(ifResult) + ' not:' + row(notResult) + ' ternary:' + row(ternaryResult) + ' and:' + row(andResult) + ' or:' + row(orResult)

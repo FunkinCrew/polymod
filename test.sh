@@ -23,6 +23,8 @@ command -v haxe >/dev/null 2>&1 \
   || fail "Haxe was not found on PATH. Install Haxe 4.3.7 or newer from https://haxe.org/download/ and retry."
 command -v haxelib >/dev/null 2>&1 \
   || fail "Haxelib was not found on PATH. Reinstall Haxe 4.3.7 or newer and ensure Haxelib is on PATH."
+command -v node >/dev/null 2>&1 \
+  || fail "Node.js was not found on PATH. The JS tests need it; install it from https://nodejs.org/ and retry."
 
 if ! haxe_version="$(haxe --version)"; then
   fail 'Could not read the Haxe version. Run "haxe --version" to check your installation.'
@@ -44,7 +46,7 @@ missing_libraries=()
 check_libraries() {
   missing_libraries=()
   local library
-  for library in polymod jsonpath jsonpatch thx.semver thx.core; do
+  for library in polymod hxcpp jsonpath jsonpatch thx.semver thx.core; do
     if ! (cd tests && haxelib path "$library" >/dev/null 2>&1); then
       printf 'Missing or unavailable library: %s\n' "$library"
       missing_libraries+=("$library")
@@ -75,9 +77,29 @@ else
   printf 'All required libraries are available through Haxelib; skipping downloads.\n'
 fi
 
-printf 'Running Polymod HScript regression tests with Haxe %s...\n' "$haxe_version"
-if ! haxe tests/run.hxml; then
-  fail 'The test run failed. Review the test summary and errors above.'
+# Runs every target even if an earlier one fails, so one run reports all broken targets.
+failed_targets=()
+run_target() {
+  local name="$1"
+  local hxml="$2"
+  printf 'Running Polymod HScript regression tests with Haxe %s (%s)...\n' "$haxe_version" "$name"
+  if ! haxe "$hxml"; then
+    failed_targets+=("$name")
+  fi
+}
+
+# Git Bash and Cygwin on Windows need the Windows binary path.
+case "$OSTYPE" in
+  msys* | cygwin*) cpp_hxml='tests/run-cpp-windows.hxml' ;;
+  *) cpp_hxml='tests/run-cpp-unix.hxml' ;;
+esac
+
+run_target 'Interp' tests/run-interp.hxml
+run_target 'HXCPP' "$cpp_hxml"
+run_target 'JS' tests/run-js.hxml
+
+if (( ${#failed_targets[@]} > 0 )); then
+  fail "The tests failed on: ${failed_targets[*]}. Review the test summaries and errors above."
 fi
 
 printf '\nAll Polymod tests passed.\n'
