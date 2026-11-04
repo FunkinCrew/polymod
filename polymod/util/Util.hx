@@ -100,7 +100,7 @@ class Util
     id = stripPrefix(id);
     var mergeFile = PolymodConfig.mergeFolder + sl() + id;
     // try the path first
-    var format:BaseParseFormat = parseRules.get(id) ?? parseRules.get(extension);
+    var format:BaseParseFormat = parseRules.get(id) ?? parseRules.get(extension) ?? parseRules.get('.$extension');
     if (format != null)
     {
       var mergeText = getModText(mergeFile, modId);
@@ -119,7 +119,7 @@ class Util
     var extension = uExtension(id, true);
     id = stripPrefix(id);
     // try the path first
-    var format:BaseParseFormat = parseRules.get(id) ?? parseRules.get(extension);
+    var format:BaseParseFormat = parseRules.get(id) ?? parseRules.get(extension) ?? parseRules.get('.$extension');
     if (format != null)
     {
       var appendText = getModText(Util.pathJoin(PolymodConfig.appendFolder, id), modId);
