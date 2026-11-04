@@ -248,6 +248,11 @@ typedef ClassDecl =
   var isExtern:Bool;
 
   /**
+    If `true` the class is final and cannot be extended.
+  **/
+  var isFinal:Bool;
+
+  /**
    * The package that the scripted class belongs to
    */
   var pkg:Array<String>;
@@ -379,6 +384,7 @@ typedef InterfaceDecl =
   var extend:Array<CType>;
   var fields:Array<FieldDecl>;
   var isExtern:Bool;
+  var isFinal:Bool;
 
   /**
    * The package the interface belongs to
@@ -402,6 +408,7 @@ enum FieldAccess
   AOverride;
   AStatic;
   ADynamic;
+  AFinal;
   AMacro;
 }
 
@@ -417,6 +424,7 @@ typedef FunctionDecl =
   var expr:Expr;
   var ret:Null<CType>;
   var isdynamic:Null<Bool>;
+  var isfinal:Null<Bool>;
 }
 
 typedef VarDecl =
