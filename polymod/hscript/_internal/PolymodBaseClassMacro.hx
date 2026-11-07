@@ -248,17 +248,15 @@ class PolymodBaseClassMacro
 
           var callExpr:Expr = macro polymod.hscript.PolymodScriptBridge.callOn(scriptCls, $v{fields[i].name}, [$a{argExprs}]);
           var scriptCallExpr:Expr = doesReturnVoid ? callExpr : (macro return cast $callExpr);
+          scriptCallExpr.pos = f.expr.pos;
 
           // This is generated for every function of every class, so keep it small; the script lookup happens in the bridge.
           // The original body goes in an `else` branch with no `return` inside a loop, so the function can still be inlined at call sites.
-          var oldPos:haxe.macro.Expr.Position = f.expr.pos;
-          f.expr = macro
+          f.expr = macro @:pos(f.expr.pos)
             {
               var scriptCls:Dynamic = (_asc == null) ? null : polymod.hscript.PolymodScriptBridge.findOverride(_asc, _skipAscFrom, $v{fields[i].name});
               if (scriptCls != null) $scriptCallExpr else ${f.expr}
             };
-
-          f.expr.pos = oldPos;
 
         default:
           // Do nothing.
