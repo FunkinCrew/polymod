@@ -144,9 +144,9 @@ class PolymodStaticClassReference
    * @param fieldValue The value to assign to the field
    * @return The value of the field
    */
-  public function setField(fieldName:String, fieldValue:Dynamic):Dynamic
+  public function setField(fieldName:String, fieldValue:Dynamic, bypassAccessor:Bool = false):Dynamic
   {
-    return PolymodScriptClass.setScriptClassStaticField(getFullyQualifiedName(), fieldName, fieldValue);
+    return PolymodScriptClass.setScriptClassStaticField(getFullyQualifiedName(), fieldName, fieldValue, bypassAccessor);
   }
 
   /**

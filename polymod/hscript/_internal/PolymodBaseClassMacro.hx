@@ -359,11 +359,6 @@ class PolymodBaseClassMacro
           {
             name: 'varName',
             type: macro :String
-          },
-          {
-            name: 'bypassAccessor',
-            type: macro :Bool,
-            value: macro false
           }
         ],
         ret: macro :Dynamic,
@@ -372,7 +367,6 @@ class PolymodBaseClassMacro
           return polymod.hscript.PolymodScriptBridge.fieldRead(_asc, varName, bypassAccessor);
         }) : (macro
         {
-          if (_asc != null) _asc.inBypassAccessor = bypassAccessor;
           return _asc?.fieldRead(varName);
         }),
       }),

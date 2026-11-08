@@ -836,7 +836,7 @@ class PolymodCppiaClassReference extends PolymodStaticClassReference
     return Reflect.field(cppiaClass, fieldName);
   }
 
-  override public function setField(fieldName:String, fieldValue:Dynamic):Dynamic
+  override public function setField(fieldName:String, fieldValue:Dynamic, bypassAccessor:Bool = false):Dynamic
   {
     if (cppiaClass == null)
     {

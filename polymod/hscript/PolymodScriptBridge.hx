@@ -60,12 +60,11 @@ class PolymodScriptBridge
     return script.fullyQualifiedName;
   }
 
-  public static function fieldRead(asc:Dynamic, varName:String, bypassAccessor:Bool = false):Dynamic
+  public static function fieldRead(asc:Dynamic, varName:String):Dynamic
   {
     if (asc == null) return null;
 
     var script:PolymodAbstractScriptClass = cast asc;
-    script.inBypassAccessor = bypassAccessor;
     return script.fieldRead(varName);
   }
 
