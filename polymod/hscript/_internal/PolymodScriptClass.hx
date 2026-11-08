@@ -740,9 +740,9 @@ class PolymodScriptClass
     return scriptInterp.hasScriptClassStaticFunction(clsName, funcName);
   }
 
-  public static function getScriptClassStaticField(clsName:String, fieldName:String):Dynamic
+  public static function getScriptClassStaticField(clsName:String, fieldName:String, bypassAccessor:Bool = false):Dynamic
   {
-    return scriptInterp.getScriptClassStaticField(clsName, fieldName);
+    return scriptInterp.getScriptClassStaticField(clsName, fieldName, bypassAccessor);
   }
 
   public static function setScriptClassStaticField(clsName:String, fieldName:String, fieldValue:Dynamic):Dynamic
@@ -1324,6 +1324,8 @@ class PolymodScriptClass
   public var topASC(default, null):Null<PolymodAbstractScriptClass>;
 
   public var fullyQualifiedName(get, null):String;
+
+  public var inBypassAccessor:Bool = false;
 
   private inline function get_fullyQualifiedName():String
   {

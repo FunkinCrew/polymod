@@ -133,9 +133,9 @@ class PolymodStaticClassReference
    * @param fieldName The name of the field to retrieve
    * @return The value of the field
    */
-  public function getField(fieldName:String):Dynamic
+  public function getField(fieldName:String, bypassAccessor:Bool = false):Dynamic
   {
-    return PolymodScriptClass.getScriptClassStaticField(getFullyQualifiedName(), fieldName);
+    return PolymodScriptClass.getScriptClassStaticField(getFullyQualifiedName(), fieldName, bypassAccessor);
   }
 
   /**
