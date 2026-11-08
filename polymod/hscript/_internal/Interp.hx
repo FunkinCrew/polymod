@@ -1229,6 +1229,7 @@ class Interp
       if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
       {
         var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
+        superClass.inBypassAccessor = inBypassAccessor;
         return superClass.fieldWrite(id, v);
       }
       else
@@ -1328,12 +1329,13 @@ class Interp
             if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
             {
               var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
+              superClass.inBypassAccessor = inBypassAccessor;
               return superClass.fieldWrite(id, v);
             }
 
             // Directly assign the value.
             // This is needed because `assignValue` may sometimes be called from the constructor.
-            PolymodAbstractScriptClass.setClassObjectField(_proxy.superClass, id, v);
+            PolymodAbstractScriptClass.setClassObjectField(_proxy.superClass, id, v, inBypassAccessor);
             return v;
           }
           else
@@ -1449,7 +1451,7 @@ class Interp
           var fullClassName:String = getClassFullyQualifiedName();
           if (PolymodScriptClass.hasScriptClassStaticField(fullClassName, id))
           {
-            return PolymodScriptClass.setScriptClassStaticField(fullClassName, id, v);
+            return PolymodScriptClass.setScriptClassStaticField(fullClassName, id, v, inBypassAccessor);
           }
 
           // Fallback to just setting the var.
@@ -1688,7 +1690,7 @@ class Interp
 
               switch (decl.set)
               {
-                case "set":
+                case "set" if (!inBypassAccessor):
                   final setName = 'set_$id';
                   if (_propTrack.exists(setName))
                   {
@@ -1772,7 +1774,6 @@ class Interp
             l.r = newVal;
           }
         }
-        return v;
         return v;
       case EField(e, f):
         var obj = fieldTarget(e);
@@ -2662,7 +2663,7 @@ class Interp
           var hasIsVar:Bool = _proxy.findField(id)?.meta.findIndex((m) -> m.name == ':isVar') != -1;
           switch (decl.get)
           {
-            case 'get':
+            case 'get' if (!inBypassAccessor):
               final getName = 'get_$id';
               if (_propTrack.exists(getName))
               {
@@ -4257,7 +4258,8 @@ class Interp
     {
       if (o.scriptGet != null)
       {
-        return o.scriptGet(f, inBypassAccessor);
+        if (o._asc != null) o._asc.inBypassAccessor = inBypassAccessor;
+        return o.scriptGet(f);
       }
 
       error(EInvalidScriptedVarGet(f));
@@ -4374,7 +4376,7 @@ class Interp
 
       try
       {
-        return ref.setField(f, v);
+        return ref.setField(f, v, inBypassAccessor);
       }
       catch (e:Dynamic)
       {
@@ -4386,6 +4388,7 @@ class Interp
       var proxy:PolymodAbstractScriptClass = cast(o, PolymodScriptClass);
       if (proxy.fieldExists(f))
       {
+        proxy.inBypassAccessor = inBypassAccessor;
         return proxy.fieldWrite(f, v);
       }
       else if (proxy.superClass != null && proxy.superHasField(f))
@@ -4393,6 +4396,7 @@ class Interp
         if (Std.isOfType(proxy.superClass, PolymodScriptClass))
         {
           var superClass:PolymodAbstractScriptClass = cast(proxy.superClass, PolymodScriptClass);
+          superClass.inBypassAccessor = inBypassAccessor;
           return superClass.fieldWrite(f, v);
         }
 
@@ -4408,6 +4412,7 @@ class Interp
     {
       if (o.scriptSet != null)
       {
+        if (o._asc != null) o._asc.inBypassAccessor = inBypassAccessor;
         return o.scriptSet(f, v);
       }
 
@@ -4424,7 +4429,7 @@ class Interp
 
     try
     {
-      PolymodAbstractScriptClass.setClassObjectField(o, f, v);
+      PolymodAbstractScriptClass.setClassObjectField(o, f, v, inBypassAccessor);
     }
     catch (e)
     {
@@ -6004,7 +6009,7 @@ class Interp
     }
   }
 
-  public function setScriptClassStaticField(clsName:String, fieldName:String, value:Dynamic):Null<Dynamic>
+  public function setScriptClassStaticField(clsName:String, fieldName:String, value:Dynamic, bypassAccessor:Bool = true):Null<Dynamic>
   {
     var prefixedName = clsName + '#' + fieldName;
     var fieldDecl = getScriptClassStaticFieldDecl(clsName, fieldName);
@@ -6039,26 +6044,34 @@ class Interp
             switch (v.set)
             {
               case 'set':
-                var setterFunc = 'set_${fieldName}';
-                final setName = '${clsName}#$setterFunc';
-                if (hasScriptClassStaticFunction(clsName, setterFunc))
+                if (!bypassAccessor)
                 {
-                  if (!_propTrack.exists(setName))
+                  var setterFunc = 'set_${fieldName}';
+                  final setName = '${clsName}#$setterFunc';
+                  if (hasScriptClassStaticFunction(clsName, setterFunc))
                   {
-                    _propTrack.set(setName, true);
-                    var out = callScriptClassStaticFunction(clsName, setterFunc, [value]);
-                    _propTrack.remove(setName);
-                    return (out == null) ? value : out;
+                    if (!_propTrack.exists(setName))
+                    {
+                      _propTrack.set(setName, true);
+                      var out = callScriptClassStaticFunction(clsName, setterFunc, [value]);
+                      _propTrack.remove(setName);
+                      return (out == null) ? value : out;
+                    }
+                    else
+                    {
+                      this.variables.set(prefixedName, value);
+                      return value;
+                    }
                   }
                   else
                   {
-                    this.variables.set(prefixedName, value);
-                    return value;
+                    throw 'Could not resolve setter for property ${prefixedName}';
                   }
                 }
                 else
                 {
-                  throw 'Could not resolve setter for property ${prefixedName}';
+                  this.variables.set(prefixedName, value);
+                  return value;
                 }
 
               case 'never':

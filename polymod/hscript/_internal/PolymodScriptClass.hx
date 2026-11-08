@@ -750,9 +750,9 @@ class PolymodScriptClass
     return scriptInterp.getScriptClassStaticField(clsName, fieldName, bypassAccessor);
   }
 
-  public static function setScriptClassStaticField(clsName:String, fieldName:String, fieldValue:Dynamic):Dynamic
+  public static function setScriptClassStaticField(clsName:String, fieldName:String, fieldValue:Dynamic, bypassAccessor:Bool = false):Dynamic
   {
-    return scriptInterp.setScriptClassStaticField(clsName, fieldName, fieldValue);
+    return scriptInterp.setScriptClassStaticField(clsName, fieldName, fieldValue, bypassAccessor);
   }
 
   public static function reloadPersistentStaticFields():Void

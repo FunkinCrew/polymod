@@ -166,6 +166,8 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
 
   @:op(a.b) public function fieldWrite(name:String, value:Dynamic):Null<Dynamic>
   {
+    var bypassAccessor = this.inBypassAccessor;
+    this.inBypassAccessor = false;
     if (this.findVar(name) != null)
     {
       var decl = this.findVar(name, true);
@@ -177,7 +179,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
       @:privateAccess
       switch (decl.set)
       {
-        case "set":
+        case "set" if (!bypassAccessor):
           final setName = 'set_$name';
           if (!this._interp._propTrack.exists(setName))
           {
@@ -229,6 +231,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
       var superScriptClass:PolymodAbstractScriptClass = cast(this.superClass, PolymodScriptClass);
       try
       {
+        superScriptClass.inBypassAccessor = bypassAccessor;
         return superScriptClass.fieldWrite(name, value);
       }
       catch (e:Dynamic) {}
@@ -237,7 +240,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
     {
       // Class object
       try {
-        if (setClassObjectField(this.superClass, name, value))
+        if (setClassObjectField(this.superClass, name, value, bypassAccessor))
         {
           return value;
         }
@@ -252,14 +255,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
       }
     }
 
-    if (this.superClass == null)
-    {
-      return this._interp.error(EInvalidAccess(name));
-    }
-    else
-    {
-      return this._interp.error(EInvalidAccess(name));
-    }
+    return this._interp.error(EInvalidAccess(name));
 
     trace('fieldWrite() fallthrough???');
     return null;
@@ -321,9 +317,10 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
    * @param o The object to modify.
    * @param field The name of the field to modify.
    * @param value The value to assign to the field.
+   * @param bypassAccessor Whether to bypass the set function if it exists.
    * @return `true` for success.
    */
-  public static function setClassObjectField(o:Dynamic, field:String, value:Dynamic):Bool
+  public static function setClassObjectField(o:Dynamic, field:String, value:Dynamic, bypassAccessor:Bool = false):Bool
   {
     if (Util.getTypeNameOf(o) == "Object") {
       Reflect.setProperty(o, field, value);
@@ -347,7 +344,9 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
       var fields = retrieveClassFields(o);
       if (fields.contains(field) || fields.contains('set_$field'))
       {
-        Reflect.setProperty(o, field, value);
+        if (bypassAccessor) Reflect.setField(o, field, value);
+        else
+          Reflect.setProperty(o, field, value);
         return true;
       }
     } else {
@@ -355,7 +354,9 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
       var fields = retrieveClassObjectFields(o);
       if (fields.contains(field) || fields.contains('set_$field'))
       {
-        Reflect.setProperty(o, field, value);
+        if (bypassAccessor) Reflect.setField(o, field, value);
+        else
+          Reflect.setProperty(o, field, value);
         return true;
       }
     }
