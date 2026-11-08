@@ -11,7 +11,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
 {
   static final fieldsCache:ObjectMap<Dynamic, Array<String>> = new ObjectMap();
 
-  private function resolveField(name:String):Dynamic
+  private function resolveField(name:String, bypassAccessor:Bool = false):Dynamic
   {
     switch (name)
     {
@@ -35,7 +35,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
           @:privateAccess
           switch (v.get)
           {
-            case "get":
+            case "get" if (!bypassAccessor):
               final getName = 'get_$name';
               if (!this._interp._propTrack.exists(getName))
               {
@@ -101,6 +101,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
           var superScriptClass:PolymodAbstractScriptClass = cast(this.superClass, PolymodScriptClass);
           try
           {
+            superScriptClass.inBypassAccessor = bypassAccessor;
             return superScriptClass.fieldRead(name);
           }
           catch (e:Dynamic) {}
@@ -110,7 +111,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
           // Class object
           try
           {
-            return getClassObjectField(this.superClass, name);
+            return getClassObjectField(this.superClass, name, bypassAccessor);
           }
           catch (e:String)
           {
@@ -119,20 +120,14 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
         }
     }
 
-    if (this.superClass == null)
-    {
-      throw "field '" + name + "' does not exist in script class '" + this.fullyQualifiedName + "'";
-    }
-    else
-    {
-      throw "field '" + name + "' does not exist in script class '" + this.fullyQualifiedName + "' or super class '"
-        + Type.getClassName(Type.getClass(this.superClass)) + "'";
-    }
+    throw 'field "$name" does not exist in script class "${this.fullyQualifiedName}"${this.superClass == null ? '' : ' or super class "${Type.getClassName(Type.getClass(this.superClass))}"'}';
   }
 
   @:op(a.b) public function fieldRead(name:String):Dynamic
   {
-    return resolveField(name);
+    var bypassAccessor = this.inBypassAccessor;
+    this.inBypassAccessor = false;
+    return resolveField(name, bypassAccessor);
   }
 
   public function fieldExists(name:String):Bool
@@ -304,12 +299,17 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
     return fields;
   }
 
-  static function getClassObjectField(o:Dynamic, field:String):Null<Dynamic>
+  static function getClassObjectField(o:Dynamic, field:String, bypassAccessor:Bool = false):Null<Dynamic>
   {
     if (Util.getTypeNameOf(o) == "Object") return Reflect.getProperty(o, field);
 
     var fields = retrieveClassObjectFields(o);
-    if (fields.contains(field) || fields.contains('get_$field')) return Reflect.getProperty(o, field);
+    if (fields.contains(field) || fields.contains('get_$field'))
+    {
+      if (bypassAccessor) return Reflect.field(o, field);
+      else
+        return Reflect.getProperty(o, field);
+    }
 
     throw 'No such field $field';
   }

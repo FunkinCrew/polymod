@@ -353,16 +353,24 @@ class PolymodBaseClassMacro
       pos: buildPos,
       meta: null,
       kind: FFun({
-        args: [{
-          name: 'varName',
-          type: macro :String
-        }],
+        args: [
+          {
+            name: 'varName',
+            type: macro :String
+          },
+          {
+            name: 'bypassAccessor',
+            type: macro :Bool,
+            value: macro false
+          }
+        ],
         ret: macro :Dynamic,
         expr: useBridge() ? (macro
         {
-          return polymod.hscript.PolymodScriptBridge.fieldRead(_asc, varName);
+          return polymod.hscript.PolymodScriptBridge.fieldRead(_asc, varName, bypassAccessor);
         }) : (macro
         {
+          if (_asc != null) _asc.inBypassAccessor = bypassAccessor;
           return _asc?.fieldRead(varName);
         }),
       }),

@@ -137,6 +137,8 @@ class Interp
   var inPrivateAccess:Bool = false;
   var inNoPrivateAccess:Bool = false;
 
+  var inBypassAccessor:Bool = false;
+
   function getClassDecl():Null<ClassDecl>
   {
     if (_classDeclOverride != null)
@@ -2121,10 +2123,14 @@ class Interp
         if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
         {
           var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
+          superClass.inBypassAccessor = inBypassAccessor;
           return superClass.fieldRead(id);
         }
 
-        return Reflect.getProperty(_proxy.superClass, id);
+        if (inBypassAccessor)
+          return Reflect.field(_proxy.superClass, id);
+        else
+          return Reflect.getProperty(_proxy.superClass, id);
       }
       else if (_proxy.hasPurgedScriptFunction(id))
       {
@@ -2134,7 +2140,7 @@ class Interp
       {
         try
         {
-          var r = _proxy.resolveField(id);
+          var r = _proxy.resolveField(id, inBypassAccessor);
           _nextCallObject = _proxy;
           return r;
         }
@@ -2197,7 +2203,7 @@ class Interp
       }
 
       // We are retrieving an adjacent field from a static context.
-      return PolymodScriptClass.getScriptClassStaticField(getClassFullyQualifiedName(), id);
+      return PolymodScriptClass.getScriptClassStaticField(getClassFullyQualifiedName(), id, inBypassAccessor);
     }
 
     // If we're here, the field definitely doesn't exist.
@@ -2994,6 +3000,15 @@ class Interp
           inNoPrivateAccess = true;
           var obj = expr(e);
           inNoPrivateAccess = false;
+          return obj;
+        }
+        return expr(e);
+      case ':bypassAccessor':
+        if (!inBypassAccessor)
+        {
+          inBypassAccessor = true;
+          var obj = expr(e);
+          inBypassAccessor = false;
           return obj;
         }
         return expr(e);
@@ -4110,7 +4125,7 @@ class Interp
     if (o == null) error(ENullObjectReference(f));
 
     // Override Std.isOfType to get our own function.
-    if (o != null && (o == Std && f == 'isOfType'))
+    if (o == Std && f == 'isOfType')
     {
       return PolymodScriptClass.isOfType;
     }
@@ -4195,7 +4210,7 @@ class Interp
     {
       var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
 
-      return ref.getField(f);
+      return ref.getField(f, inBypassAccessor);
     }
     else if (Std.isOfType(o, PolymodEnum))
     {
@@ -4208,6 +4223,7 @@ class Interp
       var proxy:PolymodAbstractScriptClass = cast(o, PolymodScriptClass);
       if (proxy.fieldExists(f))
       {
+        proxy.inBypassAccessor = inBypassAccessor;
         return proxy.fieldRead(f);
       }
       else if (proxy.superClass != null && proxy.superHasField(f))
@@ -4215,16 +4231,19 @@ class Interp
         if (Std.isOfType(proxy.superClass, PolymodScriptClass))
         {
           var superClass:PolymodAbstractScriptClass = cast(proxy.superClass, PolymodScriptClass);
+          superClass.inBypassAccessor = inBypassAccessor;
           return superClass.fieldRead(f);
         }
 
-        return Reflect.getProperty(proxy.superClass, f);
+        if (inBypassAccessor) return Reflect.field(proxy.superClass, f);
+        else
+          return Reflect.getProperty(proxy.superClass, f);
       }
       else
       {
         try
         {
-          return proxy.resolveField(f);
+          return proxy.resolveField(f, inBypassAccessor);
         }
         catch (e:Dynamic)
         {
@@ -4238,7 +4257,7 @@ class Interp
     {
       if (o.scriptGet != null)
       {
-        return o.scriptGet(f);
+        return o.scriptGet(f, inBypassAccessor);
       }
 
       error(EInvalidScriptedVarGet(f));
@@ -4263,30 +4282,37 @@ class Interp
       return untyped o[f];
     }
     #end
-
+    
     // Default behavior
-    #if hl
-    // On HL, hasField on properties returns true but Reflect.field
-    // might return null so we have to check if a getter exists too.
-    // This happens mostly when the programmer mistakenly makes the field access (get, null) instead of (get, never)
-    return Reflect.getProperty(o, f);
-    #else
-    if (Reflect.hasField(o, f))
+    if (inBypassAccessor)
     {
       return Reflect.field(o, f);
     }
     else
     {
-      try
-      {
-        return Reflect.getProperty(o, f);
-      }
-      catch (e:Dynamic)
+      #if hl
+      // On HL, hasField on properties returns true but Reflect.field
+      // might return null so we have to check if a getter exists too.
+      // This happens mostly when the programmer mistakenly makes the field access (get, null) instead of (get, never)
+      return Reflect.getProperty(o, f);
+      #else
+      if (Reflect.hasField(o, f))
       {
         return Reflect.field(o, f);
       }
+      else
+      {
+        try
+        {
+          return Reflect.getProperty(o, f);
+        }
+        catch (e:Dynamic)
+        {
+          return Reflect.field(o, f);
+        }
+      }
+      #end
     }
-    #end
   }
 
   function set(o:Dynamic, f:String, v:Dynamic):Null<Dynamic>
@@ -5896,7 +5922,7 @@ class Interp
     return false;
   }
 
-  public function getScriptClassStaticField(clsName:String, fieldName:String):Null<Dynamic>
+  public function getScriptClassStaticField(clsName:String, fieldName:String, bypassAccessor:Bool = false):Null<Dynamic>
   {
     var prefixedName = clsName + '#' + fieldName;
     var fieldDecl = getScriptClassStaticFieldDecl(clsName, fieldName);
@@ -5920,41 +5946,39 @@ class Interp
             switch (v.get)
             {
               case 'get':
-                var getterFunc = 'get_${fieldName}';
-                final getName = '${clsName}#$getterFunc';
-                if (hasScriptClassStaticFunction(clsName, getterFunc))
+                if (!bypassAccessor)
                 {
-                  if (_propTrack.exists(getName))
+                  var getterFunc = 'get_${fieldName}';
+                  final getName = '${clsName}#$getterFunc';
+                  if (hasScriptClassStaticFunction(clsName, getterFunc))
                   {
-                    return this.variables.get(prefixedName);
+                    if (_propTrack.exists(getName))
+                    {
+                      return this.variables.get(prefixedName);
+                    }
+                    else
+                    {
+                      _propTrack.set(getName, true);
+                      var result = callScriptClassStaticFunction(clsName, getterFunc, []);
+                      _propTrack.remove(getName);
+                      return result;
+                    }
                   }
                   else
                   {
-                    _propTrack.set(getName, true);
-                    var result = callScriptClassStaticFunction(clsName, getterFunc, []);
-                    _propTrack.remove(getName);
-                    return result;
+                    throw 'Could not resolve getter for property ${prefixedName}';
                   }
                 }
-                else
-                {
-                  throw 'Could not resolve getter for property ${prefixedName}';
-                }
-
+                
               case 'default':
-                if (!this.variables.exists(prefixedName))
-                {
-                  var result = this.exprWithType(v.expr, v.type);
-                  this.variables.set(prefixedName, result);
-                  return result;
-                }
-                return this.variables.get(prefixedName);
+                // Fallback like a normal variable.
 
               default:
                 throw 'Could not resolve getter for property ${prefixedName}';
             }
           }
-          else if (this.variables.exists(prefixedName))
+
+          if (this.variables.exists(prefixedName))
           {
             return this.variables.get(prefixedName);
           }
