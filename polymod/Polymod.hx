@@ -1341,7 +1341,16 @@ class Polymod
    */
   public static function addDefaultImport(importClass:Class<Dynamic>, ?importAlias:String):Void
   {
-    PolymodScriptClass.defaultImports.set(importAlias == null ? Type.getClassName(importClass) : importAlias, importClass);
+    PolymodScriptClass.defaultImports.set(importAlias ?? Type.getClassName(importClass), importClass);
+  }
+
+  /**
+   * Define a class to be provided as a static extension by default in all scripted classes.
+   * @param usingClass The class type to use as a static extension.
+   */
+  public static function addDefaultUsing(usingClass:Class<Dynamic>):Void
+  {
+    PolymodScriptClass.defaultUsings.set(Type.getClassName(usingClass), usingClass);
   }
 
   /**
