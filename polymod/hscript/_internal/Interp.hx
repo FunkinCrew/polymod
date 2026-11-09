@@ -4404,16 +4404,29 @@ class Interp
     // Don't add the default imports to import.hx since they're added to other script classes anyway.
     if (!isImportFile)
     {
-      for (importPath in PolymodScriptClass.defaultImports.keys())
+      for (importPath => importClass in PolymodScriptClass.defaultImports)
       {
-        var splitPath = importPath.split(".");
+        var splitPath = importPath.split('.');
         var clsName = splitPath[splitPath.length - 1];
 
         imports.set(clsName, {
           name: clsName,
           pkg: splitPath.slice(0, splitPath.length - 1),
           fullPath: importPath,
-          cls: PolymodScriptClass.defaultImports.get(importPath),
+          cls: importClass
+        });
+      }
+
+      for (usingPath => usingClass in PolymodScriptClass.defaultUsings)
+      {
+        var splitPath = usingPath.split('.');
+        var clsName = splitPath[splitPath.length - 1];
+
+        usings.set(usingPath, {
+          name: clsName,
+          pkg: splitPath.slice(0, splitPath.length - 1),
+          fullPath: usingPath,
+          cls: usingClass
         });
       }
     }

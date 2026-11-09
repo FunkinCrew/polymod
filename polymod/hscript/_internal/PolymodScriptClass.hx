@@ -48,6 +48,11 @@ class PolymodScriptClass
   public static final defaultImports:Map<String, Class<Dynamic>> = new Map<String, Class<Dynamic>>();
 
   /**
+   * Provide a class name along with a corresponding class to use as a static extension in every scripted class.
+   */
+  public static final defaultUsings:Map<String, Class<Dynamic>> = new Map<String, Class<Dynamic>>();
+
+  /**
    * Provides a list of full class paths that have since been changed from the given version number key.
    */
   public static final backwardsCompatibilityImports:Map<String, {cls:Class<Dynamic>, info:BackwardsCompatibilityInfo}> = new Map<String, {cls:Class<Dynamic>, info:BackwardsCompatibilityInfo}>();
