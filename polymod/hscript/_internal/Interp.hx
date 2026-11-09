@@ -1334,7 +1334,7 @@ class Interp
               {
                 switch (decl.set)
                 {
-                  case "set":
+                  case "set" if (!inBypassAccessor):
                     // Allow assigning to "null" only for local fields.
                     final setName = 'set_$id';
                     if (_propTrack.exists(setName))
@@ -1466,12 +1466,13 @@ class Interp
                 if (Std.isOfType(_proxy.superClass, PolymodScriptClass))
                 {
                   var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
+                  superClass.inBypassAccessor = inBypassAccessor;
                   return superClass.fieldWrite(id, v);
                 }
 
                 // Directly assign the value.
                 // This is needed because `assignValue` may sometimes be called from the constructor.
-                PolymodAbstractScriptClass.setClassObjectField(_proxy.superClass, id, v);
+                PolymodAbstractScriptClass.setClassObjectField(_proxy.superClass, id, v, inBypassAccessor);
                 return v;
               }
             }
@@ -5905,7 +5906,7 @@ class Interp
                   {
                     if (_propTrack.exists(getName))
                     {
-                      return this.variables.get(prefixedName);
+                      // Fallback like a normal variable.
                     }
                     else
                     {
