@@ -1339,9 +1339,9 @@ class PolymodScriptClass
   public var superClass:Dynamic = null;
   public var topASC(default, null):Null<PolymodAbstractScriptClass>;
 
-  public var fullyQualifiedName(get, null):String;
-
   public var inBypassAccessor:Bool = false;
+
+  public var fullyQualifiedName(get, null):String;
 
   private inline function get_fullyQualifiedName():String
   {
