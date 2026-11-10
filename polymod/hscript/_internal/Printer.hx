@@ -29,8 +29,6 @@ import polymod.hscript._internal.Expr;
  */
 class Printer
 {
-  static var staticPrinter:Printer = new Printer();
-
   var buf:StringBuf;
   var tabs:String;
 
@@ -41,12 +39,12 @@ class Printer
    */
   public static function toString(e:Expr):String
   {
-    return staticPrinter.exprToString(e);
+    return new Printer().exprToString(e);
   }
 
   public static function printType(e:CType):String
   {
-    return staticPrinter.typeToString(e);
+    return new Printer().typeToString(e);
   }
 
   public function new() {}
