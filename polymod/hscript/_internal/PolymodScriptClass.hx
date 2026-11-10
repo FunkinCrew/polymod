@@ -1700,7 +1700,7 @@ class PolymodScriptClass
         {
           return Reflect.callMethod(cls, field, params);
         }
-        usingMap.set(field, func);
+        usingMap.set(clsField, func);
       }
       return usingMap;
     }
