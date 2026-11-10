@@ -2330,6 +2330,14 @@ class Interp
         #end
         if (resultCls != null)
         {
+          #if POLYMOD_WHITE_LIST
+          var resultClsPath = Type.getClassName(resultCls);
+          if (#if POLYMOD_CPPIA !PolymodCppiaClassReference.hasCppiaClass(resultClsPath) && #end !PolymodScriptClass.importWhitelist.contains(resultClsPath))
+          {
+            return false; // the class isn't in the whitlist and isn't cppia class.
+          }
+          #end
+
           importedClass.cls = resultCls;
           break;
         }
@@ -3746,7 +3754,6 @@ class Interp
     }
 
     if (PolymodScriptClass.abstractClassImpls.exists(path)) return PolymodScriptClass.abstractClassImpls.get(path);
-    if (PolymodScriptClass.typedefs.exists(path)) return PolymodScriptClass.typedefs.get(path);
 
     var enumResult = PolymodEnum.tryBuild(path);
     if (enumResult != null) return enumResult;
@@ -3757,7 +3764,17 @@ class Interp
     var scripted = PolymodStaticClassReference.tryBuild(path);
     if (scripted != null) return scripted;
 
-    var cls:Null<Class<Dynamic>> = Type.resolveClass(path);
+    var cls:Null<Class<Dynamic>> = PolymodScriptClass.typedefs.get(path) ?? Type.resolveClass(path);
+
+    #if POLYMOD_WHITE_LIST
+    var clsName = cls == null ? '' : Type.getClassName(cls);
+    if (#if POLYMOD_CPPIA !PolymodCppiaClassReference.hasCppiaClass(clsName) && #end !PolymodScriptClass.importWhitelist.contains(clsName) && clsName != '')
+    {
+      error(EBlacklistedModule(path));
+      return null;
+    }
+    #end
+
     #if POLYMOD_CPPIA
     if (cls != null && PolymodCppiaClassReference.isInactiveCppiaClass(path)) cls = null;
     #end
@@ -5479,10 +5496,28 @@ class Interp
       var superClassPath:String = Printer.printType(cls.extend);
 
       // Templates are ignored completely since there's no type checking in HScript.
-      if (superClassPath.indexOf('<') != -1)
-        superClassPath = superClassPath.split('<')[0];
+      if (superClassPath.indexOf('<') != -1) superClassPath = superClassPath.split('<')[0];
 
       var fullPath:String = cls.imports.get(superClassPath)?.fullPath ?? superClassPath;
+
+      var clsExtend = PolymodScriptClass.importOverrides.get(fullPath) ?? PolymodScriptClass.typedefs.get(fullPath) ?? Type.resolveClass(fullPath);
+
+      #if POLYMOD_CPPIA
+      if (PolymodCppiaClassReference.isInactiveCppiaClass(fullPath)) clsExtend = null;
+      #end
+
+      #if POLYMOD_WHITE_LIST
+      var clsExtendName = clsExtend != null ? Type.getClassName(clsExtend) : '';
+      if (#if POLYMOD_CPPIA !PolymodCppiaClassReference.hasCppiaClass(clsExtendName) && #end !PolymodScriptClass.importWhitelist.contains(clsExtendName) && clsExtendName != '')
+      {
+        Polymod.error(
+          SCRIPTED_CLASS_BLACKLISTED_MODULE,
+          'Could not extend ${superClassPath}: class is blacklisted.',
+          SCRIPT_RUNTIME
+        );
+        continue;
+      }
+      #end
 
       if (PolymodScriptClass.interfaceImpls.exists(fullPath) || _scriptInterfaceDescriptors.exists(fullPath))
       {
@@ -5510,8 +5545,7 @@ class Interp
           SCRIPT_RUNTIME
         );
       }
-      else if ((Type.resolveClass(fullPath) == null #if POLYMOD_CPPIA || PolymodCppiaClassReference.isInactiveCppiaClass(fullPath) #end)
-      && !PolymodScriptClass.typedefs.exists(fullPath) && !PolymodScriptClass.importOverrides.exists(fullPath) && !_scriptClassDescriptors.exists(fullPath))
+      else if (clsExtend == null && !_scriptClassDescriptors.exists(fullPath))
       {
         // superClass is not a class or does not exists at all
         Polymod.error(

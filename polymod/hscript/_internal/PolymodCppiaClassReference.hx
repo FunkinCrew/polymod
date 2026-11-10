@@ -262,6 +262,24 @@ class PolymodCppiaClassReference extends PolymodStaticClassReference
 
     for (type in types)
     {
+      #if POLYMOD_WHITE_LIST
+      var isWhitelisted = false;
+      for (whitelistedPath in PolymodScriptClass.importWhitelist)
+      {
+        if (type == whitelistedPath)
+        {
+          isWhitelisted = true;
+          break;
+        }
+      }
+
+      if (!isWhitelisted && type.indexOf('.') != -1 && type.indexOf('haxe.lang') != 0 && Type.resolveClass(type) != null && !hasCppiaClass(type))
+      {
+        if (!found.contains(type)) found.push(type);
+        continue;
+      }
+      #end
+
       var name:Null<String> = deniedNameFor(type, denied);
       if (name != null && !found.contains(name)) found.push(name);
     }

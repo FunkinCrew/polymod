@@ -1353,6 +1353,20 @@ class Polymod
     PolymodScriptClass.defaultUsings.set(Type.getClassName(usingClass), usingClass);
   }
 
+  #if POLYMOD_WHITE_LIST
+  /**
+   * Add an import path to the whitelist.
+   * @param importPath The full import path to whitelist.
+   */
+  public static function whitelistImport(importPath:String):Void
+  {
+    if (!PolymodScriptClass.importWhitelist.contains(importPath))
+    {
+      PolymodScriptClass.importWhitelist.push(importPath);
+    }
+  }
+  #end
+  
   /**
    * When a scripted class define an import, you can blacklist it from being imported.
    * @param importPath The full import path to blacklist, as a string.

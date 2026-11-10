@@ -42,6 +42,14 @@ class PolymodScriptClass
    */
   public static final importOverrides:Map<String, Class<Dynamic>> = new Map<String, Class<Dynamic>>();
 
+  #if POLYMOD_WHITE_LIST
+  /**
+   * only explicitly whitelisted import paths are allowed.
+   * Array containing whitelisted import paths.
+   */
+  public static final importWhitelist:Array<String> = [];
+  #end
+
   /**
    * Provide a class name along with a corresponding class to import it in every scripted class.
    */
@@ -697,7 +705,17 @@ class PolymodScriptClass
       else
       {
         // Try to resolve superCls class throught the path
-        superCls = importOverrides.get(fullSuperClsName) ?? typedefs.get(fullSuperClsName) ?? Type.resolveClass(fullSuperClsName);
+        var resolvedClass = importOverrides.get(fullSuperClsName) ?? typedefs.get(fullSuperClsName) ?? Type.resolveClass(fullSuperClsName);
+
+        var resolvedClassName = resolvedClass != null ? Type.getClassName(resolvedClass) : '';
+        
+        if (#if POLYMOD_WHITE_LIST (#if POLYMOD_CPPIA PolymodCppiaClassReference.hasCppiaClass(resolvedClassName) || #end
+          !importWhitelist.contains(resolvedClassName)) || #end (importOverrides.exists(resolvedClassName) && importOverrides.get(resolvedClassName) == null))
+        {
+          resolvedClass = null;
+        }
+
+        superCls = resolvedClass;
       }
 
       // Check if the superclass was resolved.
@@ -923,10 +941,16 @@ class PolymodScriptClass
         {
           // Try to resolve the target class throught the path
           targetClass = importOverrides.get(clsPath) ?? typedefs.get(clsPath) ?? Type.resolveClass(clsPath);
+          var targetClassName = targetClass != null ? Type.getClassName(targetClass) : '';
           if (targetClass == null || interfaceImpls.exists(clsPath))
           {
             targetClass = null;
             Polymod.error(SCRIPT_PARSE_FAILED, 'Could not determine target class for "${pth.join('.')}" (unregistered type?)', SCRIPT_RUNTIME);
+          }
+          else if (#if POLYMOD_WHITE_LIST !importWhitelist.contains(targetClassName) || #end (importOverrides.exists(targetClassName) && importOverrides.get(targetClassName) == null))
+          {
+            targetClass = null;
+            Polymod.error(SCRIPT_PARSE_FAILED, 'Could not determine target class for "${pth.join('.')}" (blacklisted type?)', SCRIPT_RUNTIME);
           }
         }
       default:
