@@ -1595,15 +1595,21 @@ class Interp
         }
 
 
-        // Fallback to local variable
+        // Fallback to local variable or static field
         var l = locals.get(id);
         v = fop(expr(e1), expr(e2));
         if (l != null && l.isfinal && l.r != null)
         {
           return error(EInvalidAccess(id));
         }
+
         if (l == null)
         {
+          var fullClassName:String = getClassFullyQualifiedName();
+          if (PolymodScriptClass.hasScriptClassStaticField(fullClassName, id))
+          {
+            return PolymodScriptClass.setScriptClassStaticField(fullClassName, id, v);
+          }
           setVar(id, v);
         }
         else
@@ -1710,7 +1716,14 @@ class Interp
         {
           v += delta;
           if (l == null)
+          {
+            var fullClassName:String = getClassFullyQualifiedName();
+            if (PolymodScriptClass.hasScriptClassStaticField(fullClassName, id))
+            {
+              return PolymodScriptClass.setScriptClassStaticField(fullClassName, id, v);
+            }
             setVar(id, v);
+          }
           else
           {
             if (l.isstatic)
@@ -1725,7 +1738,14 @@ class Interp
         {
           var newVal = v + delta;
           if (l == null)
+          {
+            var fullClassName:String = getClassFullyQualifiedName();
+            if (PolymodScriptClass.hasScriptClassStaticField(fullClassName, id))
+            {
+              return PolymodScriptClass.setScriptClassStaticField(fullClassName, id, newVal);
+            }
             setVar(id, newVal);
+          }
           else
           {
             if (l.isstatic)
