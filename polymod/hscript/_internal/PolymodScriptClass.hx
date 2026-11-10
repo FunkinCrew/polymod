@@ -1219,6 +1219,17 @@ class PolymodScriptClass
         // Purge the function from the cache so it is not called again.
         purgeFunction(fnName);
       }
+      catch (error)
+      {
+        var callStack:String = polymod.util.Util.fetchCallStack();
+
+        Polymod.error(
+          SCRIPT_RUNTIME_EXCEPTION,
+          'An uncaught exception was thrown while calling scripted instance function "$fullyQualifiedName#$fnName()":\n$error\n$callStack',
+          SCRIPT_RUNTIME
+        );
+        return null;
+      }
 
       return r;
     }

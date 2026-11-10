@@ -801,12 +801,26 @@ class Interp
         PolymodScriptClass.reportError(err, clsName, fnName);
         // A script error occurred while executing the script function.
         // Purge the function from the cache so it is not called again.
-        // purgeStaticFunction(fnName);
+        // purgeStaticFunction(clsName, fnName);
+
+        this._classDeclOverride = previousClassDecl;
+        return null;
+      }
+      catch (error)
+      {
+        var callStack:String = polymod.util.Util.fetchCallStack();
+
+        Polymod.error(
+          SCRIPT_RUNTIME_EXCEPTION,
+          'An uncaught exception was thrown while calling scripted static function "$clsName#$fnName()":\n$error\n$callStack',
+          SCRIPT_RUNTIME
+        );
+
+        this._classDeclOverride = previousClassDecl;
         return null;
       }
 
       this._classDeclOverride = previousClassDecl;
-
       return result;
     }
     else
