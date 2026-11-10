@@ -722,7 +722,7 @@ class PolymodBaseClassMacro
             opt: true
           }
         ],
-        ret: macro :Dynamic,
+        ret: macro :Null<Dynamic>,
         expr: useBridge() ? (macro
         {
           return polymod.hscript.PolymodScriptBridge.staticCall(clsName, funcName, funcArgs ?? []);
