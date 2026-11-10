@@ -248,7 +248,7 @@ class ScriptPreheater
     locals:Map<String, Bool>,
     assigned:Map<String, Map<String, Bool>>):Bool
   {
-    if (name == 'null' || name == 'true' || name == 'false' || name == 'trace') return true;
+    if (name == 'null' || name == 'true' || name == 'false' || name == 'trace' || name == '_') return true;
     if (name == 'this' || name == 'super') return !isStatic && (name != 'super' || owner.extend != null);
     if (
       locals.exists(name)
