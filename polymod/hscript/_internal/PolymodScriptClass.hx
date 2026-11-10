@@ -686,7 +686,7 @@ class PolymodScriptClass
           // importedClass was defined but `cls` was null. This class must have been blacklisted.
           var clsName = classDecl.pkg != null ? '${classDecl.pkg.join('.')}.${classDecl.name}' : classDecl.name;
           Polymod.error(SCRIPT_PARSE_FAILED,
-            'Could not parse superclass "${classDecl.name}" of scripted class "${clsName}". The superclass may be blacklisted.', SCRIPT_RUNTIME);
+            'Could not parse superclass "${baseSuperClsName}" of scripted class "${clsName}". The superclass may be blacklisted.', SCRIPT_RUNTIME);
           return [];
         }
         else if (importedClass != null)
