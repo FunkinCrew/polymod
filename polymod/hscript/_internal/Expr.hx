@@ -330,6 +330,11 @@ typedef ClassImport =
    * Whether this import is a wildcard and we need to validate it for later.
    */
   var ?wildcard:Bool;
+
+  /*
+  * Whether this import is a default import (used for precedence and overriding rules)
+  */
+  var ?isDefault:Bool;
 }
 
 typedef EnumDecl =

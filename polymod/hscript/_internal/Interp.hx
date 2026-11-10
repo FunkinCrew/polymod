@@ -4447,7 +4447,8 @@ class Interp
           name: clsName,
           pkg: splitPath.slice(0, splitPath.length - 1),
           fullPath: importPath,
-          cls: importClass
+          cls: importClass,
+          isDefault: true
         });
       }
 
@@ -4460,7 +4461,8 @@ class Interp
           name: clsName,
           pkg: splitPath.slice(0, splitPath.length - 1),
           fullPath: usingPath,
-          cls: usingClass
+          cls: usingClass,
+          isDefault: true
         });
       }
     }
@@ -4500,15 +4502,17 @@ class Interp
 
             if (imports.exists(clsName))
             {
-              if (imports.get(clsName) == null)
+              var existing = imports.get(clsName);
+              if (existing == null)
               {
                 Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Scripted class ${clsName} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
+                continue;
               }
-              else
+              else if (existing.fullPath == path.join('.'))
               {
                 Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Scripted class ${clsName} has already been imported.', SCRIPT_RUNTIME);
+                continue;
               }
-              continue;
             }
 
             var importedClass:ClassImport =
@@ -4604,15 +4608,17 @@ class Interp
 
           if (usings.exists(clsName))
           {
-            if (usings.get(clsName) == null)
+            var existing = usings.get(clsName);
+            if (existing == null)
             {
               Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Scripted class ${clsName} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
+              continue;
             }
-            else
+            else if (existing.fullPath == path.join('.'))
             {
               Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Scripted class ${clsName} has already been used.', SCRIPT_RUNTIME);
+              continue;
             }
-            continue;
           }
 
           var importedClass:ClassImport = {
@@ -5062,10 +5068,10 @@ class Interp
           {
             for (name => clsImport in importWildcard(inter.imports, imp))
             {
-              inter.imports.set(name, clsImport);
+              if (!inter.imports.exists(name) || inter.imports.get(name)?.isDefault) inter.imports.set(name, clsImport);
             }
           }
-          else
+          else if (!inter.imports.exists(imp.name) || inter.imports.get(imp.name)?.isDefault)
             inter.imports.set(imp.name, imp);
         }
       }
@@ -5236,10 +5242,10 @@ class Interp
           {
             for (name => clsImport in importWildcard(cls.imports, imp))
             {
-              cls.imports.set(name, clsImport);
+              if (!cls.imports.exists(name) || cls.imports.get(name)?.isDefault) cls.imports.set(name, clsImport);
             }
           }
-          else
+          else if (!cls.imports.exists(imp.name) || cls.imports.get(imp.name)?.isDefault)
             tryImport(cls, imp);
         }
       }
@@ -5248,7 +5254,10 @@ class Interp
       {
         if (!pkg.startsWith(key) && key.length != 0) continue;
 
-        for (use in uses) cls.usings.set(use.name, use);
+        for (use in uses) 
+        {
+          if (!cls.usings.exists(use.name) || cls.usings.get(use.name)?.isDefault) cls.usings.set(use.name, use);
+        }
       }
 
       // Add the scripted imports.
