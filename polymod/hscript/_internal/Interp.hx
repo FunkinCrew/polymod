@@ -3267,13 +3267,11 @@ class Interp
       case EIdent(ident) if (ident != 'null' && ident != 'true' && ident != 'false'):
         if (isEnumValue)
         {
+          if (ident == '_') return true;
           // Resolve the enum value throws an error if it doesn't exist
           var enumValue = resolve(ident);
-
-          if ((isScriptEnumValue && PolymodEnum.enumEq(val, enumValue)) || (Reflect.isEnumValue(enumValue) && Type.enumEq(val, enumValue)))
-          {
-            return true;
-          }
+        
+          return (isScriptEnumValue && PolymodEnum.enumEq(val, enumValue)) || (Reflect.isEnumValue(enumValue) && Type.enumEq(val, enumValue));
         }
 
         var c:Int = ident.fastCodeAt(0);
