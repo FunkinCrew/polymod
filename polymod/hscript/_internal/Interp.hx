@@ -187,12 +187,19 @@ class Interp
 
     function tryBuildClass(clsRef:PolymodStaticClassReference, args:Array<Dynamic>):Null<Dynamic>
     {
-      checkTypeForDeprecation(clsRef.getFullyQualifiedName());
+      if (clsRef.cls.isAbstract)
+      {
+        // Abstracts can't be instantiated.
+        error(ECustom('"${clsRef.cls.name}" is an abstract class and cannot be constructed.'));
+        return null;
+      }
       if (!inPrivateAccess && clsRef.cls != getClassDecl() && !clsRef.canInstantiate)
       {
         error(EPrivateConstructor(clsRef.cls.name));
         return null;
       }
+      checkTypeForDeprecation(clsRef.getFullyQualifiedName());
+
       return clsRef.instantiate(args);
     }
 
@@ -4652,8 +4659,16 @@ class Interp
 
           var instanceFields = [];
           var staticFields = [];
+          var abstractFields = [];
+
           for (f in c.fields)
           {
+            if (c.isAbstract && f.access.contains(AAbstract))
+            {
+              abstractFields.push(f);
+              continue;
+            }
+
             if (f.access.contains(AStatic))
             {
               staticFields.push(f);
@@ -4674,11 +4689,13 @@ class Interp
             params: c.params,
             meta: c.meta,
             isPrivate: c.isPrivate,
+            isAbstract: c.isAbstract,
             extend: c.extend,
             implement: c.implement,
             fields: instanceFields,
-            isExtern: c.isExtern,
             staticFields: staticFields,
+            abstractFields: abstractFields,
+            isExtern: c.isExtern,
           };
           registerScriptClassBlacklist(classDecl);
           registerScriptClass(classDecl);
