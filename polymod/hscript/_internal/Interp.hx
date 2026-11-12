@@ -743,6 +743,14 @@ class Interp
       }
     }
 
+    #if POLYMOD_CPPIA
+    if (!_scriptClassDescriptors.exists(clsName))
+    {
+      var cppia = PolymodCppiaClassReference.tryBuildCppia(clsName);
+      if (cppia != null) return cppia.callFunction(fnName, args ?? []);
+    }
+    #end
+
     var fn:Null<FunctionDecl> = null;
     var imports:Map<String, ClassImport> = [];
 
@@ -5867,6 +5875,14 @@ class Interp
     // Every scripted class has these functions, so we force the check to return true.
     if (['scriptInit', 'listScriptClasses'].contains(fieldName)) return true;
 
+    #if POLYMOD_CPPIA
+    if (!_scriptClassDescriptors.exists(clsName) && PolymodCppiaClassReference.hasCppiaClass(clsName))
+    {
+      var cppiaCls = PolymodCppiaClassReference.getCppiaClass(clsName);
+      return cppiaCls != null && Type.getClassFields(cppiaCls).contains(fieldName);
+    }
+    #end
+
     var imports:Map<String, ClassImport> = [];
 
     var cls:Null<ClassDecl> = _scriptClassDescriptors.get(clsName);
@@ -5897,6 +5913,14 @@ class Interp
   {
     // Every scripted class has these functions, so we force the check to return true.
     if (["scriptInit", "listScriptClasses"].contains(fnName)) return true;
+
+    #if POLYMOD_CPPIA
+    if (!_scriptClassDescriptors.exists(clsName) && PolymodCppiaClassReference.hasCppiaClass(clsName))
+    {
+      var cppiaCls = PolymodCppiaClassReference.getCppiaClass(clsName);
+      return cppiaCls != null && Type.getClassFields(cppiaCls).contains(fnName) && Reflect.isFunction(Reflect.field(cppiaCls, fnName));
+    }
+    #end
 
     var imports:Map<String, ClassImport> = [];
 
@@ -5930,6 +5954,14 @@ class Interp
 
   public function getScriptClassStaticField(clsName:String, fieldName:String, bypassAccessor:Bool = false):Null<Dynamic>
   {
+    #if POLYMOD_CPPIA
+    if (!_scriptClassDescriptors.exists(clsName))
+    {
+      var cppia = PolymodCppiaClassReference.tryBuildCppia(clsName);
+      if (cppia != null) return cppia.getField(fieldName);
+    }
+    #end
+
     var prefixedName = clsName + '#' + fieldName;
     var fieldDecl = getScriptClassStaticFieldDecl(clsName, fieldName);
 
