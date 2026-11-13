@@ -1459,6 +1459,8 @@ class Interp
           var fullClassName:String = getClassFullyQualifiedName();
           if (PolymodScriptClass.hasScriptClassStaticField(fullClassName, id))
           {
+            if (assignPrivateStaticSet(fullClassName, id, v)) return v;
+
             return PolymodScriptClass.setScriptClassStaticField(fullClassName, id, v, inBypassAccessor);
           }
 
@@ -1529,8 +1531,16 @@ class Interp
             // Do nothing
         }
 
+        var ref = fieldTarget(e0);
+        if (ref is PolymodStaticClassReference)
+        {
+          var fullClassName = cast(ref, PolymodStaticClassReference).getFullyQualifiedName();
+
+          if (assignPrivateStaticSet(fullClassName, id, v)) return v;
+        }
+
         // Fallback to field set
-        v = set(fieldTarget(e0), id, v);
+        v = set(ref, id, v);
       case EArray(e, index):
         var arr:Dynamic = expr(e);
         var index:Dynamic = expr(index);
@@ -1550,6 +1560,28 @@ class Interp
         }
     }
     return v;
+  }
+
+  function assignPrivateStaticSet(fullClassName:String, id:String, v:Dynamic):Bool
+  {
+    if (fullClassName == getClassFullyQualifiedName())
+    {
+      var fieldDecl = getScriptClassStaticFieldDecl(fullClassName, id);
+      if (fieldDecl != null)
+      {
+        switch (fieldDecl.kind)
+        {
+          case KVar(vDecl):
+            if (vDecl.set == "null")
+            {
+              PolymodScriptClass.scriptInterp.variables.set('$fullClassName#$id', v);
+              return true;
+            }
+          case _:
+        }
+      }
+    }
+    return false;
   }
 
   function assignOp(op, fop:Dynamic->Dynamic->Dynamic)
@@ -1635,7 +1667,8 @@ class Interp
           var fullClassName:String = getClassFullyQualifiedName();
           if (PolymodScriptClass.hasScriptClassStaticField(fullClassName, id))
           {
-            return PolymodScriptClass.setScriptClassStaticField(fullClassName, id, v);
+            if (assignPrivateStaticSet(fullClassName, id, v)) return v;
+            return PolymodScriptClass.setScriptClassStaticField(fullClassName, id, v, inBypassAccessor);
           }
           setVar(id, v);
         }
@@ -1651,6 +1684,13 @@ class Interp
       case EField(e, f):
         var obj = fieldTarget(e);
         v = fop(get(obj, f), expr(e2));
+        if (obj is PolymodStaticClassReference)
+        {
+          var fullClassName = cast(obj, PolymodStaticClassReference).getFullyQualifiedName();
+
+          if (assignPrivateStaticSet(fullClassName, f, v)) return v;
+        }
+        
         v = set(obj, f, v);
       case EArray(e, index):
         var arr:Dynamic = expr(e);
@@ -1747,7 +1787,8 @@ class Interp
             var fullClassName:String = getClassFullyQualifiedName();
             if (PolymodScriptClass.hasScriptClassStaticField(fullClassName, id))
             {
-              return PolymodScriptClass.setScriptClassStaticField(fullClassName, id, v);
+              if (assignPrivateStaticSet(fullClassName, id, v)) return v;
+              return PolymodScriptClass.setScriptClassStaticField(fullClassName, id, v, inBypassAccessor);
             }
             setVar(id, v);
           }
@@ -1769,7 +1810,8 @@ class Interp
             var fullClassName:String = getClassFullyQualifiedName();
             if (PolymodScriptClass.hasScriptClassStaticField(fullClassName, id))
             {
-              return PolymodScriptClass.setScriptClassStaticField(fullClassName, id, newVal);
+              if (assignPrivateStaticSet(fullClassName, id, newVal)) return v;
+              return PolymodScriptClass.setScriptClassStaticField(fullClassName, id, newVal, inBypassAccessor);
             }
             setVar(id, newVal);
           }
@@ -1787,6 +1829,20 @@ class Interp
       case EField(e, f):
         var obj = fieldTarget(e);
         var v:Dynamic = get(obj, f);
+
+        if (obj is PolymodStaticClassReference)
+        {
+          var fullClassName = cast(obj, PolymodStaticClassReference).getFullyQualifiedName();
+          var newVal = v;
+
+          if (prefix)
+            newVal += delta;
+          else
+            newVal = v + delta;
+
+          if (assignPrivateStaticSet(fullClassName, f, newVal)) return prefix ? newVal : v;
+        }
+
         if (prefix)
         {
           v += delta;
