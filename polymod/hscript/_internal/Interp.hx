@@ -105,6 +105,8 @@ class Interp
 
   static var _scriptPersistentFields:SafeMap<Map<String, Dynamic>> = new SafeMap<Map<String, Dynamic>>();
 
+  static var _staticFieldDeclCache:SafeMap<FieldDecl> = new SafeMap<FieldDecl>();
+
   static var _classDeclUsingCache:SafeMap<Map<String, Array<Dynamic>->Dynamic>> = new SafeMap<Map<String, Array<Dynamic>->Dynamic>>();
 
   static var _deprecatedTypes:SafeMap<String> = new SafeMap<String>();
@@ -1093,6 +1095,7 @@ class Interp
 
     // Clear the script class descriptors.
     _scriptClassDescriptors.clear();
+    _staticFieldDeclCache.clear();
     registryStamp++;
 
     _cachedDeprecatedTypes = [];
@@ -5882,31 +5885,8 @@ class Interp
       return cppiaCls != null && Type.getClassFields(cppiaCls).contains(fieldName);
     }
     #end
-
-    var imports:Map<String, ClassImport> = [];
-
-    var cls:Null<ClassDecl> = _scriptClassDescriptors.get(clsName);
-    if (cls != null)
-    {
-      imports = cls.imports;
-
-      // TODO: Optimize with a cache?
-      for (f in cls.staticFields)
-      {
-        if (f.name == fieldName)
-        {
-          // ALWAYS true regardless if it's a function.
-          return true;
-        }
-      }
-    }
-    else
-    {
-      Polymod.error(SCRIPTED_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.', SCRIPT_RUNTIME);
-      return false;
-    }
-
-    return false;
+    
+    return getScriptClassStaticFieldDecl(clsName, fieldName) != null;
   }
 
   public function hasScriptClassStaticFunction(clsName:String, fnName:String):Bool
@@ -5922,31 +5902,14 @@ class Interp
     }
     #end
 
-    var imports:Map<String, ClassImport> = [];
-
-    var cls:Null<ClassDecl> = _scriptClassDescriptors.get(clsName);
-    if (cls != null)
+    if (hasScriptClassStaticField(clsName, fnName))
     {
-      imports = cls.imports;
-
-      // TODO: Optimize with a cache?
-      for (f in cls.staticFields)
+      switch (getScriptClassStaticFieldDecl(clsName, fnName).kind)
       {
-        if (f.name == fnName)
-        {
-          switch (f.kind)
-          {
-            case KFunction(func):
-              return true;
-            case _:
-          }
-        }
+        case KFunction(_func):
+          return true;
+        case _:
       }
-    }
-    else
-    {
-      Polymod.error(SCRIPTED_CLASS_NOT_REGISTERED, 'Scripted class $clsName has not been defined.', SCRIPT_RUNTIME);
-      return false;
     }
 
     return false;
@@ -6142,21 +6105,30 @@ class Interp
    */
   public function getScriptClassStaticFieldDecl(clsName:String, fieldName:String):Null<FieldDecl>
   {
+    var cacheKey = clsName + "." + fieldName;
+
+    // Check if it's already in the cache.
+    if (_staticFieldDeclCache.exists(cacheKey))
+    {
+      return _staticFieldDeclCache.get(cacheKey);
+    }
+
     if (_scriptClassDescriptors.exists(clsName))
     {
       var cls = _scriptClassDescriptors.get(clsName);
       var staticFields = cls.staticFields;
 
-      // TODO: Optimize with a cache?
       for (f in staticFields)
       {
         if (f.name == fieldName)
         {
+          _staticFieldDeclCache.set(cacheKey, f);
           return f;
         }
       }
 
-      // Fallthrough.
+      // Fallthrough: Cache the null result to avoid repeated lookups for missing fields
+      _staticFieldDeclCache.set(cacheKey, null);
       return null;
     }
     else
