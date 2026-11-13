@@ -654,6 +654,8 @@ class Printer
             output += "static ";
           case ADynamic:
             output += "dynamic ";
+          case AFinal:
+            output += "final ";
           case AMacro:
             output += "macro ";
         }
