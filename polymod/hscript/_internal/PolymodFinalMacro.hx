@@ -174,7 +174,9 @@ class PolymodFinalMacro
       Context.info('PolymodFinalMacro: '
         + 'Detected ${allFinals.length} classes with final variables, '
         + '${allPrivateProperties.length} classes with (default,null) properties, '
+        #if POLYMOD_STRICT_SYNTAX
         + '${allPrivateFields.length} classes with private variables '
+        #end
         + 'in ${duration} sec.',
         Context.currentPos());
 
