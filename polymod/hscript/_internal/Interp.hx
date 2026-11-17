@@ -55,6 +55,7 @@ class Interp
   private static var _scriptClassUsings:SafeMap<Array<ClassImport>> = new SafeMap<Array<ClassImport>>();
   private static var _scriptClassDescriptors:SafeMap<ClassDecl> = new SafeMap<ClassDecl>();
   private static var _scriptEnumDescriptors:SafeMap<EnumDecl> = new SafeMap<EnumDecl>();
+  private static var _scriptTypedefs:Map<String, Bool> = new Map<String, Bool>();
 
   public static var registryStamp:Int = 0;
 
@@ -1125,6 +1126,7 @@ class Interp
     // Clear the script enums.
     PolymodEnum.clearScriptedEnums();
     _scriptEnumDescriptors.clear();
+    _scriptTypedefs.clear();
     registryStamp++;
 
 
@@ -3362,7 +3364,7 @@ class Interp
           if (ident == '_') return true;
           // Resolve the enum value throws an error if it doesn't exist
           var enumValue = resolve(ident);
-        
+
           return (isScriptEnumValue && PolymodEnum.enumEq(val, enumValue)) || (Reflect.isEnumValue(enumValue) && Type.enumEq(val, enumValue));
         }
 
@@ -4369,7 +4371,7 @@ class Interp
       return untyped o[f];
     }
     #end
-    
+
     // Default behavior
     if (inBypassAccessor)
     {
@@ -4845,7 +4847,12 @@ class Interp
           };
 
           registerScriptEnum(enumDecl);
-        case DTypedef(_):
+        case DTypedef(t):
+          if (isImportFile) continue;
+          var prefix:String = (pkg != null && pkg.length > 0) ? pkg.join('.') + '.' : '';
+          _scriptTypedefs.set(prefix + t.name, true);
+          var moduleName:String = new haxe.io.Path(origin).file;
+          if (moduleName != t.name) _scriptTypedefs.set(prefix + moduleName + '.' + t.name, true);
       }
     }
   }
@@ -5211,6 +5218,8 @@ class Interp
           continue;
         }
 
+        if (_scriptTypedefs.exists(imp.fullPath)) continue;
+
         Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not import ${imp.fullPath}. Check to ensure the module exists and is spelled correctly.', SCRIPT_RUNTIME);
       }
     }
@@ -5367,7 +5376,7 @@ class Interp
       {
         if (!pkg.startsWith(key) && key.length != 0) continue;
 
-        for (use in uses) 
+        for (use in uses)
         {
           if (!cls.usings.exists(use.name) || cls.usings.get(use.name)?.isDefault) cls.usings.set(use.name, use);
         }
@@ -5400,6 +5409,8 @@ class Interp
           continue;
         }
         #end
+
+        if (_scriptTypedefs.exists(imp.fullPath)) continue;
 
         // Attempt to import static fields.
         if ((imp.pkg?.length ?? 0) > 0)
@@ -6079,7 +6090,7 @@ class Interp
                     throw 'Could not resolve getter for property ${prefixedName}';
                   }
                 }
-                
+
               case 'default':
                 // Fallback like a normal variable.
 
