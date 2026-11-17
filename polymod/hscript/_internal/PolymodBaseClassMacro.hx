@@ -162,13 +162,13 @@ class PolymodBaseClassMacro
     cls.meta.add(PROCESS_FINISHED_META, [], pos);
 
     // Omit being able to extend some classes.
-    if (cls.isInterface || cls.isAbstract || cls.isExtern || cls.isFinal) return null;
+    if (cls.isInterface || cls.isAbstract || cls.isExtern || cls.isFinal) return buildPatchOnly(cls);
 
     // Exclude classes that start with an underscore, as they indicate classes that were created through compilation from parameters.
-    if (cls.name.startsWith('_') || (cls.pack.length > 0 && cls.pack[cls.pack.length - 1].startsWith('_'))) return null;
+    if (cls.name.startsWith('_') || (cls.pack.length > 0 && cls.pack[cls.pack.length - 1].startsWith('_'))) return buildPatchOnly(cls);
 
     // Disallow generic classes, as they mess with this macro.
-    if (!HaxeType.enumEq(cls.kind, KNormal)) return null;
+    if (!HaxeType.enumEq(cls.kind, KNormal)) return buildPatchOnly(cls);
 
     // If a class has type parameters but without any constraints (default values), it wouldn't be possible to extend them on runtime.
     for (param in cls.params)
@@ -179,7 +179,7 @@ class PolymodBaseClassMacro
           switch (classType.kind)
           {
             case KTypeParameter(c) if (c.length == 0):
-              return null;
+              return buildPatchOnly(cls);
             default:
           }
         default:
@@ -187,26 +187,30 @@ class PolymodBaseClassMacro
     }
 
     // Core api classes require type which can't be specified on runtime.
-    if (cls.meta.has(':coreApi')) return null;
+    if (cls.meta.has(':coreApi')) return buildPatchOnly(cls);
 
     // Classes specified to act as anonymous structures shouldn't be extended.
-    if (cls.meta.has(':structInit')) return null;
+    if (cls.meta.has(':structInit')) return buildPatchOnly(cls);
 
     // :nativeGen makes the class get treated as an extern, so it shouldn't be extended.
-    if (cls.meta.has(':nativeGen')) return null;
+    if (cls.meta.has(':nativeGen')) return buildPatchOnly(cls);
 
     var fullClsName:String = formatClassString(cls);
     // Disallow extending certain classes.
     for (filter in PACKAGE_FILTERS)
     {
-      if (fullClsName.indexOf(filter) == 0) return null;
+      if (fullClsName.indexOf(filter) == 0) return buildPatchOnly(cls);
     }
 
-    if (Context.defined('cppia') && !isHostClass(fullClsName) && !cls.meta.has(CPPIA_EXTENDABLE_META)) return null;
+    if (Context.defined('cppia') && !isHostClass(fullClsName) && !cls.meta.has(CPPIA_EXTENDABLE_META)) return buildPatchOnly(cls);
 
     // Fields are only retrieved once the class is known to be extendable.
     // Skipped classes return `null` (no changes), which is much cheaper than resubmitting their unchanged fields.
     var fields:Array<Field> = Context.getBuildFields();
+
+    // Patch hooks go in before the hscript fields are added, so those are never patched.
+    var patched:Bool = polymod.patch.PatchMacro.wantsClass(cls);
+    if (patched) polymod.patch.PatchMacro.apply(cls, fields);
 
     // Check if a class already has one of the fields needed for the scripts before attempting to build fields.
     // We only need to check (and add) instance fields if a class doesn't extend anything, considering extending classes inherit them.
@@ -233,7 +237,7 @@ class PolymodBaseClassMacro
 
     for (fld in fields)
     {
-      if (fld.name == 'new' && fld.access?.contains(AInline) ?? false) return null;
+      if (fld.name == 'new' && fld.access?.contains(AInline) ?? false) return patched ? fields : null;
 
       if (fld.access.contains(AStatic) && neededStaticFields.contains(fld.name))
       {
@@ -241,7 +245,7 @@ class PolymodBaseClassMacro
           'PolymodBaseClassMacro: Couldn\'t build hscript fields for the class $fullClsName since it already has the static field ${fld.name}.',
           pos
         );
-        return null;
+        return patched ? fields : null;
       }
       else if (cls.superClass == null && neededInstFields.contains(fld.name))
       {
@@ -249,7 +253,7 @@ class PolymodBaseClassMacro
           'PolymodBaseClassMacro: Couldn\'t build hscript fields for the class $fullClsName since it already has the instance field ${fld.name}.',
           pos
         );
-        return null;
+        return patched ? fields : null;
       }
     }
 
@@ -261,6 +265,18 @@ class PolymodBaseClassMacro
     // Override the functions now since the `_asc` field was generated.
     overrideBaseFunctions(cls, fields, neededInstFields);
 
+    return fields;
+  }
+
+  /**
+   * Builds only the patches for the class, if it is a patched class.
+   */
+  static function buildPatchOnly(cls:ClassType):Null<Array<Field>>
+  {
+    if (!polymod.patch.PatchMacro.wantsClass(cls)) return null;
+
+    var fields:Array<Field> = Context.getBuildFields();
+    polymod.patch.PatchMacro.apply(cls, fields);
     return fields;
   }
 
@@ -302,6 +318,9 @@ class PolymodBaseClassMacro
 
       // Don't override constructors since script classes are instantiated differently anyways.
       if (fields[i].name == 'new') continue;
+
+      // Don't override functions which are already generated by this macro.
+      if (fields[i].name.startsWith(polymod.patch.PatchMacro.ORIG_PREFIX)) continue;
 
       switch (fields[i].kind)
       {

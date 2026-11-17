@@ -896,6 +896,7 @@ class Polymod
 
     @:privateAccess
     polymod.hscript._internal.PolymodScriptClass.clearScriptedClasses();
+    polymod.patch.Patches.clear();
     #if POLYMOD_CPPIA
     polymod.hscript._internal.PolymodCppiaClassReference.clearCppiaClasses();
     #end
@@ -909,6 +910,7 @@ class Polymod
   {
     Polymod.clearScripts();
     Parser.resetPreprocessorValues();
+    polymod.patch.Patches.setLoadOrder(assetLibrary?.modIds ?? []);
 
     // Add the loaded mods to the Parser's preprocessor values.
     for (mod in prevModsLoaded)
@@ -1145,6 +1147,7 @@ class Polymod
       Polymod.preheatScriptClasses();
       polymod.hscript._internal.PolymodScriptClass.reloadPersistentStaticFields();
       polymod.hscript._internal.PolymodScriptClass.scriptsInitialized = true;
+      polymod.patch.Patches.registerDeclared();
 
       if (Polymod.onScriptsLoaded != null) Polymod.onScriptsLoaded();
       return results;
@@ -1205,6 +1208,7 @@ class Polymod
       Polymod.preheatScriptClasses();
       polymod.hscript._internal.PolymodScriptClass.reloadPersistentStaticFields();
       polymod.hscript._internal.PolymodScriptClass.scriptsInitialized = true;
+      polymod.patch.Patches.registerDeclared();
 
       if (Polymod.onScriptsLoaded != null) Polymod.onScriptsLoaded();
 
@@ -2175,6 +2179,13 @@ enum abstract PolymodErrorCode(String) from String to String
    * - Scripted classes will purge the offending function, preventing the error from occurring again until the script is reloaded.
    */
   public var SCRIPT_RUNTIME_EXCEPTION:String = 'script_runtime_exception';
+
+  /**
+   * A script patch was applied to a function, but that function threw an exception during execution.
+   * - Read the error message for the mod, class and function involved.
+   * - A patch that throws is disabled until mods are reloaded, other patches on the same function keep running.
+   */
+  public var SCRIPT_PATCH:String = 'script_patch';
 
   //
   // Scripted Function Loading Errors

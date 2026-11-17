@@ -781,6 +781,24 @@ class PolymodAssetLibrary
   }
 
   /**
+   * The mod ID of the mod that contains the given asset ID.
+   */
+  public function modIdOf(id:String):Null<String>
+  {
+    var colon:Int = id.indexOf(':');
+    if (colon > 0) id = id.substr(colon + 1);
+    var idStripped = stripAssetsPrefix(id);
+
+    var i:Int = modDirs.length;
+    while (i-- > 0)
+    {
+      if (i >= modIds.length) continue;
+      if (cachedFileSystemExists(Util.pathJoin(modDirs[i], idStripped))) return modIds[i];
+    }
+    return null;
+  }
+
+  /**
    * Get the absolute file path of the given asset id.
    * Queries both base assets and all loaded mods.
    *

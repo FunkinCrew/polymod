@@ -220,6 +220,11 @@ class PolymodFinalMacro
   }
 
   #if macro
+  static inline function isPatchField(name:String):Bool
+  {
+    return StringTools.startsWith(name, polymod.patch.PatchMacro.SLOT_PREFIX) || StringTools.startsWith(name, polymod.patch.PatchMacro.ORIG_PREFIX);
+  }
+
   static function listAllFieldsOfClassType(classType:Null<ClassType>):Array<ClassField>
   {
     if (classType == null) return [];
@@ -233,8 +238,11 @@ class PolymodFinalMacro
 
     var result:Array<ClassField> = [];
 
-    result = result.concat(classType.fields.get());
-    result = result.concat(classType.statics.get());
+    // Add all fields and statics, excluding patch fields.
+    for (field in classType.fields.get())
+      if (!isPatchField(field.name)) result.push(field);
+    for (field in classType.statics.get())
+      if (!isPatchField(field.name)) result.push(field);
     result = result.concat(listAllFieldsOfClassType(classType.superClass?.t.get()));
 
     classCache.set(clsFullName, result);

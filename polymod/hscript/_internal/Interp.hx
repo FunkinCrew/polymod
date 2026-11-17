@@ -54,6 +54,11 @@ class Interp
   private static var _scriptClassImports:SafeMap<Array<ClassImport>> = new SafeMap<Array<ClassImport>>();
   private static var _scriptClassUsings:SafeMap<Array<ClassImport>> = new SafeMap<Array<ClassImport>>();
   private static var _scriptClassDescriptors:SafeMap<ClassDecl> = new SafeMap<ClassDecl>();
+
+  /**
+   * The origin each scripted class was parsed from, like `hscriptClass(scripts/foo.hxc)`.
+   */
+  public static final scriptClassOrigins:Map<String, String> = new Map<String, String>();
   private static var _scriptEnumDescriptors:SafeMap<EnumDecl> = new SafeMap<EnumDecl>();
   private static var _scriptTypedefs:Map<String, Bool> = new Map<String, Bool>();
 
@@ -1105,6 +1110,7 @@ class Interp
     // Clear the script class descriptors.
     _scriptClassDescriptors.clear();
     _staticFieldDeclCache.clear();
+    scriptClassOrigins.clear();
     registryStamp++;
 
     _cachedDeprecatedTypes = [];
@@ -4220,6 +4226,13 @@ class Interp
   {
     if (o == null) error(ENullObjectReference(f));
 
+    // Patch hooks are internal, scripts go through polymod.patch.Patches instead.
+    if (polymod.patch.Patches.isHiddenField(f))
+    {
+      error(EBlacklistedField(f));
+      return null;
+    }
+
     // Override Std.isOfType to get our own function.
     if (o == Std && f == 'isOfType')
     {
@@ -4415,6 +4428,13 @@ class Interp
   function set(o:Dynamic, f:String, v:Dynamic):Null<Dynamic>
   {
     if (o == null) error(ENullObjectReference(f));
+
+    // Patch hooks are internal, scripts go through polymod.patch.Patches instead.
+    if (polymod.patch.Patches.isHiddenField(f))
+    {
+      error(EBlacklistedField(f));
+      return null;
+    }
 
     var oCls:String = Util.getTypeNameOf(o);
 
@@ -4818,6 +4838,7 @@ class Interp
           };
           registerScriptClassBlacklist(classDecl);
           registerScriptClass(classDecl);
+          scriptClassOrigins.set(Util.getFullClassName(classDecl), origin);
         case DInterface(i):
           if (isImportFile) continue;
 

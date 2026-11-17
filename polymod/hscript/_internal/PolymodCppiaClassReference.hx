@@ -184,6 +184,16 @@ class PolymodCppiaClassReference extends PolymodStaticClassReference
   }
 
   /**
+   * The path a compiled script was loaded from, if it is still loaded.
+   */
+  public static function pathOfCppiaClass(clsName:String):Null<String>
+  {
+    for (path => loaded in loadedModules)
+      if (loaded.names.contains(clsName)) return path;
+    return null;
+  }
+
+  /**
    * A cppia class is a real class, so we can check its superclasses to see if it extends the given class path.
    */
   public static function listCppiaClassesExtending(clsPath:String):Array<String>
@@ -647,6 +657,14 @@ class PolymodCppiaClassReference extends PolymodStaticClassReference
     }
 
     if (earlyStamp != null && !versionAccepted(earlyStamp)) reportVersionMismatch(path, earlyStamp);
+
+    for (s in scan.strings)
+    {
+      if (!polymod.patch.Patches.isHiddenField(s)) continue;
+      Polymod.error(SCRIPT_PARSE_FAILED, 'Compiled script "$path" reaches the patch hook "$s" directly, use polymod.patch.Patches instead. It will not be loaded.',
+        SCRIPT_RUNTIME);
+      return [];
+    }
 
     var module:cpp.cppia.Module = null;
 
