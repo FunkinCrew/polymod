@@ -81,6 +81,7 @@ class PolymodBaseClassMacro
     switch (fld.name)
     {
       case 'hasField':
+        fld.access?.remove(AInline);
         f.expr = macro @:pos(f.expr.pos)
         {
           var ascChecks:Array<Dynamic> = [o, o._asc];
@@ -94,6 +95,7 @@ class PolymodBaseClassMacro
         };
 
       case 'field' | 'getProperty':
+        fld.access?.remove(AInline);
         f.expr = macro @:pos(f.expr.pos)
         {
           var ascChecks:Array<Dynamic> = [o, o._asc];
@@ -111,6 +113,7 @@ class PolymodBaseClassMacro
         };
 
       case 'setField' | 'setProperty':
+        fld.access?.remove(AInline);
         f.expr = macro @:pos(f.expr.pos)
         {
           var ascChecks:Array<Dynamic> = [o, o._asc];
