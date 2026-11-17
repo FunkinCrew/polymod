@@ -11,7 +11,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
 {
   static final fieldsCache:ObjectMap<Dynamic, Array<String>> = new ObjectMap();
 
-  private function resolveField(name:String, bypassAccessor:Bool = false):Dynamic
+  private function resolveField(name:String, bypassAccessor:Bool = false, onlyCheckScripts:Bool = false):Dynamic
   {
     switch (name)
     {
@@ -83,7 +83,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
         {
           return this._interp.error(EInvalidAccess(name));
         }
-        else if (Type.getClass(this.superClass) == null)
+        else if (Type.getClass(this.superClass) == null && !onlyCheckScripts)
         {
           // Anonymous structure
           if (Reflect.hasField(this.superClass, name))
@@ -102,11 +102,12 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
           try
           {
             superScriptClass.inBypassAccessor = bypassAccessor;
+            superScriptClass.scriptOnly = onlyCheckScripts;
             return superScriptClass.fieldRead(name);
           }
           catch (e:Dynamic) {}
         }
-        else
+        else if (!onlyCheckScripts)
         {
           // Class object
           try
@@ -127,7 +128,11 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
   {
     var bypassAccessor = this.inBypassAccessor;
     this.inBypassAccessor = false;
-    return resolveField(name, bypassAccessor);
+
+    var onlyCheckScripts:Bool = this.scriptOnly;
+    this.scriptOnly = false;
+
+    return resolveField(name, bypassAccessor, onlyCheckScripts);
   }
 
   public function fieldExists(name:String):Bool
@@ -136,6 +141,8 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
     if (KNOWN_FIELDS.contains(name)) return true;
 
     // Check the script.
+    var onlyCheckScripts:Bool = this.scriptOnly;
+    this.scriptOnly = false;
 
     if (this.findFunction(name) != null) return true;
     if (this.findVar(name) != null) return true;
@@ -145,7 +152,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
     if (this.superClass == null) return false;
 
     // Anonymous structure
-    if (Type.getClass(this.superClass) == null)
+    if (Type.getClass(this.superClass) == null && !onlyCheckScripts)
     {
       return Reflect.hasField(this.superClass, name);
     }
@@ -155,11 +162,12 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
     {
       var superScriptClass:PolymodAbstractScriptClass = cast(this.superClass, PolymodScriptClass);
       // Yay recursion!
+      superScriptClass.scriptOnly = onlyCheckScripts;
       return superScriptClass.fieldExists(name);
     }
 
     // Script extends a class object, use standard reflection
-    if (hasClassObjectField(this.superClass, name)) return true;
+    if (!onlyCheckScripts && hasClassObjectField(this.superClass, name)) return true;
 
     return false;
   }
@@ -168,6 +176,10 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
   {
     var bypassAccessor = this.inBypassAccessor;
     this.inBypassAccessor = false;
+
+    var onlyInScripts:Bool = this.scriptOnly;
+    this.scriptOnly = false;
+
     if (this.findVar(name) != null)
     {
       var decl = this.findVar(name, true);
@@ -232,6 +244,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
       try
       {
         superScriptClass.inBypassAccessor = bypassAccessor;
+        superScriptClass.scriptOnly = onlyInScripts;
         return superScriptClass.fieldWrite(name, value);
       }
       catch (e:Dynamic) {}
@@ -240,7 +253,7 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
     {
       // Class object
       try {
-        if (setClassObjectField(this.superClass, name, value, bypassAccessor))
+        if (!onlyInScripts && setClassObjectField(this.superClass, name, value, bypassAccessor))
         {
           return value;
         }

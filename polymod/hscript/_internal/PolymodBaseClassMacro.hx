@@ -46,6 +46,90 @@ class PolymodBaseClassMacro
     return Context.defined('cppia');
   }
 
+  /**
+   * Override Reflect's functions to point towards the abstract script class.
+   */
+  public static function buildReflect():Array<Field>
+  {
+    var localClass:Null<Ref<ClassType>> = Context.getLocalClass();
+    if (localClass == null) return null;
+
+    var cls:ClassType = localClass.get();
+    var pos:Position = Context.currentPos();
+    var fields:Array<Field> = Context.getBuildFields();
+
+    // Override functions based
+    for (fld in fields)
+    {
+      switch (fld.kind)
+      {
+        case FFun(f):
+          if (f.expr == null) continue;
+
+          overrideReflectField(fld, f);
+
+        default:
+          // Do nothing.
+      }
+    }
+
+    return fields;
+  }
+
+  static function overrideReflectField(fld:Field, f:Function):Void
+  {
+    switch (fld.name)
+    {
+      case 'hasField':
+        f.expr = macro @:pos(f.expr.pos)
+        {
+          var ascChecks:Array<Dynamic> = [o, o._asc];
+          for (asc in ascChecks)
+          {
+            if (asc == null || !Std.isOfType(asc, polymod.hscript._internal.PolymodScriptClass)) continue;
+            if (polymod.hscript.PolymodScriptBridge.fieldExists(asc, field, true)) return true;
+          }
+
+          ${f.expr}
+        };
+
+      case 'field' | 'getProperty':
+        f.expr = macro @:pos(f.expr.pos)
+        {
+          var ascChecks:Array<Dynamic> = [o, o._asc];
+          for (asc in ascChecks)
+          {
+            if (asc == null || !Std.isOfType(asc, polymod.hscript._internal.PolymodScriptClass)) continue;
+            if (polymod.hscript.PolymodScriptBridge.fieldExists(asc, field, true))
+            {
+              asc.inBypassAccessor = ($v{fld.name} == 'field');
+              return polymod.hscript.PolymodScriptBridge.fieldRead(asc, field, true);
+            }
+          }
+
+          ${f.expr}
+        };
+
+      case 'setField' | 'setProperty':
+        f.expr = macro @:pos(f.expr.pos)
+        {
+          var ascChecks:Array<Dynamic> = [o, o._asc];
+          for (asc in ascChecks)
+          {
+            if (asc == null || !Std.isOfType(asc, polymod.hscript._internal.PolymodScriptClass)) continue;
+            if (polymod.hscript.PolymodScriptBridge.fieldExists(asc, field, true))
+            {
+              asc.inBypassAccessor = ($v{fld.name} == 'setField');
+              polymod.hscript.PolymodScriptBridge.fieldWrite(asc, field, value, true);
+              return;
+            }
+          }
+
+          ${f.expr}
+        };
+    }
+  }
+
   public static function buildBaseClass():Array<Field>
   {
     var localClass:Null<Ref<ClassType>> = Context.getLocalClass();

@@ -1,2 +1,3 @@
 --macro polymod.hscript._internal.PolymodFinalMacro.locateAllFinals()
 --macro addGlobalMetadata('', '@:build(polymod.hscript._internal.PolymodBaseClassMacro.buildBaseClass())')
+--macro addMetadata('@:build(polymod.hscript._internal.PolymodBaseClassMacro.buildReflect())', 'Reflect')
