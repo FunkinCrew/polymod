@@ -43,18 +43,39 @@ class PolymodCppiaClassReference extends PolymodStaticClassReference
   }
 
   /**
-   * The version a cppia must be stamped with to be accepted.
+   * The semver range a cppia stamp must satisfy to be accepted, like ">=0.9.0 <=0.9.3". Null accepts anything.
    */
-  public static var expectedVersion:Null<String> = null;
+  public static var acceptedVersions:Null<thx.semver.VersionRule> = null;
 
-  static var reportedMismatch:Bool = false;
+  /**
+   * Prefix of the stamp string the manifest carries.
+   */
+  public static final STAMP_PREFIX:String = 'polymod-cppia-stamp:';
+
+  static function versionAccepted(stamp:String):Bool
+  {
+    if (acceptedVersions == null) return true;
+    try
+    {
+      var version:thx.semver.Version = stamp;
+      return version.satisfies(acceptedVersions);
+    }
+    catch (e:Dynamic)
+    {
+      return false;
+    }
+  }
+
+  static function reportVersionMismatch(path:String, stamp:String):Void
+  {
+    trace('[cppia] compiled script "$path" is stamped with $stamp, which does not satisfy the accepted range $acceptedVersions. The script will try to load, but might not work properly.');
+  }
 
   public static function clearCppiaClasses():Void
   {
     // Only the active registry is dropped. What was loaded stays known, because it cannot be undone.
     registry.clear();
     Interp.registryStamp++;
-    reportedMismatch = false;
   }
 
   /**
@@ -617,6 +638,16 @@ class PolymodCppiaClassReference extends PolymodStaticClassReference
       return [];
     }
 
+    var earlyStamp:Null<String> = null;
+    for (s in scan.strings)
+    {
+      if (!StringTools.startsWith(s, STAMP_PREFIX)) continue;
+      earlyStamp = s.substr(STAMP_PREFIX.length);
+      break;
+    }
+
+    if (earlyStamp != null && !versionAccepted(earlyStamp)) reportVersionMismatch(path, earlyStamp);
+
     var module:cpp.cppia.Module = null;
 
     trace('[cppia] reading "$path" (${data.length} bytes)...');
@@ -683,17 +714,11 @@ class PolymodCppiaClassReference extends PolymodStaticClassReference
       return [];
     }
 
-    var stamp:String = Std.string(Reflect.field(manifest, 'gameVersion'));
-    if (expectedVersion != null && stamp != expectedVersion)
+    // Scripts built before the early stamp existed only carry gameVersion.
+    if (earlyStamp == null)
     {
-      if (!reportedMismatch)
-      {
-        reportedMismatch = true;
-        Polymod.error(SCRIPT_PARSE_FAILED,
-          'Compiled script "$path" was built for game version "$stamp" but this game is "$expectedVersion". It will not be loaded, so the mod needs rebuilding.',
-          SCRIPT_RUNTIME);
-      }
-      return [];
+      var stamp:String = Std.string(Reflect.field(manifest, 'gameVersion'));
+      if (!versionAccepted(stamp)) reportVersionMismatch(path, stamp);
     }
 
     var declared:Array<Class<Dynamic>> = cast Reflect.field(manifest, 'classRefs');
