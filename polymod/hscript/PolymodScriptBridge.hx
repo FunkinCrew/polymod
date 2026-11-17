@@ -60,27 +60,30 @@ class PolymodScriptBridge
     return script.fullyQualifiedName;
   }
 
-  public static function fieldRead(asc:Dynamic, varName:String):Dynamic
+  public static function fieldRead(asc:Dynamic, varName:String, onlyInScripts:Bool = false):Dynamic
   {
     if (asc == null) return null;
 
     var script:PolymodAbstractScriptClass = cast asc;
+    script.scriptOnly = onlyInScripts;
     return script.fieldRead(varName);
   }
 
-  public static function fieldWrite(asc:Dynamic, varName:String, varValue:Dynamic):Dynamic
+  public static function fieldWrite(asc:Dynamic, varName:String, varValue:Dynamic, onlyInScripts:Bool = false):Dynamic
   {
     if (asc == null) return null;
 
     var script:PolymodAbstractScriptClass = cast asc;
+    script.scriptOnly = onlyInScripts;
     return script.fieldWrite(varName, varValue);
   }
 
-  public static function fieldExists(asc:Dynamic, fieldName:String):Bool
+  public static function fieldExists(asc:Dynamic, fieldName:String, onlyInScripts:Bool = false):Bool
   {
     if (asc == null) return false;
 
     var script:PolymodAbstractScriptClass = cast asc;
+    script.scriptOnly = onlyInScripts;
     return script.fieldExists(fieldName);
   }
 

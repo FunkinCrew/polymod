@@ -1341,6 +1341,12 @@ class PolymodScriptClass
 
   public var inBypassAccessor:Bool = false;
 
+  /**
+   * whether only the scripted fields should be taken into account.
+   * This prevents an infinite recursion on the Reflect side.
+   */
+  public var scriptOnly:Bool = false;
+
   public var fullyQualifiedName(get, null):String;
 
   private inline function get_fullyQualifiedName():String
