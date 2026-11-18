@@ -748,8 +748,8 @@ class Printer
       case EInvalidModule(m): 'Invalid module "$m".';
       case EBlacklistedModule(m): 'Blacklisted module "$m".';
       case EBlacklistedField(m, cls): 'Blacklisted field "$m" of class "$cls".';
-      case EInvalidArgCount(f, expected, given): 'Provided arguments are fewer than the required function parameters. Got $given, required $expected' + f;
-      case EExceedArgsCount(f, allowed, passed): 'Provided arguments exceeds the allowed function parameter count. Passed $passed, allowed $allowed' + f;
+      case EInvalidArgCount(f, expected, given): 'Function $f got too few arguments. It requires $expected function parameters, but got $given.';
+      case EExceedArgsCount(f, allowed, passed): 'Function $f got too many arguments. It requires $allowed function parameters, but got $passed.';
       case EPurgedFunction(f): 'Invalid access to purged function "$f", did it throw an uncaught exception earlier?';
       case ENullObjectReference(f): 'Null Object Reference: Cannot reference field "$f" of a null object.';
       case EInvalidInStaticContext(v): 'Cannot access field "$v" from static context.';
@@ -773,6 +773,12 @@ class Printer
       case EInvalidInterfaceAccessor(access): 'Interface fields cannot have "$access" modifier';
       case EConflictingAccessModifier(access): 'Conflicting access modifier "$access"';
       case EInvalidVariableAccessor(access): 'Invalid modifier: "$access" on variable';
+      case EDuplicateField(f): 'Field "${f}" has already been defined on this class';
+      case EInvalidOverride(f, needed): needed
+        ? 'Function "${f}" must be declared "override", since it is inherited from its superclass'
+        : 'Function "${f}" is declared "override", but it is not inherited from its superclass';
+      case EOverrideFinal(f): 'Function "${f}" cannot override a function declared "final"';
+      case EInvalidAssignFunction(f): 'Field "${f}" in superclass is not dynamic and cannot be overridden as dynamic.';
       case EInvalidStaticLocalInit(name, reason): 'Cannot initialize static variable "${name}": $reason';
       case EInvalidConstructorCall(clsName): 'Invalid constructor call, use "new ${clsName}()" instead';
       case ECustom(msg): msg;

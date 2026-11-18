@@ -187,7 +187,11 @@ enum Error
   EInvalidAccessorCombination(accessors:Array<String>);
   EPrivateConstructor(v:String);
   EMultipleBoundVariable(v:String);
-  EDuplicateAccessModifier(access:String);
+  EInvalidAssignFunction(f:String); // Script tried to use assignment on a function that isn't dynamic
+  EDuplicateAccessModifier(access:String); // Script has multiple of the same access modifier on one declaration
+  EDuplicateField(f:String); // Script tried to declare a field that already existed
+  EInvalidOverride(f:String, needed:Bool); // Script didn't "override" when it needed to, or vice versa
+  EOverrideFinal(f:String); // Script tried to "override" a "final" function
   EInvalidInterfaceAccessor(access:String);
   EConflictingAccessModifier(access:String);
   EInvalidVariableAccessor(access:String);

@@ -1125,7 +1125,8 @@ class PolymodScriptClass
           if (superHasField(f.name))
           {
             // Throw an error if the script class has an instance field with the same name as one from the super class.
-            throw 'Redefinition of variable "${f.name}" from superclass not allowed.';
+            _interp.error(EDuplicateField(f.name));
+            return;
           }
         case KFunction(fn):
           // Look up the function in the superclasses.
@@ -1134,7 +1135,8 @@ class PolymodScriptClass
           if (superHasField(f.name) && func == null)
           {
             // Throw an error if a function redefines a superclass variable.
-            throw 'Redefinition of variable "${f.name}" from superclass not allowed.';
+            _interp.error(EDuplicateField(f.name));
+            return;
           }
 
           #if POLYMOD_STRICT_SYNTAX
@@ -1144,7 +1146,8 @@ class PolymodScriptClass
             if (f.name == 'new' && !Std.isOfType(superClass, PolymodScriptClass)) continue;
 
             // Throw an error if a function is declared overwritten but isn't overriding anything.
-            throw 'Field ' + '"${f.name}"' + ' is declared "override"' + " but doesn't override any field.";
+            _interp.error(EInvalidOverride(f.name, false));
+            return;
           }
           else if (!f.access.contains(AOverride) && func != null)
           {
@@ -1161,12 +1164,14 @@ class PolymodScriptClass
             }
 
             // Throw an error if a function is overriden but doesn't have the override accessor.
-            throw 'Field "' + f.name + '" should be declared with "override" since it is inherited from superclass "$superClassPackage".';
+            _interp.error(EInvalidOverride(f.name, true));
+            return;
           }
           else if (f.access.contains(AOverride) && superClass == null)
           {
             // Throw an error if the override accessor is used with no super class.
-            throw 'Invalid modifier: override on field "${f.name}" of class that has no parent.';
+            _interp.error(EInvalidOverride(f.name, false));
+            return;
           }
           else if (fn.isdynamic && func != null)
           {
@@ -1187,19 +1192,19 @@ class PolymodScriptClass
               }
               catch (e:Dynamic)
               {
-                throw 'Field "${f.name}" in superclass is not dynamic and cannot be overridden as dynamic.';
+                _interp.error(EInvalidAssignFunction(f.name));
               }
             }
             else if (func.isdynamic != null && !func.isdynamic) // If it's a script FunctionDecl, check its explicit 'isdynamic' flag.
             {
-              throw 'Field "${f.name}" in superclass is not dynamic and cannot be overridden as dynamic.';
+              _interp.error(EInvalidAssignFunction(f.name));
             }
           }
           #end
 
           if (func != null && (func.isfinal || PolymodFinalMacro.getFinalsOf(superClass).contains(f.name)))
           {
-            throw 'Cannot override final function "${f.name}" from superclass.';
+            _interp.error(EOverrideFinal(f.name));
           }
 
         default:

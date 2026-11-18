@@ -257,7 +257,7 @@ class PolymodStaticInterfaceReference
               {
                 if (Type.enumConstructor(toAddField.kind) != Type.enumConstructor(listField.kind))
                 {
-                  errorFields.push('Field "${toAddField.name}" of "$toAddInterfaceId" has different property access than in "$toAddInterfaceId"');
+                  errorFields.push('Field "${toAddField.name}" of "$toAddInterfaceId" has different property access than in "$listId"');
                 }
                 else
                 {

@@ -6118,7 +6118,7 @@ class Interp
                   }
                   else
                   {
-                    throw 'Could not resolve getter for property ${prefixedName}';
+                    error(EInvalidPropGet(prefixedName));
                   }
                 }
 
@@ -6126,7 +6126,7 @@ class Interp
                 // Fallback like a normal variable.
 
               default:
-                throw 'Could not resolve getter for property ${prefixedName}';
+                error(EInvalidPropGet(prefixedName));
             }
           }
 
