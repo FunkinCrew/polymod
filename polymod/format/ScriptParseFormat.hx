@@ -51,7 +51,7 @@ class ScriptParseFormat implements BaseParseFormat
     }
     catch (e:Error)
     {
-      Polymod.error(ASSET_MERGE_FAILED, 'Script merge error: ${e#if hscriptPos .toString() #end}');
+      Polymod.error(ASSET_MERGE_FAILED, 'Error while merging scripts: ${e#if hscriptPos .toString() #end}');
       return [];
     }
 

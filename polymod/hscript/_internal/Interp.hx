@@ -4647,8 +4647,8 @@ class Interp
               }
               else if (existing.fullPath == path.join('.'))
               {
-                Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Could not import ${clsName} into scripted module ${moduleFileName}.'
-                  + '\n${clsName} has already been imported.', SCRIPT_RUNTIME);
+                Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Tried to import class ${clsName} into scripted module ${moduleFileName},'
+                  + ' but it has already been imported.', SCRIPT_RUNTIME);
                 continue;
               }
             }
@@ -4756,8 +4756,8 @@ class Interp
             }
             else if (existing.fullPath == path.join('.'))
             {
-              Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Could not include static extension ${clsName} into scripted module ${moduleFileName}.'
-                + '\n${clsName} has already been used.', SCRIPT_RUNTIME);
+              Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Tried to declare static extension ${clsName} into scripted module ${moduleFileName},'
+                + ' but "using ${clsName}" has already been called.', SCRIPT_RUNTIME);
               continue;
             }
           }
@@ -5701,7 +5701,7 @@ class Interp
             if (importList.exists(fld.name))
             {
               Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT,
-                'Scripted enum field "${fld.name}" has already been imported in scripted module ${moduleFileName}.\nThis import from "${classImport.pkg.join('.')}" will now overwrite it!', SCRIPT_RUNTIME);
+                'Scripted class field "${fld.name}" has already been imported in scripted module ${moduleFileName}.\nThis import from "${classImport.pkg.join('.')}" will now overwrite it!', SCRIPT_RUNTIME);
             }
             validImports.set(fld.name, fieldImport);
           }
@@ -5799,8 +5799,8 @@ class Interp
           }
           else
           {
-            Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Could not import ${clsName} into scripted module ${moduleFileName}.'
-              + '\n${name} has already been imported.', SCRIPT_RUNTIME);
+            Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Tried to import ${clsName} into scripted module ${moduleFileName},'
+              + ' but it has already been imported.', SCRIPT_RUNTIME);
           }
           continue;
         }

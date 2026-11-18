@@ -208,7 +208,7 @@ class HScriptableMacro
                 }
                 catch (e:Dynamic)
                 {
-                  polymod.Polymod.error(SCRIPT_RUNTIME_EXCEPTION, 'Error: Scripted function ' + $v{pathName} + ' threw:\n$e', SCRIPT_RUNTIME);
+                  polymod.Polymod.error(SCRIPT_RUNTIME_EXCEPTION, 'Scripted function ' + $v{pathName} + ' threw:\n$e', SCRIPT_RUNTIME);
                   script_error = e;
                 }
 
@@ -236,7 +236,7 @@ class HScriptableMacro
             }
 
           default:
-            Context.error("Error: The @:hscript meta is only allowed on functions", Context.currentPos());
+            Context.error('The @:hscript meta is only allowed on functions', Context.currentPos());
         }
       }
     }
@@ -249,8 +249,8 @@ class HScriptableMacro
         public var _polymod_scripts:polymod.hscript.ScriptRunner;
       }).fields);
     // Find constructor, and inject script setup...
-    var constructor = fields.find(function(field) return field.name == 'new');
-    if (constructor == null) Context.error("Error: @:hscript requires a constructor", Context.currentPos());
+    var constructor = fields.find((field) -> return field.name == 'new');
+    if (constructor == null) Context.error('@:hscript requires a constructor', Context.currentPos());
     switch (constructor.kind)
     {
       case FFun(func):
@@ -260,7 +260,7 @@ class HScriptableMacro
             ${func.expr};
           }
       default:
-        Context.error("Error: constructor is not a function?!", Context.currentPos());
+        Context.error('Constructor is not a function.', Context.currentPos());
     }
 
     return fields;
@@ -284,19 +284,19 @@ class HScriptableMacro
                   case EConst(CIdent(name)):
                     result.mergeContext([name]);
                   case EField(e, field):
-                    throw 'Error: Only constant identifiers (like Std, Math, myVariable, etc) are allowed in @:hscript({context}). Got "${contextItem.toString()}", which is a field access.';
+                    throw 'Only constant identifiers (like Std, Math, myVariable, etc) are allowed in @:hscript({context}). Got "${contextItem.toString()}", which is a field access.';
                   case EArray(e1, e2):
-                    throw 'Error: Only constant identifiers (like Std, Math, myVariable, etc) are allowed in @:hscript({context}). Got "${contextItem.toString()}", which is an array access.';
+                    throw 'Only constant identifiers (like Std, Math, myVariable, etc) are allowed in @:hscript({context}). Got "${contextItem.toString()}", which is an array access.';
                   case EBinop(op, e1, e2):
-                    throw 'Error: Only constant identifiers (like Std, Math, myVariable, etc) are allowed in @:hscript({context}). Got "${contextItem.toString()}", which is a binary operator.';
+                    throw 'Only constant identifiers (like Std, Math, myVariable, etc) are allowed in @:hscript({context}). Got "${contextItem.toString()}", which is a binary operator.';
                   case EParenthesis(e):
-                    throw 'Error: Only constant identifiers (like Std, Math, myVariable, etc) are allowed in @:hscript({context}). Got "${contextItem.toString()}", which is an expression wrapped in parens.';
+                    throw 'Only constant identifiers (like Std, Math, myVariable, etc) are allowed in @:hscript({context}). Got "${contextItem.toString()}", which is an expression wrapped in parens.';
                   case EObjectDecl(fields):
-                    throw 'Error: Only constant identifiers (like Std, Math, myVariable, etc) are allowed in @:hscript({context}). Got "${contextItem.toString()}", which is an object declaration.';
+                    throw 'Only constant identifiers (like Std, Math, myVariable, etc) are allowed in @:hscript({context}). Got "${contextItem.toString()}", which is an object declaration.';
                   case EArrayDecl(values):
-                    throw 'Error: Only constant identifiers (like Std, Math, myVariable, etc) are allowed in @:hscript({context}). Got "${contextItem.toString()}", which is an array declaration.';
+                    throw 'Only constant identifiers (like Std, Math, myVariable, etc) are allowed in @:hscript({context}). Got "${contextItem.toString()}", which is an array declaration.';
                   default:
-                    throw 'Error: Only constant identifiers (like Std, Math, myVariable, etc) are allowed in @:hscript({context}). Got "${contextItem.toString()}"';
+                    throw 'Only constant identifiers (like Std, Math, myVariable, etc) are allowed in @:hscript({context}). Got "${contextItem.toString()}"';
                 }
               }
             default:

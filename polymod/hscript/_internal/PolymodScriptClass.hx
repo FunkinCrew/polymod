@@ -562,8 +562,8 @@ class PolymodScriptClass
         {
           case EUnexpected(s):
             Polymod.error(SCRIPT_PARSE_FAILED,
-              'Error while parsing script ${path}#${errLine}: EUnexpected' + '\n' +
-              'Unexpected error: Unexpected token "${s}", is there invalid syntax on this line?',
+              'Error while parsing script ${path}#${errLine}: EUnexpected'
+              + '\nUnexpected token "${s}", is there invalid syntax on this line?',
               SCRIPT_RUNTIME);
           default:
             Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script ${path}#${errLine}: ' + '\n' + 'An unknown error occurred: ${err}', SCRIPT_RUNTIME);
@@ -1382,7 +1382,7 @@ class PolymodScriptClass
 
       if (ref == null)
       {
-        this._interp.error(ECustom("You can only implement an interface"));
+        this._interp.error(ECustom('You can only implement an interface'));
       }
       else
       {
