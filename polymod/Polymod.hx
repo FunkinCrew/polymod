@@ -1126,10 +1126,12 @@ class Polymod
             }
             if (!Polymod.assetLibrary.exists(path))
             {
-              Polymod.error(SCRIPT_NOT_FOUND, 'Could not find file "$textPath"');
+              Polymod.error(SCRIPT_NOT_FOUND, 'Couldn\'t find file "$textPath" (tried libraries ${libraryIds})');
               results.set(path, false);
+              continue;
             }
           }
+
           Polymod.debug('Registering scripted class "$path"');
           var result = polymod.hscript._internal.PolymodScriptClass.registerScriptClassByPath(path);
           results.set(path, result);
