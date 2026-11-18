@@ -1090,13 +1090,13 @@ class PolymodAssetLibrary
       else
       {
         Polymod.error(ASSET_REDIRECT_MISSING_DIRECTORY, 'Failed to load core asset redirect $redirectPath : Directory does not exist!', INIT);
-        throw('ModAssetLibrary.initRedirectPath("$redirectPath") failed: Directory does not exist!');
+        return;
       }
     }
     catch (msg:Dynamic)
     {
       Polymod.error(ASSET_REDIRECT_FAILED, 'Failed to load core asset redirect $redirectPath : $msg', INIT);
-      throw('ModAssetLibrary.initRedirectPath("$redirectPath") failed: $msg');
+      return;
     }
 
     for (f in all)
