@@ -76,6 +76,10 @@ class ScriptRunner
     if (script == null)
     {
       Polymod.error(SCRIPT_NOT_FOUND, 'Could not load script $name for execution.', SCRIPT_RUNTIME);
+      return {
+        script_result: null,
+        script_variables: [],
+      };
     }
     return script.execute();
   }
