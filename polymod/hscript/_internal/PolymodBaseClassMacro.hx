@@ -99,13 +99,16 @@ class PolymodBaseClassMacro
         f.expr = macro @:pos(f.expr.pos)
         {
           var ascChecks:Array<Dynamic> = [o, o._asc];
-          for (asc in ascChecks)
+          if (o._skipAscFrom == null || !o._skipAscFrom.contains(field))
           {
-            if (asc == null || !Std.isOfType(asc, polymod.hscript._internal.PolymodScriptClass)) continue;
-            if (polymod.hscript.PolymodScriptBridge.fieldExists(asc, field, true))
+            for (asc in ascChecks)
             {
-              asc.inBypassAccessor = ($v{fld.name} == 'field');
-              return polymod.hscript.PolymodScriptBridge.fieldRead(asc, field, true);
+              if (asc == null || !Std.isOfType(asc, polymod.hscript._internal.PolymodScriptClass)) continue;
+              if (polymod.hscript.PolymodScriptBridge.fieldExists(asc, field, true))
+              {
+                asc.inBypassAccessor = ($v{fld.name} == 'field');
+                return polymod.hscript.PolymodScriptBridge.fieldRead(asc, field, true);
+              }
             }
           }
 
@@ -117,14 +120,17 @@ class PolymodBaseClassMacro
         f.expr = macro @:pos(f.expr.pos)
         {
           var ascChecks:Array<Dynamic> = [o, o._asc];
-          for (asc in ascChecks)
+          if (o._skipAscFrom == null || !o._skipAscFrom.contains(field))
           {
-            if (asc == null || !Std.isOfType(asc, polymod.hscript._internal.PolymodScriptClass)) continue;
-            if (polymod.hscript.PolymodScriptBridge.fieldExists(asc, field, true))
+            for (asc in ascChecks)
             {
-              asc.inBypassAccessor = ($v{fld.name} == 'setField');
-              polymod.hscript.PolymodScriptBridge.fieldWrite(asc, field, value, true);
-              return;
+              if (asc == null || !Std.isOfType(asc, polymod.hscript._internal.PolymodScriptClass)) continue;
+              if (polymod.hscript.PolymodScriptBridge.fieldExists(asc, field, true))
+              {
+                asc.inBypassAccessor = ($v{fld.name} == 'setField');
+                polymod.hscript.PolymodScriptBridge.fieldWrite(asc, field, value, true);
+                return;
+              }
             }
           }
 
