@@ -5148,7 +5148,7 @@ class Interp
     // Mostly the same with `validateImports` except we don't need to check for using.
     for (path => inter in _scriptInterfaceDescriptors)
     {
-      var moduleFileName:String = haxe.io.Path.withoutDirectory(inter.origin);
+      var moduleFileName:String = haxe.io.Path.withoutDirectory(inter.origin ?? 'hscript');
 
       // Automatically import interfaces classes with the same package or a parent package.
       var interfaceList:Array<String> = [for (key in PolymodScriptClass.interfaceImpls.keys()) key].concat([for (key in _scriptInterfaceDescriptors.keys()) key]);
@@ -5255,7 +5255,7 @@ class Interp
       if (inter.extend.length == 0) continue;
 
       var interfacePath:String = path;
-      var moduleFileName:String = haxe.io.Path.withoutDirectory(inter.origin);
+      var moduleFileName:String = haxe.io.Path.withoutDirectory(inter.origin ?? 'hscript');
 
       for (extend in inter.extend)
       {
@@ -5321,7 +5321,7 @@ class Interp
     for (cls in _scriptClassDescriptors)
     {
       var clsPath = Util.getFullClassName(cls);
-      var moduleFileName:String = haxe.io.Path.withoutDirectory(cls.origin);
+      var moduleFileName:String = haxe.io.Path.withoutDirectory(cls.origin ?? 'hscript');
 
       // Automatically import classes with the same package or a parent package.
       // First scripted classes.
