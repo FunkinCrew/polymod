@@ -275,54 +275,25 @@ class SysZipFileSystem extends SysFileSystem
     var knownDirectory:Null<String> = modMetadataLocations.get(modId);
     if (knownDirectory != null) return knownDirectory;
 
-    // Scan ALL ZIP directories for mod metadata with the matching location.
-    for (dir in fileDirectories)
+    // Rescan any archives that got added since the file system was first built.
+    addAllZips();
+
+    // Scan ALL ZIP directories for mod metadata with the matching location. Includes subdirectories.
+    for (modPath in fileDirectories)
     {
-      var modPath = Util.pathJoin(modRoot, dir);
-      if (exists(modPath))
-      {
-        var meta:ModMetadata = null;
+      // Check for a metadata file within the zipped directory.
+      var modMetadataPath:String = Util.pathJoin(modPath, PolymodConfig.modMetadataFile);
+      if (!exists(modMetadataPath)) continue;
 
-        var metaFile = Util.pathJoin(modPath, PolymodConfig.modMetadataFile);
+      var modMetadata:Null<ModMetadata> = ModMetadata.fromJsonStr(getFileContent(modMetadataPath), origin);
+      if (modMetadata == null) continue;
 
-        if (!exists(metaFile))
-        {
-          continue;
-        }
-        else
-        {
-          var metaText = getFileContent(metaFile);
-          meta = ModMetadata.fromJsonStr(metaText, origin);
-        }
+      var modDir:String = modPath.replace('$modRoot/', '');
+      var id:String = (modMetadata.id != '') ? modMetadata.id : modDir;
 
-        if (meta == null) continue;
+      modMetadataLocations.set(id, modDir);
 
-        // If we found a mod metadata, cache its location for later!
-        modMetadataLocations.set(meta.id, dir);
-
-        if (meta.id != modId && dir != modId) continue;
-        meta.dirName = dir;
-        meta.modPath = modPath;
-
-        var iconFile = getModIconPath(modId, origin);
-
-        if (iconFile != null && exists(iconFile))
-        {
-          var iconBytes:Null<Bytes> = getFileBytes(iconFile);
-
-          if (iconBytes == null)
-          {
-            Polymod.warning(MOD_MISSING_ICON, 'Could not obtain mod icon data from file: $iconFile', origin);
-          }
-          else
-          {
-            meta.icon = iconBytes;
-            meta.iconPath = iconFile;
-          }
-        }
-
-        return dir;
-      }
+      if (id == modId) return modDir;
     }
 
     return super.scanModDirectoriesForId(modId, origin);
@@ -379,6 +350,8 @@ class SysZipFileSystem extends SysFileSystem
 
       // Skip directories.
       if (isDirectory(filePath)) continue;
+      // Skip registered mods.
+      if (zipParsers.exists(filePath)) continue;
 
       // Only process ZIP files.
       for (archiveExt in PolymodConfig.archiveModExt)
