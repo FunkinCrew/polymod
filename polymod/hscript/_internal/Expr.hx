@@ -214,6 +214,12 @@ typedef ModuleType =
   var params:{}; // TODO : not yet parsed
   var meta:Metadata;
   var isPrivate:Bool;
+
+  /**
+   * The path of the script file this type was declared in.
+   * Set when the module is registered by the interpreter, and used in error messages.
+   */
+  var ?origin:String;
 }
 
 /**

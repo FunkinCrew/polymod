@@ -936,7 +936,7 @@ class Interp
   {
     var name = Util.getFullClassName(c);
 
-    if (checkDuplicate(name)) return;
+    if (checkDuplicate(name, c.origin)) return;
 
     Polymod.debug('Registering scripted class $name');
     _scriptClassDescriptors.set(name, c);
@@ -952,7 +952,7 @@ class Interp
       name = i.pkg.join('.') + '.' + i.name;
     }
 
-    if (checkDuplicate(name)) return;
+    if (checkDuplicate(name, i.origin)) return;
 
     Polymod.debug('Registering scripted interface $name');
     _scriptInterfaceDescriptors.set(name, i);
@@ -968,7 +968,7 @@ class Interp
       name = e.pkg.join(".") + "." + name;
     }
 
-    if (checkDuplicate(name)) return;
+    if (checkDuplicate(name, e.origin)) return;
 
     Polymod.debug('Registering scripted enum $name');
     _scriptEnumDescriptors.set(name, e);
@@ -976,7 +976,7 @@ class Interp
     registerDeprecatedFields(name);
   }
 
-  static function checkDuplicate(name:String):Bool
+  static function checkDuplicate(name:String, origin:String = "hscript"):Bool
   {
     var foundType:String = null;
 
@@ -997,7 +997,8 @@ class Interp
     {
       Polymod.error(
         SCRIPTED_CLASS_ALREADY_REGISTERED,
-        'A $foundType with the fully qualified name "$name" has already been defined. Please change the name or the package to ensure uniqueness.',
+        'Could not register ${name} from scripted module ${haxe.io.Path.withoutDirectory(origin)}.'
+          + '\nA $foundType with the fully qualified name "$name" has already been defined. Please change the name or the package to ensure uniqueness.',
         SCRIPT_RUNTIME
       );
       return true;
@@ -1693,7 +1694,7 @@ class Interp
 
           if (assignPrivateStaticSet(fullClassName, f, v)) return v;
         }
-        
+
         v = set(obj, f, v);
       case EArray(e, index):
         var arr:Dynamic = expr(e);
@@ -3362,7 +3363,7 @@ class Interp
           if (ident == '_') return true;
           // Resolve the enum value throws an error if it doesn't exist
           var enumValue = resolve(ident);
-        
+
           return (isScriptEnumValue && PolymodEnum.enumEq(val, enumValue)) || (Reflect.isEnumValue(enumValue) && Type.enumEq(val, enumValue));
         }
 
@@ -4369,7 +4370,7 @@ class Interp
       return untyped o[f];
     }
     #end
-    
+
     // Default behavior
     if (inBypassAccessor)
     {
@@ -4419,7 +4420,9 @@ class Interp
     // Check if the field is a blacklisted static field.
     if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
     {
-      Polymod.error(SCRIPTED_CLASS_BLACKLISTED_FIELD, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
+      var pos:PosInfos = posInfos();
+      Polymod.error(SCRIPTED_CLASS_BLACKLISTED_FIELD, 'Could not set ${oCls}.${f} in scripted module ${haxe.io.Path.withoutDirectory(pos.fileName)} (line ${pos.lineNumber}).'
+        + '\nClass field ${oCls}.${f} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
       return null;
     }
 
@@ -4428,7 +4431,9 @@ class Interp
     {
       if (PolymodScriptClass.blacklistedInstanceFieldsOf(oCls).contains(f))
       {
-        Polymod.error(SCRIPTED_CLASS_BLACKLISTED_FIELD, 'Class field ${oCls}.${f} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
+        var pos:PosInfos = posInfos();
+        Polymod.error(SCRIPTED_CLASS_BLACKLISTED_FIELD, 'Could not set ${oCls}.${f} in scripted module ${haxe.io.Path.withoutDirectory(pos.fileName)} (line ${pos.lineNumber}).'
+          + '\nClass field ${oCls}.${f} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
         return null;
       }
     }
@@ -4539,9 +4544,10 @@ class Interp
     return Std.isOfType(o, HScriptedClass) || (o != null && o._asc != null);
   }
 
-  public function registerModules(module:Array<ModuleDecl>, ?origin:String = "hscript"):Void
+  public function registerModules(module:Array<ModuleDecl>, ?origin:String = 'hscript'):Void
   {
-    var isImportFile:Bool = (new haxe.io.Path(origin).file == "import");
+    var moduleFileName:String = haxe.io.Path.withoutDirectory(origin);
+    var isImportFile:Bool = haxe.io.Path.withoutExtension(moduleFileName) == 'import';
 
     var pkg:Array<String> = null;
     var imports:Map<String, ClassImport> = [];
@@ -4619,12 +4625,14 @@ class Interp
               var existing = imports.get(clsName);
               if (existing == null)
               {
-                Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Scripted class ${clsName} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
+                Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Could not import ${clsName} into scripted module ${moduleFileName}.'
+                  + '\n${clsName} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
                 continue;
               }
               else if (existing.fullPath == path.join('.'))
               {
-                Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Scripted class ${clsName} has already been imported.', SCRIPT_RUNTIME);
+                Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Could not import ${clsName} into scripted module ${moduleFileName}.'
+                  + '\n${clsName} has already been imported.', SCRIPT_RUNTIME);
                 continue;
               }
             }
@@ -4665,7 +4673,8 @@ class Interp
                     {
                       if (PolymodScriptClass.blacklistedStaticFields.get(ref)?.contains(fldName) ?? false)
                       {
-                        Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Static field $fldName from class $clsName is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
+                        Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Could not import static field ${fldName} from ${clsPath} into scripted module ${moduleFileName}.'
+                          + '\nStatic field $fldName is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
                         continue;
                       }
 
@@ -4680,7 +4689,8 @@ class Interp
                     }
                     else if (ref != null)
                     {
-                      Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not import static field "$fldName": field does not exist in class "$clsPath".', SCRIPT_RUNTIME);
+                      Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not import static field ${fldName} from ${clsPath} into scripted module ${moduleFileName}.'
+                        + '\nField ${fldName} does not exist in class "$clsPath".', SCRIPT_RUNTIME);
                       continue;
                     }
                   }
@@ -4688,7 +4698,8 @@ class Interp
                   {
                     Polymod.error(
                       SCRIPTED_CLASS_BLACKLISTED_MODULE,
-                      'Could not import static field "${fldName}" from class ${clsPath}: class is blacklisted.',
+                      'Could not import static field ${fldName} from ${clsPath} into scripted module ${moduleFileName}.'
+                        + '\nField ${fldName} is blacklisted and cannot be used in scripts.',
                       SCRIPT_RUNTIME
                     );
                     continue;
@@ -4701,7 +4712,6 @@ class Interp
                   continue;
                 }
 
-                // Polymod.error(SCRIPT_CLASS_MODULE_NOT_FOUND, 'Could not import class ${importedClass.fullPath}', SCRIPT_RUNTIME);
                 // this could be a scripted class or enum that hasn't been registered yet
                 importsToValidate.set(importedClass.name, importedClass);
                 continue;
@@ -4714,7 +4724,6 @@ class Interp
               continue;
             }
 
-            // Polymod.debug('Imported class ${importedClass.name} from ${importedClass.fullPath}');
             imports.set(importedClass.name, importedClass);
           }
         case DUsing(path):
@@ -4725,12 +4734,14 @@ class Interp
             var existing = usings.get(clsName);
             if (existing == null)
             {
-              Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Scripted class ${clsName} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
+              Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Could not include static extension ${clsName} into scripted module ${moduleFileName}.'
+                + '\n${clsName} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
               continue;
             }
             else if (existing.fullPath == path.join('.'))
             {
-              Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Scripted class ${clsName} has already been used.', SCRIPT_RUNTIME);
+              Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Could not include static extension ${clsName} into scripted module ${moduleFileName}.'
+                + '\n${clsName} has already been used.', SCRIPT_RUNTIME);
               continue;
             }
           }
@@ -4738,7 +4749,7 @@ class Interp
           var importedClass:ClassImport = {
             name: clsName,
             pkg: path.slice(0, path.length - 1),
-            fullPath: path.join("."),
+            fullPath: path.join('.'),
             cls: null,
             enm: null,
             abs: null
@@ -4800,6 +4811,7 @@ class Interp
             isExtern: c.isExtern,
             isFinal: c.isFinal,
             staticFields: staticFields,
+            origin: origin,
           };
           registerScriptClassBlacklist(classDecl);
           registerScriptClass(classDecl);
@@ -4819,6 +4831,7 @@ class Interp
             isExtern: i.isExtern,
             isFinal: i.isFinal,
             fields: i.fields,
+            origin: origin,
           }
           registerScriptInterface(interfaceDecl);
         case DEnum(e):
@@ -4842,6 +4855,7 @@ class Interp
             params: e.params,
             isPrivate: e.isPrivate,
             fields: e.fields,
+            origin: origin,
           };
 
           registerScriptEnum(enumDecl);
@@ -5118,6 +5132,8 @@ class Interp
     // Mostly the same with `validateImports` except we don't need to check for using.
     for (path => inter in _scriptInterfaceDescriptors)
     {
+      var moduleFileName:String = haxe.io.Path.withoutDirectory(inter.origin);
+
       // Automatically import interfaces classes with the same package or a parent package.
       var interfaceList:Array<String> = [for (key in PolymodScriptClass.interfaceImpls.keys()) key].concat([for (key in _scriptInterfaceDescriptors.keys()) key]);
       for (fullInterfacePath in interfaceList)
@@ -5182,7 +5198,7 @@ class Interp
         {
           if (imp.wildcard)
           {
-            for (name => clsImport in importWildcard(inter.imports, imp))
+            for (name => clsImport in importWildcard(inter.imports, imp, moduleFileName))
             {
               if (!inter.imports.exists(name) || inter.imports.get(name)?.isDefault) inter.imports.set(name, clsImport);
             }
@@ -5197,7 +5213,7 @@ class Interp
       {
         if (imp.wildcard)
         {
-          for (name => clsImport in importWildcard(inter.imports, imp))
+          for (name => clsImport in importWildcard(inter.imports, imp, moduleFileName))
           {
             inter.imports.set(name, clsImport);
           }
@@ -5211,7 +5227,8 @@ class Interp
           continue;
         }
 
-        Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not import ${imp.fullPath}. Check to ensure the module exists and is spelled correctly.', SCRIPT_RUNTIME);
+        Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not import ${imp.fullPath} into scripted module ${moduleFileName}.'
+          + '\nCheck to ensure the module exists and is spelled correctly.', SCRIPT_RUNTIME);
       }
     }
 
@@ -5222,6 +5239,7 @@ class Interp
       if (inter.extend.length == 0) continue;
 
       var interfacePath:String = path;
+      var moduleFileName:String = haxe.io.Path.withoutDirectory(inter.origin);
 
       for (extend in inter.extend)
       {
@@ -5242,7 +5260,8 @@ class Interp
           {
             Polymod.error(
             SCRIPTED_CLASS_UNRESOLVED_IMPORT,
-            'Cannot extend Interface "${superClassPath}" Check to ensure it exists and is spelled correctly.',
+            'Could not extend interface ${superClassPath} in scripted module ${moduleFileName}.'
+              + '\nCheck to ensure it exists and is spelled correctly.',
             SCRIPT_RUNTIME
             );
             _scriptInterfaceDescriptors.remove(interfacePath);
@@ -5253,7 +5272,8 @@ class Interp
           {
             Polymod.error(
               SCRIPTED_CLASS_UNRESOLVED_IMPORT,
-              'Cannot extend final interface "${superClassPath}".',
+              'Could not extend interface ${superClassPath} in scripted module ${moduleFileName}.'
+                + '\n${superClassPath} is final and cannot be extended.',
               SCRIPT_RUNTIME
             );
             _scriptInterfaceDescriptors.remove(interfacePath);
@@ -5285,6 +5305,7 @@ class Interp
     for (cls in _scriptClassDescriptors)
     {
       var clsPath = Util.getFullClassName(cls);
+      var moduleFileName:String = haxe.io.Path.withoutDirectory(cls.origin);
 
       // Automatically import classes with the same package or a parent package.
       // First scripted classes.
@@ -5353,7 +5374,7 @@ class Interp
         {
           if (imp.wildcard)
           {
-            for (name => clsImport in importWildcard(cls.imports, imp))
+            for (name => clsImport in importWildcard(cls.imports, imp, moduleFileName))
             {
               if (!cls.imports.exists(name) || cls.imports.get(name)?.isDefault) cls.imports.set(name, clsImport);
             }
@@ -5367,7 +5388,7 @@ class Interp
       {
         if (!pkg.startsWith(key) && key.length != 0) continue;
 
-        for (use in uses) 
+        for (use in uses)
         {
           if (!cls.usings.exists(use.name) || cls.usings.get(use.name)?.isDefault) cls.usings.set(use.name, use);
         }
@@ -5378,7 +5399,7 @@ class Interp
       {
         if (imp.wildcard)
         {
-          for (name => clsImport in importWildcard(cls.imports, imp))
+          for (name => clsImport in importWildcard(cls.imports, imp, moduleFileName))
           {
             cls.imports.set(name, clsImport);
           }
@@ -5413,7 +5434,8 @@ class Interp
             {
               Polymod.error(
                 SCRIPTED_CLASS_BLACKLISTED_MODULE,
-                'Could not import static field ${fldName} from scripted class ${clsPath}: scripted class is blacklisted.',
+                'Could not import static field ${fldName} from ${clsPath} into scripted module ${moduleFileName}.'
+                  + '\nScripted class ${clsPath} is blacklisted and cannot be used in scripts.',
                 SCRIPT_RUNTIME
               );
               continue;
@@ -5424,7 +5446,8 @@ class Interp
               {
                 Polymod.error(
                   SCRIPTED_CLASS_BLACKLISTED_MODULE,
-                  'Could not import static field ${fldName} from scripted class ${clsPath}: field is blacklisted.',
+                  'Could not import static field ${fldName} from ${clsPath} into scripted module ${moduleFileName}.'
+                    + '\nStatic field ${fldName} is blacklisted and cannot be used in scripts.',
                   SCRIPT_RUNTIME
                 );
                 continue;
@@ -5439,7 +5462,8 @@ class Interp
               {
                 Polymod.error(
                   SCRIPTED_CLASS_UNRESOLVED_IMPORT,
-                  'Could not import static field ${fldName}: field does not exist in scripted class ${clsPath}.',
+                  'Could not import static field ${fldName} from ${clsPath} into scripted module ${moduleFileName}.'
+                    + '\nField ${fldName} does not exist in scripted class ${clsPath}.',
                   SCRIPT_RUNTIME
                 );
                 continue;
@@ -5463,14 +5487,16 @@ class Interp
 
             Polymod.error(
               SCRIPTED_CLASS_UNRESOLVED_IMPORT,
-              'Could not import field ${fldName}: field does not exist in scripted enum ${clsPath}.',
+              'Could not import field ${fldName} from ${clsPath} into scripted module ${moduleFileName}.'
+                + '\nField ${fldName} does not exist in scripted enum ${clsPath}.',
               SCRIPT_RUNTIME
             );
             continue;
           }
         }
 
-        Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not import ${imp.fullPath}. Check to ensure the module exists and is spelled correctly.', SCRIPT_RUNTIME);
+        Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not import ${imp.fullPath} into scripted module ${moduleFileName}.'
+          + '\nCheck to ensure the module exists and is spelled correctly.', SCRIPT_RUNTIME);
       }
 
       // Add the scripted usings.
@@ -5484,7 +5510,8 @@ class Interp
 
         Polymod.error(
           SCRIPTED_CLASS_UNRESOLVED_IMPORT,
-          'Could not use ${use.fullPath}. Check to ensure the module exists and is spelled correctly.',
+          'Could not include static extension ${use.fullPath} into scripted module ${moduleFileName}.'
+            + '\nCheck to ensure the module exists and is spelled correctly.',
           SCRIPT_RUNTIME
         );
       }
@@ -5518,7 +5545,8 @@ class Interp
       {
         Polymod.error(
           SCRIPTED_CLASS_BLACKLISTED_MODULE,
-          'Could not extend ${superClassPath}: class is blacklisted.',
+          'Could not extend ${superClassPath} in scripted module ${moduleFileName}.'
+            + '\n${superClassPath} is blacklisted and cannot be used in scripts.',
           SCRIPT_RUNTIME
         );
         continue;
@@ -5529,7 +5557,8 @@ class Interp
       {
         Polymod.error(
           SCRIPTED_CLASS_UNRESOLVED_IMPORT,
-          'Class ${cls.name} cannot extend interface ${superClassPath}. Use "implements" instead of "extends".',
+          'Could not extend ${superClassPath} in scripted module ${moduleFileName}.'
+            + '\nClass ${cls.name} cannot extend interface ${superClassPath}. Use "implements" instead of "extends".',
           SCRIPT_RUNTIME
         );
         removeClass();
@@ -5540,7 +5569,8 @@ class Interp
       {
         Polymod.error(
           SCRIPTED_CLASS_BLACKLISTED_MODULE,
-          'Could not extend ${superClassPath}: class is blacklisted.',
+          'Could not extend ${superClassPath} in scripted module ${moduleFileName}.'
+            + '\n${superClassPath} is blacklisted and cannot be used in scripts.',
           SCRIPT_RUNTIME
         );
         removeClass();
@@ -5549,7 +5579,8 @@ class Interp
       {
         Polymod.error(
           SCRIPTED_CLASS_BLACKLISTED_MODULE,
-          'Could not extend ${superClassPath}: scripted class is blacklisted.',
+          'Could not extend ${superClassPath} in scripted module ${moduleFileName}.'
+            + '\nScripted class ${superClassPath} is blacklisted and cannot be used in scripts.',
           SCRIPT_RUNTIME
         );
         removeClass();
@@ -5558,7 +5589,8 @@ class Interp
       {
         Polymod.error(
           SCRIPTED_CLASS_UNRESOLVED_IMPORT,
-          'Cannot extend final class "${superClassPath}".',
+          'Could not extend ${superClassPath} in scripted module ${moduleFileName}.'
+            + '\n${superClassPath} is final and cannot be extended.',
           SCRIPT_RUNTIME
         );
         removeClass();
@@ -5568,7 +5600,8 @@ class Interp
         // superClass is not a class or does not exists at all
         Polymod.error(
           SCRIPTED_CLASS_UNRESOLVED_IMPORT,
-          'Could not extend ${superClassPath}. Make sure the module to extend ${superClassPath.indexOf('.') != -1 ? "is a valid path" : "has been imported"} and is spelled correctly.',
+          'Could not extend ${superClassPath} in scripted module ${moduleFileName}.'
+            + '\nMake sure the module to extend ${superClassPath.indexOf('.') != -1 ? "is a valid path" : "has been imported"} and is spelled correctly.',
           SCRIPT_RUNTIME
         );
         removeClass();
@@ -5591,7 +5624,7 @@ class Interp
     validateInterfaceImports();
   }
 
-  static function importWildcard(importList:Map<String, ClassImport>, wildcardImport:ClassImport):Map<String, ClassImport>
+  static function importWildcard(importList:Map<String, ClassImport>, wildcardImport:ClassImport, moduleFileName:String):Map<String, ClassImport>
   {
     var pack:String = wildcardImport.fullPath;
     var classesToImport:Array<String> = [];
@@ -5621,7 +5654,8 @@ class Interp
         {
           if (PolymodScriptClass.blacklistedScriptClasses.contains(classImport.fullPath))
           {
-            Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Could not import static fields: Scripted class "${classImport.fullPath}" is blacklisted.', SCRIPT_RUNTIME);
+            Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Could not import ${pack}.* into scripted module ${moduleFileName}.'
+              + '\nScripted class ${classImport.fullPath} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
             return [];
           }
 
@@ -5635,8 +5669,8 @@ class Interp
             // Check to make sure this isn't a blacklisted field.
             if (PolymodScriptClass.blacklistedScriptClassStaticFields.get(classImport.fullPath)?.contains(fld.name) ?? false)
             {
-              Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT,
-                'Scripted enum field "${fld.name}" has already been imported.\nThis import from "${classImport.pkg.join('.')}" will now overwrite it!', SCRIPT_RUNTIME);
+              Polymod.warning(SCRIPTED_CLASS_BLACKLISTED_FIELD, 'Could not import static field ${fld.name} from ${pack}.* into scripted module ${moduleFileName}.'
+                + '\nStatic field ${fld.name} of scripted class ${classImport.fullPath} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
               continue;
             }
 
@@ -5651,7 +5685,7 @@ class Interp
             if (importList.exists(fld.name))
             {
               Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT,
-                'Scripted enum field "${fld.name}" has already been imported.\nThis import from "${classImport.pkg.join('.')}" will now overwrite it!', SCRIPT_RUNTIME);
+                'Scripted enum field "${fld.name}" has already been imported in scripted module ${moduleFileName}.\nThis import from "${classImport.pkg.join('.')}" will now overwrite it!', SCRIPT_RUNTIME);
             }
             validImports.set(fld.name, fieldImport);
           }
@@ -5672,14 +5706,15 @@ class Interp
             if (importList.exists(fld.name))
             {
               Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT,
-                'Scripted enum field "${fld.name}" has already been imported.\nThis import from "${classImport.pkg.join('.')}" will now overwrite it!', SCRIPT_RUNTIME);
+                'Scripted enum field "${fld.name}" has already been imported in scripted module ${moduleFileName}.\nThis import from "${classImport.pkg.join('.')}" will now overwrite it!', SCRIPT_RUNTIME);
             }
             validImports.set(fld.name, fieldImport);
           }
         }
         else
         {
-          Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not find any classes or fields to import in "${pack}".', SCRIPT_RUNTIME);
+          Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not import ${pack}.* into scripted module ${moduleFileName}.'
+            + '\nCould not find any classes or fields to import in "${pack}".', SCRIPT_RUNTIME);
           return [];
         }
       }
@@ -5722,14 +5757,15 @@ class Interp
             if (importList.exists(fieldName))
             {
               Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT,
-                '${ref is Enum ? 'Enum' : 'Class'} field "${fieldName}" has already been imported.\nThis import from "${classImport.pkg.join('.')}" will now overwrite it!', SCRIPT_RUNTIME);
+                '${ref is Enum ? 'Enum' : 'Class'} field "${fieldName}" has already been imported in scripted module ${moduleFileName}.\nThis import from "${classImport.pkg.join('.')}" will now overwrite it!', SCRIPT_RUNTIME);
             }
             validImports.set(fieldName, fieldImport);
           }
         }
         else
         {
-          Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Could not import static fields: "${classImport.fullPath}" is blacklisted.', SCRIPT_RUNTIME);
+          Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Could not import ${pack}.* into scripted module ${moduleFileName}.'
+            + '\n${classImport.fullPath} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
         }
       }
     }
@@ -5742,11 +5778,13 @@ class Interp
         {
           if (importList.get(name) == null)
           {
-            Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Scripted class ${name} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
+            Polymod.error(SCRIPTED_CLASS_BLACKLISTED_MODULE, 'Could not import ${clsName} into scripted module ${moduleFileName}.'
+              + '\n${name} is blacklisted and cannot be used in scripts.', SCRIPT_RUNTIME);
           }
           else
           {
-            Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Scripted class ${name} has already been imported.', SCRIPT_RUNTIME);
+            Polymod.warning(SCRIPTED_CLASS_REDUNDANT_IMPORT, 'Could not import ${clsName} into scripted module ${moduleFileName}.'
+              + '\n${name} has already been imported.', SCRIPT_RUNTIME);
           }
           continue;
         }
@@ -5813,8 +5851,10 @@ class Interp
       return;
 
     var message:String = _deprecatedTypes.get(cls);
+    var pos:PosInfos = posInfos();
 
-    Polymod.warning(SCRIPTED_CLASS_FIELD_DEPRECATED, 'Type $cls is deprecated\n$message', SCRIPT_RUNTIME);
+    Polymod.warning(SCRIPTED_CLASS_FIELD_DEPRECATED,
+      'Type $cls is deprecated (used in scripted module ${haxe.io.Path.withoutDirectory(pos.fileName)}, line ${pos.lineNumber})\n$message', SCRIPT_RUNTIME);
 
     _cachedDeprecatedTypes.push(cls);
   }
@@ -5834,8 +5874,10 @@ class Interp
       return;
 
     var message:String = _deprecatedFields.get(cls).get(f);
+    var pos:PosInfos = posInfos();
 
-    Polymod.warning(SCRIPTED_CLASS_FIELD_DEPRECATED, 'Field $f is deprecated\n$message', SCRIPT_RUNTIME);
+    Polymod.warning(SCRIPTED_CLASS_FIELD_DEPRECATED,
+      'Field $f is deprecated (used in scripted module ${haxe.io.Path.withoutDirectory(pos.fileName)}, line ${pos.lineNumber})\n$message', SCRIPT_RUNTIME);
 
     var fields = _cachedDeprecatedFields.get(cls) ?? [];
     fields.push(f);
@@ -5994,7 +6036,7 @@ class Interp
       return cppiaCls != null && Type.getClassFields(cppiaCls).contains(fieldName);
     }
     #end
-    
+
     return getScriptClassStaticFieldDecl(clsName, fieldName) != null;
   }
 
@@ -6079,7 +6121,7 @@ class Interp
                     throw 'Could not resolve getter for property ${prefixedName}';
                   }
                 }
-                
+
               case 'default':
                 // Fallback like a normal variable.
 

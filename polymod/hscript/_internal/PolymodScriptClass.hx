@@ -269,7 +269,7 @@ class PolymodScriptClass
    */
   static function registerScriptClassByString(body:String, ?path:String):Void
   {
-    scriptInterp.addModule(body, path == null ? 'hscriptClass' : 'hscriptClass($path)');
+    scriptInterp.addModule(body, path ?? 'hscriptClass');
   }
 
   /**
@@ -708,7 +708,7 @@ class PolymodScriptClass
         var resolvedClass = importOverrides.get(fullSuperClsName) ?? typedefs.get(fullSuperClsName) ?? Type.resolveClass(fullSuperClsName);
 
         var resolvedClassName = resolvedClass != null ? Type.getClassName(resolvedClass) : '';
-        
+
         if (#if POLYMOD_WHITE_LIST (#if POLYMOD_CPPIA PolymodCppiaClassReference.hasCppiaClass(resolvedClassName) || #end
           !importWhitelist.contains(resolvedClassName)) || #end (importOverrides.exists(resolvedClassName) && importOverrides.get(resolvedClassName) == null))
         {

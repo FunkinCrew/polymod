@@ -1377,7 +1377,7 @@ class Polymod
     }
   }
   #end
-  
+
   /**
    * When a scripted class define an import, you can blacklist it from being imported.
    * @param importPath The full import path to blacklist, as a string.
@@ -1389,6 +1389,8 @@ class Polymod
     var cls = Type.resolveClass(importPath);
     if (cls != null)
     {
+      // cls will be null if importPath points at a typedef or something similar.
+
       var instanceFields:Array<String> = Type.getInstanceFields(cls);
       var staticFields:Array<String> = Type.getClassFields(cls);
 
