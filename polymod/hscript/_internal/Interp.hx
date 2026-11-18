@@ -711,7 +711,7 @@ class Interp
 
       if (args.length < 1)
       {
-        error(EInvalidArgCount(" for function 'scriptInit'", 1, args.length));
+        error(EInvalidArgCount('scriptInit', 1, args.length));
       }
 
       var clsToInit:String = Std.string(args.shift());
@@ -5924,17 +5924,10 @@ class Interp
       if (!p.opt && p.value == null) minParams = i + 1;
     }
 
-    final funcName:String = (name != null) ? " for function '" + name + "'" : "";
     if (args.length < minParams)
     {
-      error(EInvalidArgCount(funcName, minParams, args.length));
+      error(EInvalidArgCount(name, minParams, args.length));
     }
-    //    else if (args.length > maxAllowed)
-    //    {
-    //      // Manual return for `new` as parameter count shouldn't matter here
-    //      if (name == "new") return;
-    //      error(EExceedArgsCount(funcName, maxAllowed, args.length));
-    //    }
   }
 
   function validateAssignment(expr:Null<Expr>)

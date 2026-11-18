@@ -1125,8 +1125,7 @@ class PolymodScriptClass
           if (superHasField(f.name))
           {
             // Throw an error if the script class has an instance field with the same name as one from the super class.
-            _interp.error(EDuplicateField(f.name));
-            return;
+            _interp.error(EDuplicateField(f.name, true));
           }
         case KFunction(fn):
           // Look up the function in the superclasses.
@@ -1135,8 +1134,7 @@ class PolymodScriptClass
           if (superHasField(f.name) && func == null)
           {
             // Throw an error if a function redefines a superclass variable.
-            _interp.error(EDuplicateField(f.name));
-            return;
+            _interp.error(EDuplicateField(f.name, true));
           }
 
           #if POLYMOD_STRICT_SYNTAX
@@ -1147,31 +1145,13 @@ class PolymodScriptClass
 
             // Throw an error if a function is declared overwritten but isn't overriding anything.
             _interp.error(EInvalidOverride(f.name, false));
-            return;
           }
           else if (!f.access.contains(AOverride) && func != null)
           {
             if (f.name == 'new') continue;
 
-            var superClassPackage:String = '';
-            if (superClass is PolymodScriptClass)
-            {
-              superClassPackage = Util.getFullClassName((cast superClass : PolymodScriptClass)._c);
-            }
-            else
-            {
-              superClassPackage = Util.getTypeNameOf(superClass);
-            }
-
             // Throw an error if a function is overriden but doesn't have the override accessor.
             _interp.error(EInvalidOverride(f.name, true));
-            return;
-          }
-          else if (f.access.contains(AOverride) && superClass == null)
-          {
-            // Throw an error if the override accessor is used with no super class.
-            _interp.error(EInvalidOverride(f.name, false));
-            return;
           }
           else if (fn.isdynamic && func != null)
           {
@@ -1192,12 +1172,12 @@ class PolymodScriptClass
               }
               catch (e:Dynamic)
               {
-                _interp.error(EInvalidAssignFunction(f.name));
+                _interp.error(EInvalidOverrideDynamic(f.name));
               }
             }
             else if (func.isdynamic != null && !func.isdynamic) // If it's a script FunctionDecl, check its explicit 'isdynamic' flag.
             {
-              _interp.error(EInvalidAssignFunction(f.name));
+              _interp.error(EInvalidOverrideDynamic(f.name));
             }
           }
           #end
