@@ -578,8 +578,8 @@ class PolymodScriptClass
       else
       {
         Polymod.error(SCRIPT_PARSE_FAILED, 'Error while parsing script ${path}: ' + '\n' + 'An unknown error occurred: ${err}', SCRIPT_RUNTIME);
-        promise.error(err);
       }
+      promise.error(err);
     });
     // Await the promise
     return promise.future;
