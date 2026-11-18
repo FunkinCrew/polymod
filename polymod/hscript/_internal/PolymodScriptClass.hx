@@ -1214,14 +1214,8 @@ class PolymodScriptClass
 
   public static function reportError(err:Expr.Error, ?className:String, ?fnName:String):Void
   {
-    var errLine:String = #if hscriptPos '${err.line}' #else "???" #end;
-    var message:String = switch (#if hscriptPos err.e #else err #end)
-    {
-      case ECustom(msg):
-        'An unknown error occurred: $msg';
-      default:
-        Printer.errorToString(err, false);
-    }
+    var errLine:String = #if hscriptPos '${err.line}' #else '???' #end;
+    var message:String = Printer.errorToString(err, false);
 
     className ??= '???';
     fnName ??= '(anonymous)';
@@ -1448,7 +1442,7 @@ class PolymodScriptClass
       var errors:Array<String> = interfaceRef.trySatisfy(_c, satisfiedList);
       if (errors.length > 0)
       {
-        throw errors.join('\n');
+        this._interp.error(ECustom(errors.join('\n')));
       }
       satisfiedList.push(interfaceRef);
     }

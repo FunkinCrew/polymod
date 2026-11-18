@@ -250,7 +250,11 @@ class Interp
         {
           return abs.instantiate(args);
         }
-        catch (e)
+        catch (e:Error)
+        {
+          throw e;
+        }
+        catch (e:Dynamic)
         {
           error(EInvalidModule(importedClass.fullPath));
         }
@@ -279,7 +283,11 @@ class Interp
         {
           return ref.instantiate(args);
         }
-        catch (e)
+        catch (e:Error)
+        {
+          throw e;
+        }
+        catch (e:Dynamic)
         {
           error(EInvalidModule(cl));
         }
@@ -1972,9 +1980,9 @@ class Interp
       switch (e)
       {
         case SBreak:
-          throw "Invalid break";
+          error(ECustom('Invalid break'));
         case SContinue:
-          throw "Invalid continue";
+          error(ECustom('Invalid continue'));
         case SReturn:
           var v = returnValue;
           returnValue = null;
@@ -4455,6 +4463,10 @@ class Interp
       {
         return ref.setField(f, v);
       }
+      catch (e:Error)
+      {
+        throw e;
+      }
       catch (e:Dynamic)
       {
         error(EInvalidAccess(f));
@@ -4467,6 +4479,10 @@ class Interp
       try
       {
         return ref.setField(f, v, inBypassAccessor);
+      }
+      catch (e:Error)
+      {
+        throw e;
       }
       catch (e:Dynamic)
       {
@@ -6142,11 +6158,13 @@ class Interp
           }
           else
           {
-            throw 'Could not resolve field declaration for ${prefixedName}';
+            error(ECustom('Could not resolve field declaration for ${prefixedName}'));
+            return null;
           }
 
         default:
-          throw 'Could not resolve field kind for ${prefixedName}';
+          error(ECustom('Could not resolve field kind for ${prefixedName}'));
+          return null;
       }
     }
     else
