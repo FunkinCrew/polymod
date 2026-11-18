@@ -299,9 +299,11 @@ class Polymod
               'Mod "${modId}" was built for incompatible API version ${meta.apiVersion.toString()}, expected "${params.apiVersionRule.toString()}"',
               INIT
             );
+            // Don't load incompatible mods.
+            continue;
           }
 
-          // API version matches
+          // API version matches, load compatible mods.
           modsToLoad.push(meta);
         }
       }
