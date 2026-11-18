@@ -422,7 +422,7 @@ class Interp
     var oScriptCls:Null<String> = Util.getScriptClassName(o);
     if (isBlacklistedScriptField(oScriptCls, f))
     {
-      error(EBlacklistedField(f));
+      error(EBlacklistedField(f, oScriptCls));
       return null;
     }
 
@@ -4238,7 +4238,7 @@ class Interp
     // Check if the field is a blacklisted static field.
     if (PolymodScriptClass.blacklistedStaticFields.exists(o) && PolymodScriptClass.blacklistedStaticFields.get(o).contains(f))
     {
-      error(EBlacklistedField(f));
+      error(EBlacklistedField(f, oCls));
       return null;
     }
 
@@ -4246,7 +4246,7 @@ class Interp
     var oScriptCls:Null<String> = Util.getScriptClassName(o);
     if (isBlacklistedScriptField(oScriptCls, f))
     {
-      error(EBlacklistedField(f));
+      error(EBlacklistedField(f, oScriptCls));
       return null;
     }
 
@@ -4258,7 +4258,7 @@ class Interp
     {
       if (PolymodScriptClass.blacklistedInstanceFieldsOf(oCls).contains(f))
       {
-        error(EBlacklistedField(f));
+        error(EBlacklistedField(f, oCls));
         return null;
       }
     }
@@ -4442,7 +4442,7 @@ class Interp
     var oScriptCls:Null<String> = Util.getScriptClassName(o);
     if (isBlacklistedScriptField(oScriptCls, f))
     {
-      error(EBlacklistedField(f));
+      error(EBlacklistedField(f, oScriptCls));
       return null;
     }
 

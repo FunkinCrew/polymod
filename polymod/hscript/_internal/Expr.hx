@@ -166,7 +166,7 @@ enum Error
   EPrivateField(f:String);
   EInvalidModule(m:String);
   EBlacklistedModule(m:String);
-  EBlacklistedField(f:String);
+  EBlacklistedField(f:String, cls:String); // `cls` is the type of the object the field was accessed on
   EPurgedFunction(f:String); // Function can't be called because it previously threw an uncaught exception
   EInvalidArgCount(f:String, expected:Int, given:Int); // Given arguments count don't match the minimum required parameters
   EExceedArgsCount(f:String, allowed:Int, passed:Int); // Provided arguments exceed the maximum allowed parameter count

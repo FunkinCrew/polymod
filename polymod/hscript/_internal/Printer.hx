@@ -747,7 +747,7 @@ class Printer
       case EPrivateField(f): 'Cannot access private field "$f".';
       case EInvalidModule(m): 'Invalid module "$m".';
       case EBlacklistedModule(m): 'Blacklisted module "$m".';
-      case EBlacklistedField(m): 'Blacklisted field "$m".';
+      case EBlacklistedField(m, cls): 'Blacklisted field "$m" of class "$cls".';
       case EInvalidArgCount(f, expected, given): 'Provided arguments are fewer than the required function parameters. Got $given, required $expected' + f;
       case EExceedArgsCount(f, allowed, passed): 'Provided arguments exceeds the allowed function parameter count. Passed $passed, allowed $allowed' + f;
       case EPurgedFunction(f): 'Invalid access to purged function "$f", did it throw an uncaught exception earlier?';
