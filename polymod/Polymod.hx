@@ -1387,11 +1387,14 @@ class Polymod
     addImportAlias(importPath, null);
 
     var cls = Type.resolveClass(importPath);
-    var instanceFields:Array<String> = Type.getInstanceFields(cls);
-    var staticFields:Array<String> = Type.getClassFields(cls);
+    if (cls != null)
+    {
+      var instanceFields:Array<String> = Type.getInstanceFields(cls);
+      var staticFields:Array<String> = Type.getClassFields(cls);
 
-    blacklistInstanceFields(cls, instanceFields);
-    blacklistStaticFields(cls, staticFields);
+      blacklistInstanceFields(cls, instanceFields);
+      blacklistStaticFields(cls, staticFields);
+    }
   }
 
   /**
