@@ -35,7 +35,7 @@ class PolymodScriptBridge
    */
   public static function findOverride(asc:Dynamic, skipAscFrom:Null<Array<String>>, funcName:String):Dynamic
   {
-    if (skipAscFrom != null && skipAscFrom.contains(funcName)) return null;
+    if (skipAscFrom != null && skipAscFrom.indexOf(funcName) != -1) return null;
 
     return findScript(asc, funcName);
   }
