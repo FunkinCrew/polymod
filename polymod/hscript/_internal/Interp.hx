@@ -847,6 +847,14 @@ class Interp
     }
   }
 
+  /**
+   * Whether the given name is a valid type name (starts with an uppercase letter).
+   */
+  static inline function isTypeName(name:String):Bool
+  {
+    var c:Null<Int> = name.charCodeAt(0);
+    return c != null && c >= 'A'.code && c <= 'Z'.code;
+  }
 
   /**
    * Given a class declaration, fetches all fields with the `@:unreflective` metadata and adds it to the script class blacklist.
@@ -1695,7 +1703,7 @@ class Interp
 
           if (assignPrivateStaticSet(fullClassName, f, v)) return v;
         }
-        
+
         v = set(obj, f, v);
       case EArray(e, index):
         var arr:Dynamic = expr(e);
@@ -4682,6 +4690,11 @@ class Interp
                     }
                     else if (ref != null)
                     {
+                      if (_scriptTypedefs.exists(importedClass.fullPath) || isTypeName(fldName))
+                      {
+                        importsToValidate.set(importedClass.name, importedClass);
+                        continue;
+                      }
                       Polymod.error(SCRIPTED_CLASS_UNRESOLVED_IMPORT, 'Could not import static field "$fldName": field does not exist in class "$clsPath".', SCRIPT_RUNTIME);
                       continue;
                     }
@@ -6005,7 +6018,7 @@ class Interp
       return cppiaCls != null && Type.getClassFields(cppiaCls).contains(fieldName);
     }
     #end
-    
+
     return getScriptClassStaticFieldDecl(clsName, fieldName) != null;
   }
 
