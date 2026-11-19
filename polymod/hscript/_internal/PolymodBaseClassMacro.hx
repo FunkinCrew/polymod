@@ -99,7 +99,8 @@ class PolymodBaseClassMacro
         f.expr = macro @:pos(f.expr.pos)
         {
           var ascChecks:Array<Dynamic> = [o, o._asc];
-          if (o._skipAscFrom == null || !o._skipAscFrom.contains(field))
+          var skipAscFrom:Null<Array<String>> = o._skipAscFrom;
+          if (skipAscFrom == null || !skipAscFrom.contains(field))
           {
             for (asc in ascChecks)
             {
@@ -120,7 +121,8 @@ class PolymodBaseClassMacro
         f.expr = macro @:pos(f.expr.pos)
         {
           var ascChecks:Array<Dynamic> = [o, o._asc];
-          if (o._skipAscFrom == null || !o._skipAscFrom.contains(field))
+          var skipAscFrom:Null<Array<String>> = o._skipAscFrom;
+          if (skipAscFrom == null || !skipAscFrom.contains(field))
           {
             for (asc in ascChecks)
             {
