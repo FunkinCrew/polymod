@@ -84,6 +84,8 @@ class PolymodBaseClassMacro
         fld.access?.remove(AInline);
         f.expr = macro @:pos(f.expr.pos)
         {
+          if (o == null) return false;
+
           var ascChecks:Array<Dynamic> = [o, o._asc];
           for (asc in ascChecks)
           {
@@ -98,6 +100,8 @@ class PolymodBaseClassMacro
         fld.access?.remove(AInline);
         f.expr = macro @:pos(f.expr.pos)
         {
+          if (o == null) return null;
+
           var ascChecks:Array<Dynamic> = [o, o._asc];
           if (o._skipAscFrom == null || !o._skipAscFrom.contains(field))
           {
@@ -119,6 +123,8 @@ class PolymodBaseClassMacro
         fld.access?.remove(AInline);
         f.expr = macro @:pos(f.expr.pos)
         {
+          if (o == null) return;
+
           var ascChecks:Array<Dynamic> = [o, o._asc];
           if (o._skipAscFrom == null || !o._skipAscFrom.contains(field))
           {
