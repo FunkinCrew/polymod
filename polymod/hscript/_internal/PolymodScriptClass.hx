@@ -748,9 +748,9 @@ class PolymodScriptClass
     }
   }
 
-  public static function callScriptClassStaticFunction(clsName:String, funcName:String, args:Array<Dynamic> = null):Dynamic
+  public static function callScriptClassStaticFunction(clsName:String, funcName:String, args:Array<Dynamic> = null, rethrow:Bool = false):Dynamic
   {
-    return scriptInterp.callScriptClassStaticFunction(clsName, funcName, args);
+    return scriptInterp.callScriptClassStaticFunction(clsName, funcName, args, rethrow);
   }
 
   public static function hasScriptClassStaticField(clsName:String, funcName:String):Bool

@@ -693,9 +693,10 @@ class Interp
    * @param clsName The full classpath of the scripted class.
    * @param fnName The name of the function to call.
    * @param args The arguments to pass to the function.
+   * @param rethrow If true, an error thrown by the function is passed on to the caller instead of being reported here.
    * @return The return value of the function.
    */
-  public function callScriptClassStaticFunction(clsName:String, fnName:String, args:Array<Dynamic> = null):Null<Dynamic>
+  public function callScriptClassStaticFunction(clsName:String, fnName:String, args:Array<Dynamic> = null, rethrow:Bool = false):Null<Dynamic>
   {
     // For functions listScriptClasses and scriptInit, we want to return the needed values without much checking.
     if (fnName == "listScriptClasses")
@@ -816,16 +817,20 @@ class Interp
       }
       catch (err:Expr.Error)
       {
+        this._classDeclOverride = previousClassDecl;
+        if (rethrow) throw err;
+
         PolymodScriptClass.reportError(err, clsName, fnName);
         // A script error occurred while executing the script function.
         // Purge the function from the cache so it is not called again.
         // purgeStaticFunction(clsName, fnName);
-
-        this._classDeclOverride = previousClassDecl;
         return null;
       }
       catch (error)
       {
+        this._classDeclOverride = previousClassDecl;
+        if (rethrow) throw error;
+
         var callStack:String = polymod.util.Util.fetchCallStack();
 
         Polymod.error(
@@ -833,8 +838,6 @@ class Interp
           'An uncaught exception was thrown while calling scripted static function "$clsName#$fnName()":\n$error\n$callStack',
           SCRIPT_RUNTIME
         );
-
-        this._classDeclOverride = previousClassDecl;
         return null;
       }
 

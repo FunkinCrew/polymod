@@ -181,7 +181,7 @@ class Patches
   static function scriptCallback(clsName:String, funcName:String):PatchState->Void
   {
     return function(state:PatchState):Void {
-      polymod.hscript._internal.PolymodScriptClass.callScriptClassStaticFunction(clsName, funcName, [state]);
+      polymod.hscript._internal.PolymodScriptClass.callScriptClassStaticFunction(clsName, funcName, [state], true);
     };
   }
 
@@ -281,9 +281,24 @@ class Patches
       catch (e:Dynamic)
       {
         entry.enabled = false;
-        Polymod.error(SCRIPT_PATCH, 'The $kind from mod "${entry.owner}" on ${slot.className}.${slot.field} threw and was disabled: $e', SCRIPT_RUNTIME);
+        Polymod.error(SCRIPT_PATCH,
+          'The $kind from mod "${entry.owner}" on ${slot.className}.${slot.field} threw an error and was disabled until mods are reloaded:\n${describeError(e)}',
+          SCRIPT_RUNTIME);
       }
     }
+  }
+
+  static function describeError(e:Dynamic):String
+  {
+    if (Std.isOfType(e, haxe.ValueException)) e = cast(e, haxe.ValueException).value;
+    #if hscriptPos
+    if (Std.isOfType(e, polymod.hscript._internal.Expr.Error))
+    {
+      var err:polymod.hscript._internal.Expr.Error = cast e;
+      return 'Line ${err.line}: ' + polymod.hscript._internal.Printer.errorToString(err, false);
+    }
+    #end
+    return Std.string(e);
   }
 
   static function callOriginal(slot:PatchSlot, instance:Dynamic, args:Array<Dynamic>):Dynamic
@@ -333,9 +348,16 @@ class Patches
 
     if (declaring == null)
     {
-      Polymod.error(SCRIPT_PATCH,
-        'Mod "$owner" tried to patch $className.$field, which can\'t be patched. It may not exist, be inline, or be in a package the game doesn\'t allow patching.',
-        SCRIPT_RUNTIME);
+      if (isBlacklisted(className))
+      {
+        Polymod.error(SCRIPT_PATCH, 'Mod "$owner" tried to patch $className.$field, which is a blacklisted class.', SCRIPT_RUNTIME);
+      }
+      else
+      {
+        Polymod.error(SCRIPT_PATCH,
+          'Mod "$owner" tried to patch $className.$field, which can\'t be patched. It may not exist, be inline, or be in a package the game doesn\'t allow patching.',
+          SCRIPT_RUNTIME);
+      }
       return null;
     }
 
@@ -355,6 +377,18 @@ class Patches
     Reflect.setField(declaring, slotName, slot);
     active.push(slot);
     return slot;
+  }
+
+  static final excludedPackages:Array<String> = [
+    for (part in (haxe.macro.Compiler.getDefine('POLYMOD_PATCH_EXCLUDE') ?? '').split(','))
+      if (StringTools.trim(part).length > 0) StringTools.trim(part)
+  ];
+
+  static function isBlacklisted(className:String):Bool
+  {
+    for (pack in excludedPackages)
+      if (className == pack || StringTools.startsWith(className, pack + '.')) return true;
+    return false;
   }
 
   static function detach(slot:PatchSlot):Void
