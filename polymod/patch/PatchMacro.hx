@@ -28,7 +28,8 @@ class PatchMacro
     ':extern',
     ':op',
     ':arrayAccess',
-    ':resolve'
+    ':resolve',
+    ':unreflective'
   ];
 
   static final DROP_ORIG_META:Array<String> = [':deprecated', ':inheritDoc', ':keep', ':allow', ':noCompletion'];

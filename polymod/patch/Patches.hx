@@ -339,6 +339,12 @@ class Patches
       return null;
     }
 
+    if (isSandboxed(cls, className, field))
+    {
+      Polymod.error(SCRIPT_PATCH, 'Mod "$owner" tried to patch $className.$field, which scripts aren\'t allowed to access.', SCRIPT_RUNTIME);
+      return null;
+    }
+
     var slotName:String = SLOT_PREFIX + field;
 
     // The function may be declared on a superclass. Patching it there affects every subclass that doesn't override it.
@@ -362,6 +368,11 @@ class Patches
     }
 
     var declaringName:String = Type.getClassName(declaring);
+    if (declaringName != className && isSandboxed(declaring, declaringName, field))
+    {
+      Polymod.error(SCRIPT_PATCH, 'Mod "$owner" tried to patch $className.$field, which scripts aren\'t allowed to access.', SCRIPT_RUNTIME);
+      return null;
+    }
 
     // Patching through a subclass lands on the declaring class, so look again under that name.
     if (declaringName != className)
@@ -383,6 +394,24 @@ class Patches
     for (part in (haxe.macro.Compiler.getDefine('POLYMOD_PATCH_EXCLUDE') ?? '').split(','))
       if (StringTools.trim(part).length > 0) StringTools.trim(part)
   ];
+
+  /**
+   * Check whether a class is blacklisted from patching.
+   */
+  @:access(polymod.hscript._internal.PolymodScriptClass)
+  static function isSandboxed(cls:Class<Dynamic>, className:String, field:String):Bool
+  {
+    if (polymod.hscript._internal.PolymodScriptClass.importOverrides.exists(className)) return true;
+    var target:Null<Class<Dynamic>> = cls;
+    while (target != null)
+    {
+      var name:String = Type.getClassName(target);
+      if (polymod.hscript._internal.PolymodScriptClass.blacklistedStaticFields.get(target)?.contains(field) ?? false) return true;
+      if (polymod.hscript._internal.PolymodScriptClass.blacklistedInstanceFields.get(name)?.contains(field) ?? false) return true;
+      target = Type.getSuperClass(target);
+    }
+    return false;
+  }
 
   static function isBlacklisted(className:String):Bool
   {
