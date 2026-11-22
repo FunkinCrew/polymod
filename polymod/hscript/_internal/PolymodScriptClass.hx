@@ -1791,7 +1791,12 @@ class PolymodScriptClass
     }
     else
     {
-      var cls:Class<Dynamic> = Type.resolveClass(clsName);
+      var cls:Class<Dynamic> = null;
+      if (importOverrides.exists(clsName) && importOverrides.get(clsName) != null)
+        cls = importOverrides.get(clsName);
+      else
+        cls = Type.resolveClass(clsName);
+      
       return createUsingFromNative(cls);
     }
   }
