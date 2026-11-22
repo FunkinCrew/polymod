@@ -1792,7 +1792,7 @@ class PolymodScriptClass
     else
     {
       var cls:Class<Dynamic> = null;
-      if (importOverrides.exists(clsName) && importOverrides.get(clsName) != null)
+      if (importOverrides.exists(clsName))
         cls = importOverrides.get(clsName);
       else
         cls = Type.resolveClass(clsName);
