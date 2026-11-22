@@ -503,6 +503,13 @@ class Interp
       return tryUsingFallback(o, f, args);
     }
 
+    // Check blacklist
+    var oCls:String = Util.getTypeNameOf(o);
+    if (PolymodScriptClass.blacklistedInstanceFieldsOf(oCls)?.contains(f))
+    {
+      return error(EBlacklistedField(f));
+    }
+
     // Force call super function.
     return o.scriptCallSuper(f, args);
   }

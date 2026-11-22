@@ -110,6 +110,14 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
         else if (!onlyCheckScripts)
         {
           // Class object
+
+          // Check blacklist
+          var oCls:String = Util.getTypeNameOf(this.superClass);
+          if (PolymodScriptClass.blacklistedInstanceFieldsOf(oCls)?.contains(name))
+          {
+            return this._interp.error(EBlacklistedField(name));
+          }
+
           try
           {
             return getClassObjectField(this.superClass, name, bypassAccessor);
@@ -252,6 +260,14 @@ abstract PolymodAbstractScriptClass(PolymodScriptClass) from PolymodScriptClass
     else
     {
       // Class object
+
+      // Check blacklist
+      var oCls:String = Util.getTypeNameOf(this.superClass);
+      if (PolymodScriptClass.blacklistedInstanceFieldsOf(oCls)?.contains(name))
+      {
+        return this._interp.error(EBlacklistedField(name));
+      }
+      
       try {
         if (!onlyInScripts && setClassObjectField(this.superClass, name, value, bypassAccessor))
         {

@@ -1303,7 +1303,7 @@ class PolymodScriptClass
       });
 
       // OVERRIDE CHANGE: Make sure to call the `scriptCallSuper` function instead of using Reflect to prevent recursion.
-      return this.superClass.scriptCallSuper(fnName, fixedArgs);
+      return this._interp.fcall_super(this.superClass, fnName, fixedArgs);
     }
   }
 
