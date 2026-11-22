@@ -195,6 +195,9 @@ class PolymodBaseClassMacro
     // :nativeGen makes the class get treated as an extern, so it shouldn't be extended.
     if (cls.meta.has(':nativeGen')) return buildPatchOnly(cls);
 
+    // :unreflective disallows runtime reflection within the class, making it useless to extend.
+    if (cls.meta.has(':unreflective')) return buildPatchOnly(cls);
+
     var fullClsName:String = formatClassString(cls);
     // Disallow extending certain classes.
     for (filter in PACKAGE_FILTERS)
@@ -305,6 +308,9 @@ class PolymodBaseClassMacro
       // This is because this actually creates several different functions at compile time.
       // TODO: Can we somehow override these functions?
       if ([for (m in fields[i].meta ?? []) m.name].contains(':generic')) continue;
+
+      // Skip overriding @:unreflective functions.
+      if ([for (m in fields[i].meta ?? []) m.name].contains(':unreflective')) continue;
 
       // We need to skip overriding functions which are inline.
       // Normal Haxe classes can't override these functions anyway, so we can skip them.
