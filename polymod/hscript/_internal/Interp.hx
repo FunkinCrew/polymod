@@ -4236,6 +4236,21 @@ class Interp
       return null;
     }
 
+    // Apply import aliases and blacklist to resolved classes.
+    if (Std.isOfType(o, Class))
+    {
+      var clsName:String = Type.getClassName(o);
+      if (PolymodScriptClass.importOverrides.exists(clsName))
+      {
+        o = PolymodScriptClass.importOverrides.get(clsName);
+        if (o == null)
+        {
+          error(EBlacklistedModule(clsName));
+          return null;
+        }
+      }
+    }
+
     // Override Std.isOfType to get our own function.
     if (o == Std && f == 'isOfType')
     {
@@ -4437,6 +4452,21 @@ class Interp
     {
       error(EBlacklistedField(f));
       return null;
+    }
+
+    // Apply import aliases and blacklist to resolved classes.
+    if (Std.isOfType(o, Class))
+    {
+      var clsName:String = Type.getClassName(o);
+      if (PolymodScriptClass.importOverrides.exists(clsName))
+      {
+        o = PolymodScriptClass.importOverrides.get(clsName);
+        if (o == null)
+        {
+          error(EBlacklistedModule(clsName));
+          return null;
+        }
+      }
     }
 
     var oCls:String = Util.getTypeNameOf(o);
