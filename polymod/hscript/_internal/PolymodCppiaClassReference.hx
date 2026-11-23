@@ -894,7 +894,7 @@ class PolymodCppiaClassReference extends PolymodStaticClassReference
       return null;
     }
 
-    return Reflect.field(cppiaClass, fieldName);
+    return bypassAccessor ? Reflect.field(cppiaClass, fieldName) : Reflect.getProperty(cppiaClass, fieldName);
   }
 
   override public function setField(fieldName:String, fieldValue:Dynamic, bypassAccessor:Bool = false):Dynamic
@@ -911,7 +911,15 @@ class PolymodCppiaClassReference extends PolymodStaticClassReference
       return null;
     }
 
-    Reflect.setField(cppiaClass, fieldName, fieldValue);
+    if (bypassAccessor)
+    {
+      Reflect.setField(cppiaClass, fieldName, fieldValue);
+    }
+    else
+    {
+      Reflect.setProperty(cppiaClass, fieldName, fieldValue);
+    }
+
     return fieldValue;
   }
 
