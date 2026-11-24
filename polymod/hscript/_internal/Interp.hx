@@ -1370,6 +1370,12 @@ class Interp
               return superClass.fieldWrite(id, v);
             }
 
+            // Check dat blacklist
+            if (PolymodScriptClass.blacklistedInstanceFieldsOf(Util.getTypeNameOf(_proxy.superClass)).contains(id))
+            {
+              return error(EBlacklistedField(id));
+            }
+
             // Directly assign the value.
             // This is needed because `assignValue` may sometimes be called from the constructor.
             PolymodAbstractScriptClass.setClassObjectField(_proxy.superClass, id, v, inBypassAccessor);
@@ -1521,6 +1527,12 @@ class Interp
                   var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
                   superClass.inBypassAccessor = inBypassAccessor;
                   return superClass.fieldWrite(id, v);
+                }
+
+                // Check dat blacklist
+                if (PolymodScriptClass.blacklistedInstanceFieldsOf(Util.getTypeNameOf(_proxy.superClass)).contains(id))
+                {
+                  return error(EBlacklistedField(id));
                 }
 
                 // Directly assign the value.
@@ -2220,6 +2232,12 @@ class Interp
           var superClass:PolymodAbstractScriptClass = cast(_proxy.superClass, PolymodScriptClass);
           superClass.inBypassAccessor = inBypassAccessor;
           return superClass.fieldRead(id);
+        }
+
+        // Check dat blacklist
+        if (PolymodScriptClass.blacklistedInstanceFieldsOf(Util.getTypeNameOf(_proxy.superClass)).contains(id))
+        {
+          return error(EBlacklistedField(id));
         }
 
         if (inBypassAccessor)
