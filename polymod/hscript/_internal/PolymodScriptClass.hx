@@ -1197,7 +1197,7 @@ class PolymodScriptClass
           }
           #end
 
-          if (func != null && !Reflect.isFunction(func) && (func.isfinal || PolymodFinalMacro.getFinalsOf(superClass).contains(f.name)))
+          if (func != null && ((!Reflect.isFunction(func) && func.isfinal) || PolymodFinalMacro.getFinalsOf(superClass).contains(f.name)))
           {
             throw 'Cannot override final function "${f.name}" from superclass.';
           }
