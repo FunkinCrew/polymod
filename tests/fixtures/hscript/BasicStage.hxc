@@ -17,6 +17,18 @@ class BasicStage extends Stage {
     return scriptValue;
   }
 
+  public function testUsingExtensions():String {
+    var array:Array<String> = [];
+    var map:Map<String, String> = [];
+
+    array.append(["first"]);
+    map.append(["map" => "value"]);
+    array.append(["second"]);
+    map.append(["again" => "more"]);
+
+    return '${array[0]},${array[1]}:${map["map"]}:${map["again"]}';
+  }
+
   public static function addStatic(amount:Int):Int {
     return 40 + amount;
   }

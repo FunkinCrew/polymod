@@ -9,6 +9,7 @@ import polymod.util.MacroUtil;
 #end
 
 using StringTools;
+using haxe.macro.Tools;
 
 /**
  * Provides a macro which, generates implementations of types so that they can be usable by HScript.
@@ -97,6 +98,16 @@ class PolymodScriptClassMacro
     return macro polymod.hscript._internal.PolymodScriptClassMacro.fetchClassesExtendingInterfaces();
   }
 
+  public static macro function listStaticExtensionCandidates():ExprOf<Map<String, Array<StaticExtensionCandidateEntry>>>
+  {
+    if (!onGenerateCallbackRegistered)
+    {
+      onGenerateCallbackRegistered = true;
+      haxe.macro.Context.onGenerate(onGenerate);
+    }
+
+    return macro polymod.hscript._internal.PolymodScriptClassMacro.fetchStaticExtensionCandidates();
+  }
 
   #if macro
   static var onGenerateCallbackRegistered:Bool = false;
@@ -112,6 +123,7 @@ class PolymodScriptClassMacro
     var typedefEntries:Array<Array<String>> = [];
     var interfaces:Map<String, Array<Dynamic>> = [];
     var classesExtendingInterfaces:Map<String, Array<String>> = [];
+    var staticExtensions:Map<String, Array<StaticExtensionEntry>> = [];
     var interfaceCount:Int = 0;
 
     var startTime:Float = Sys.time();
@@ -231,6 +243,48 @@ class PolymodScriptClassMacro
               }
               classesExtendingInterfaces.set(classPath, extend);
             }
+
+            if (
+              !(classType.isExtern || classType.isAbstract || classType.isPrivate || classPack.startsWith('polymod') || classPath.endsWith('_Impl_') || classType.meta.has(':generic'))
+              && classType.params.length == 0 && classType.constructor == null
+            )
+            {
+              var staticFields:Array<ClassField> = classType.statics.get();
+              for (field in staticFields)
+              {
+                // Get rid of any fields that are neither methods nor inaccessible to reflection.
+                if (!field.kind.match(FMethod(MethNormal | MethInline))) continue;
+                if (field.isExtern || field.isAbstract) continue;
+                if (field.meta.has(':unreflective') || field.meta.has(':noUsing') || field.meta.has(':native') || field.meta.has(':hlNative')) continue;
+                if (field.name.startsWith('get_') || field.name.startsWith('set_')) continue;
+
+                final RESERVED_NAMES:Array<String> = [
+                  'scriptInit',
+                  'scriptStaticGet',
+                  'scriptStaticSet',
+                  'scriptStaticHas',
+                  'scriptStaticHasFunc',
+                  'scriptStaticCall',
+                ];
+                if (RESERVED_NAMES.contains(field.name)) continue;
+
+                switch (Context.follow(field.type, true))
+                {
+                  case TFun(args, _):
+                    if (args.length == 0) continue;
+
+                    var firstArgTypeName:String = args[0].t.toString();
+                    var entry:Array<StaticExtensionEntry> = staticExtensions.get(field.name) ?? [];
+                    var entryData:StaticExtensionEntry = {
+                      sourceClsName: classPath,
+                      typeName: firstArgTypeName
+                    };
+                    entry.push(entryData);
+                    staticExtensions.set(field.name, entry);
+                  default:
+                }
+              }
+            }
           }
 
           addPackageClass(classPack, classPath);
@@ -323,6 +377,7 @@ class PolymodScriptClassMacro
       packages: packageEntries,
       interfaceEntries: interfaces,
       extendingInterfaces: classesExtendingInterfaces,
+      staticExtensionCandidates: staticExtensions
     };
 
     var metaDataHXSF = haxe.Serializer.run(metaData);
@@ -741,6 +796,43 @@ class PolymodScriptClassMacro
     return metadata.extendingInterfaces;
   }
 
+  public static function fetchStaticExtensionCandidates():Map<String, Array<StaticExtensionCandidateEntry>>
+  {
+    var metadata = fetchMetadata();
+
+    var result:Map<String, Array<StaticExtensionCandidateEntry>> = [];
+    for (funcName => candidates in (metadata.staticExtensionCandidates : Map<String, Array<StaticExtensionEntry>>))
+    {
+      var entries:Array<StaticExtensionCandidateEntry> = [];
+      for (func in candidates)
+      {
+        var typeName:String = func.typeName;
+        var genericStart:Int = typeName.indexOf('<');
+        if (genericStart != -1) typeName = typeName.substr(0, genericStart).trim();
+
+        var firstArgType:Dynamic = null;
+        var shortTypeName:String = typeName.substr(typeName.lastIndexOf('.') + 1);
+        if (shortTypeName == 'Map')
+        {
+          // We'll be checking if it implements IMap instead.
+          firstArgType = haxe.Constraints.IMap;
+        }
+        else
+        {
+          firstArgType = Type.resolveClass(typeName);
+          firstArgType ??= Type.resolveEnum(typeName);
+        }
+        entries.push({
+          sourceClsName: func.sourceClsName,
+          type: firstArgType,
+        });
+      }
+      result.set(funcName, entries);
+    }
+
+    return result;
+  }
+
   #if js
   static var PACKAGE_NAME_INVALID = ~/[^.a-zA-Z0-9]/;
 
@@ -775,4 +867,16 @@ typedef InterfaceFieldDecl =
   var access:Array<String>;
   var kind:String;
   var kindParams:Dynamic;
+}
+
+typedef StaticExtensionEntry =
+{
+  var sourceClsName:String;
+  var ?typeName:String;
+}
+
+typedef StaticExtensionCandidateEntry =
+{
+  > StaticExtensionEntry,
+  var type:Dynamic;
 }

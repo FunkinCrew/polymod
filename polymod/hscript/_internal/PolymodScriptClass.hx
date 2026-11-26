@@ -487,6 +487,25 @@ class PolymodScriptClass
   }
 
   /**
+   * Defines the list of static extension candidates.
+   * Used for when we want to use static extensions.
+   * @return Map<String, Array<Dynamic>>
+   */
+  public static var staticExtensionCandidates(get, never):Map<String, Array<PolymodScriptClassMacro.StaticExtensionCandidateEntry>>;
+
+  static var _staticExtensionCandidates:Map<String, Array<PolymodScriptClassMacro.StaticExtensionCandidateEntry>>;
+
+  static function get_staticExtensionCandidates():Map<String, Array<PolymodScriptClassMacro.StaticExtensionCandidateEntry>>
+  {
+    if (_staticExtensionCandidates == null)
+    {
+      _staticExtensionCandidates = PolymodScriptClassMacro.listStaticExtensionCandidates();
+    }
+
+    return _staticExtensionCandidates;
+  }
+
+  /**
    * Register a scripted class by retrieving the script from the given path.
    *
    * @return `true` if the script was registered successfully, otherwise `false`.
@@ -708,7 +727,7 @@ class PolymodScriptClass
         var resolvedClass = importOverrides.get(fullSuperClsName) ?? typedefs.get(fullSuperClsName) ?? Type.resolveClass(fullSuperClsName);
 
         var resolvedClassName = resolvedClass != null ? Type.getClassName(resolvedClass) : '';
-        
+
         if (#if POLYMOD_WHITE_LIST (#if POLYMOD_CPPIA PolymodCppiaClassReference.hasCppiaClass(resolvedClassName) || #end
           !importWhitelist.contains(resolvedClassName)) || #end (importOverrides.exists(resolvedClassName) && importOverrides.get(resolvedClassName) == null))
         {
@@ -1613,7 +1632,7 @@ class PolymodScriptClass
   private var _cachedFunctionDecls:Map<String, FunctionDecl> = [];
   private var _cachedFunctionCalls:Map<String, Dynamic> = [];
   private var _cachedVarDecls:Map<String, VarDecl> = [];
-  private var _cachedUsingFunctions:Map<String, Array<Dynamic>->Dynamic> = [];
+  private var _cachedUsingFunctions:Map<String, UsingDispatcher> = [];
 
   private function buildCaches()
   {
@@ -1675,27 +1694,24 @@ class PolymodScriptClass
    * @param clsDecl The class to populate the list from.
    * @param usingCache The cache to add to.
    */
-  public static function buildExtensionFunctionCache(clsDecl:ClassDecl, usingCache):Void
+  public static function buildExtensionFunctionCache(clsDecl:ClassDecl, usingCache:Map<String, UsingDispatcher>):Void
   {
     var fullClassName:String = Util.getFullClassName(clsDecl);
     if (Interp._classDeclUsingCache.exists(fullClassName))
     {
-      for (field => func in Interp._classDeclUsingCache.get(fullClassName))
+      for (field => dispatcher in Interp._classDeclUsingCache.get(fullClassName))
       {
-        usingCache.set(field, func);
+        usingCache.set(field, dispatcher);
       }
       return;
     }
 
-    var usingCacheList = new Map<String, Array<Dynamic>->Dynamic>();
+    var usingCacheList:Map<String, UsingDispatcher> = [];
 
     // Append using cache for any `using` keywords.
     for (u in clsDecl.usings)
     {
-      for (field => func in buildUsingListCache(u.fullPath) ?? [])
-      {
-        usingCacheList.set(field, func);
-      }
+      appendUsingCandidates(usingCacheList, buildUsingListCache(u.fullPath));
     }
 
     // Append using cache for any metadata.
@@ -1706,27 +1722,93 @@ class PolymodScriptClass
         var clsMetaName:String = Printer.toString(m.params[0]);
         var cls:String = clsDecl.imports.get(clsMetaName)?.fullPath ?? clsMetaName;
 
-        for (field => func in buildUsingListCache(cls) ?? [])
-        {
-          usingCacheList.set(field, func);
-
-        }
+        appendUsingCandidates(usingCacheList, buildUsingListCache(cls));
       }
     }
 
-    for (field => func in usingCacheList)
+    for (field => dispatcher in usingCacheList)
     {
-      usingCache.set(field, func);
+      usingCache.set(field, dispatcher);
     }
     Interp._classDeclUsingCache.set(fullClassName, usingCacheList);
   }
 
   /**
-   * Populates a string map with functions from a 'using' class.
-   * @param cls The path to the class
-   * @return A list of using functions available.
+   * Appends using candidates to the target map.
+   * @param target The map to append candidates to.
+   * @param source The map containing the candidates to append.
    */
-  public static function buildUsingListCache(clsName:String):Map<String, Array<Dynamic>->Dynamic>
+  public static function appendUsingCandidates(target:Map<String, UsingDispatcher>, source:Map<String, UsingCandidate>):Void
+  {
+    if (source == null) return;
+
+    for (field => candidate in source)
+    {
+      var dispatcher:UsingDispatcher = target.get(field);
+      if (dispatcher == null)
+      {
+        dispatcher = {
+          candidates: [],
+          resolutionByType: [],
+        };
+        target.set(field, dispatcher);
+      }
+      dispatcher.candidates.push(candidate);
+    }
+  }
+
+  /**
+   * Resolves a using function based on its field name and a receiver,
+   * disabiguating multiple functions with the same name if possible.
+   * @param usingCache The cache containing using functions.
+   * @param field The field name of the using function.
+   * @param receiver The receiver for the using function.
+   * @return The resolved using function or null if not found.
+   */
+  public static function resolveUsingFunction(usingCache:Map<String, UsingDispatcher>, field:String, receiver:Dynamic):Null<Array<Dynamic>->Dynamic>
+  {
+    var dispatcher:UsingDispatcher = usingCache.get(field);
+    if (dispatcher == null) return null;
+
+    var receiverTypeKey:String = Util.getTypeNameOf(receiver);
+    var invoker:Dynamic = dispatcher.resolutionByType.get(receiverTypeKey);
+    if (invoker == null)
+    {
+      var candidate:Null<UsingCandidate> = null;
+      // Candidates are appended in using order; later using declarations take precedence.
+      for (index in 0...dispatcher.candidates.length)
+      {
+        var usingCandidate:UsingCandidate = dispatcher.candidates[dispatcher.candidates.length - index - 1];
+        if (usingCandidate.signatureType == null)
+        {
+          if (dispatcher.candidates.length > 1)
+          {
+            Polymod.warning(SCRIPT_RUNTIME_EXCEPTION, 'Unable to infer the correct function for static extension "${field}". Using the one from ${usingCandidate.sourceClass}.', SCRIPT_RUNTIME);
+          }
+
+          candidate = usingCandidate;
+          break;
+        }
+
+        if (Std.isOfType(receiver, usingCandidate.signatureType))
+        {
+          candidate = usingCandidate;
+          break;
+        }
+      }
+      invoker = candidate?.invoker;
+      dispatcher.resolutionByType.set(receiverTypeKey, invoker);
+    }
+
+    return invoker;
+  }
+
+  /**
+   * Builds wrappers and receiver signatures for static functions from a 'using' class.
+   * @param clsName The path to the class
+   * @return The using functions available from that class.
+   */
+  public static function buildUsingListCache(clsName:String):Map<String, UsingCandidate>
   {
     var createUsingFromNative = (cls:Class<Dynamic>) ->
     {
@@ -1736,7 +1818,7 @@ class PolymodScriptClass
       var fields = Type.getClassFields(cls);
       if (fields.length == 0) return null;
 
-      var usingMap:Map<String, Array<Dynamic>->Dynamic> = [];
+      var usingMap:Map<String, UsingCandidate> = [];
 
       var noUsingFields:Array<String> = PolymodFinalMacro.getNoUsingFieldsOf(clsName);
       for (clsField in fields)
@@ -1746,11 +1828,25 @@ class PolymodScriptClass
         var field:Dynamic = Reflect.getProperty(cls, clsField);
         if (!Reflect.isFunction(field)) continue;
 
-        var func:Dynamic = function(params:Array<Dynamic>)
+        var func = (params:Array<Dynamic>) ->
         {
           return Reflect.callMethod(cls, field, params);
         }
-        usingMap.set(clsField, func);
+        var signatureType:Null<Dynamic> = null;
+        for (candidate in staticExtensionCandidates.get(clsField) ?? [])
+        {
+          if (candidate.sourceClsName == clsName)
+          {
+            signatureType = candidate.type;
+            break;
+          }
+        }
+
+        usingMap.set(clsField, {
+          signatureType: signatureType,
+          sourceClass: clsName,
+          invoker: func,
+        });
       }
       return usingMap;
     }
@@ -1761,22 +1857,24 @@ class PolymodScriptClass
       var fields:Array<FieldDecl> = scriptDecl.staticFields;
       if (fields.length == 0) return null;
 
-      var usingMap:Map<String, Array<Dynamic>->Dynamic> = [];
+      var usingMap:Map<String, UsingCandidate> = [];
       for (fld in fields)
       {
         switch (fld.kind)
         {
           case KFunction(f):
-            if (fld.meta.findIndex((m) -> m.name == ':noUsing') != -1)
-              continue;
+            if (fld.meta.exists((m) -> m.name == ':noUsing')) continue;
 
-            var fldName = fld.name;
-
-            var func:Dynamic = function(params:Array<Dynamic>)
+            var func = (params:Array<Dynamic>) ->
             {
-              return callScriptClassStaticFunction(path, fldName, params);
-            };
-            usingMap.set(fldName, func);
+              return callScriptClassStaticFunction(path, fld.name, params);
+            }
+
+            usingMap.set(fld.name, {
+              signatureType: null,
+              sourceClass: path,
+              invoker: func,
+            });
 
           default:
             // do nothing
@@ -1796,8 +1894,21 @@ class PolymodScriptClass
         cls = importOverrides.get(clsName);
       else
         cls = Type.resolveClass(clsName);
-      
+
       return createUsingFromNative(cls);
     }
   }
+}
+
+typedef UsingCandidate =
+{
+  var signatureType:Dynamic;
+  var sourceClass:String;
+  var invoker:Array<Dynamic>->Dynamic;
+}
+
+typedef UsingDispatcher =
+{
+  var candidates:Array<UsingCandidate>;
+  var resolutionByType:Map<String, Array<Dynamic>->Dynamic>;
 }
