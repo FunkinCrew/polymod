@@ -1749,7 +1749,7 @@ class PolymodScriptClass
       {
         dispatcher = {
           candidates: [],
-          resolutionByType: [],
+          resolutionByTypeName: [],
         };
         target.set(field, dispatcher);
       }
@@ -1771,7 +1771,7 @@ class PolymodScriptClass
     if (dispatcher == null) return null;
 
     var receiverTypeKey:String = Util.getTypeNameOf(receiver);
-    var invoker:Dynamic = dispatcher.resolutionByType.get(receiverTypeKey);
+    var invoker:Dynamic = dispatcher.resolutionByTypeName.get(receiverTypeKey);
     if (invoker == null)
     {
       var candidate:Null<UsingCandidate> = null;
@@ -1797,7 +1797,7 @@ class PolymodScriptClass
         }
       }
       invoker = candidate?.invoker;
-      dispatcher.resolutionByType.set(receiverTypeKey, invoker);
+      dispatcher.resolutionByTypeName.set(receiverTypeKey, invoker);
     }
 
     return invoker;
@@ -1900,15 +1900,35 @@ class PolymodScriptClass
   }
 }
 
-typedef UsingCandidate =
+@:structInit
+class UsingCandidate
 {
-  var signatureType:Dynamic;
-  var sourceClass:String;
-  var invoker:Array<Dynamic>->Dynamic;
+  /**
+   * The class this candidate comes from.
+   */
+  public var sourceClass:String;
+
+  /**
+   * The resolved types of the arguments.
+   */
+  public var signatureType:Null<Any>;
+
+  /**
+   * A function that calls the static extension on the source class.
+   */
+  public var invoker:Array<Dynamic>->Dynamic;
 }
 
-typedef UsingDispatcher =
+@:structInit
+class UsingDispatcher
 {
-  var candidates:Array<UsingCandidate>;
-  var resolutionByType:Map<String, Array<Dynamic>->Dynamic>;
+  /**
+   * A list of matching static extensions candidates.
+   */
+  public var candidates:Array<UsingCandidate>;
+
+  /**
+   * A cache of the resolved invokers, mapped by type name.
+   */
+  public var resolutionByTypeName:Map<String, Array<Dynamic>->Dynamic>;
 }

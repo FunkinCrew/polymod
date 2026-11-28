@@ -245,8 +245,16 @@ class PolymodScriptClassMacro
             }
 
             if (
-              !(classType.isExtern || classType.isAbstract || classType.isPrivate || classPack.startsWith('polymod') || classPath.endsWith('_Impl_') || classType.meta.has(':generic'))
-              && classType.params.length == 0 && classType.constructor == null
+              !(
+                classType.isExtern
+                || classType.isAbstract
+                || classType.isPrivate
+                || classPack.startsWith('polymod')
+                || classPath.endsWith('_Impl_')
+                || classType.meta.has(':generic')
+              )
+              && classType.params.length == 0
+              && classType.constructor == null
             )
             {
               var staticFields:Array<ClassField> = classType.statics.get();
@@ -257,6 +265,7 @@ class PolymodScriptClassMacro
                 if (field.isExtern || field.isAbstract) continue;
                 if (field.meta.has(':unreflective') || field.meta.has(':noUsing') || field.meta.has(':native') || field.meta.has(':hlNative')) continue;
                 if (field.name.startsWith('get_') || field.name.startsWith('set_')) continue;
+                if (MacroUtil.isPatchField(field.name)) continue;
 
                 final RESERVED_NAMES:Array<String> = [
                   'scriptInit',
@@ -811,8 +820,7 @@ class PolymodScriptClassMacro
         if (genericStart != -1) typeName = typeName.substr(0, genericStart).trim();
 
         var firstArgType:Dynamic = null;
-        var shortTypeName:String = typeName.substr(typeName.lastIndexOf('.') + 1);
-        if (shortTypeName == 'Map')
+        if (typeName == 'haxe.ds.Map')
         {
           // We'll be checking if it implements IMap instead.
           firstArgType = haxe.Constraints.IMap;
@@ -859,7 +867,6 @@ typedef AbstractImplEntry =
   cls:Class<Dynamic>,
   polymodCls:Null<Class<Dynamic>>,
 };
-
 
 typedef InterfaceFieldDecl =
 {

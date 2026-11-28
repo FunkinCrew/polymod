@@ -67,5 +67,15 @@ class MacroUtil
   {
     return class1.pack.join('.') == class2.pack.join('.') && class1.name == class2.name;
   }
+
+  /**
+   * Returns whether a field name is of a patchable field.
+   * @param name The name of the field.
+   * @return Bool
+   */
+  public static inline function isPatchField(name:String):Bool
+  {
+    return StringTools.startsWith(name, polymod.patch.PatchMacro.SLOT_PREFIX) || StringTools.startsWith(name, polymod.patch.PatchMacro.ORIG_PREFIX);
+  }
   #end
 }
