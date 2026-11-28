@@ -1,10 +1,11 @@
 package polymod.hscript._internal;
 
-import haxe.macro.Type.ClassField;
 #if macro
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Type;
+import haxe.macro.Type.ClassField;
+import polymod.util.MacroUtil;
 #end
 
 @:nullSafety
@@ -220,11 +221,6 @@ class PolymodFinalMacro
   }
 
   #if macro
-  static inline function isPatchField(name:String):Bool
-  {
-    return StringTools.startsWith(name, polymod.patch.PatchMacro.SLOT_PREFIX) || StringTools.startsWith(name, polymod.patch.PatchMacro.ORIG_PREFIX);
-  }
-
   static function listAllFieldsOfClassType(classType:Null<ClassType>):Array<ClassField>
   {
     if (classType == null) return [];
@@ -240,9 +236,9 @@ class PolymodFinalMacro
 
     // Add all fields and statics, excluding patch fields.
     for (field in classType.fields.get())
-      if (!isPatchField(field.name)) result.push(field);
+      if (!MacroUtil.isPatchField(field.name)) result.push(field);
     for (field in classType.statics.get())
-      if (!isPatchField(field.name)) result.push(field);
+      if (!MacroUtil.isPatchField(field.name)) result.push(field);
     result = result.concat(listAllFieldsOfClassType(classType.superClass?.t.get()));
 
     classCache.set(clsFullName, result);

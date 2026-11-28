@@ -44,7 +44,7 @@ class Util
   }
 
   public static function mergeAndAppendText(baseText:String, id:String, modIds:Array<String>, getModText:String->String->String, fileSystem:IFileSystem,
-      parseRules:ParseRules = null):String
+    parseRules:ParseRules = null):String
   {
     var text = baseText;
 
@@ -233,7 +233,7 @@ class Util
   }
 
   public static function stripXML(txt:String, stripHeader:Bool = true, stripFooter:Bool = true, headers:Array<String> = null,
-      footers:Array<String> = null):String
+    footers:Array<String> = null):String
   {
     txt = stripComments(txt);
 
@@ -793,15 +793,18 @@ class Util
     var type = Type.typeof(obj);
     #if hl var result:String = #else return #end switch (type)
     {
+      case TInt:
+        'Int';
+      case TFloat:
+        'Float';
+      case TBool:
+        'Bool';
+      case TNull:
+        'Null';
       case TClass(cls):
-        #if js
-        // On JavaScript, Std.string(cls) produces a string representation of the ENTIRE class, rather than just the name.
-        untyped cls.__name__;
-        #else
-        Std.string(cls);
-        #end
+        Type.getClassName(cls);
       case TEnum(enm):
-        Std.string(enm);
+        Type.getEnumName(enm);
       case TObject: // Anonymous object or class type
         // We assume that if we cannot get the class name then it must be an object
         #if hl

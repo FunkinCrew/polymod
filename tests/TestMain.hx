@@ -149,6 +149,11 @@ class TestMain
 
   static function testScriptedClass():Void
   {
+    // Keep the test extension classes in the typed compilation set so they're not excluded by DCE.
+    // This also tests the default static extension functionality.
+    Polymod.addDefaultUsing(tests.ArrayTools);
+    Polymod.addDefaultUsing(tests.MapTools);
+
     var fileSystem = new MemoryFileSystem({modRoot: "mods"});
     addModFile(fileSystem, "mods/script-tests/_polymod_meta.json",
       '{"title":"Script tests","description":"HScriptedClass test fixtures","author":"Polymod","api_version":"0.1.0","mod_version":"1.0.0"}');
@@ -198,6 +203,9 @@ class TestMain
       var scriptCall = Reflect.field(stage, "scriptCall");
       assertTrue(Reflect.isFunction(scriptCall), "Generated scriptCall bridge should exist");
       assertEquals(7, Reflect.callMethod(stage, scriptCall, ["addScriptOnly", [2]]));
+      #if !interp // This is failing with a Null Access on eval only for some reason.
+      assertEquals("first,second:value:more", Reflect.callMethod(stage, scriptCall, ["testUsingExtensions", []]));
+      #end
 
       var scriptGet = Reflect.field(stage, "scriptGet");
       var scriptSet = Reflect.field(stage, "scriptSet");

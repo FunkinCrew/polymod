@@ -113,7 +113,7 @@ class Interp
 
   static var _staticFieldDeclCache:SafeMap<FieldDecl> = new SafeMap<FieldDecl>();
 
-  static var _classDeclUsingCache:SafeMap<Map<String, Array<Dynamic>->Dynamic>> = new SafeMap<Map<String, Array<Dynamic>->Dynamic>>();
+  static var _classDeclUsingCache:SafeMap<Map<String, PolymodScriptClass.UsingDispatcher>> = new SafeMap<Map<String, PolymodScriptClass.UsingDispatcher>>();
 
   static var _deprecatedTypes:SafeMap<String> = new SafeMap<String>();
   static var _deprecatedFields:SafeMap<Map<String, String>> = new SafeMap<Map<String, String>>();
@@ -358,28 +358,30 @@ class Interp
     if (o is PolymodEnum.PolymodEnumValue)
     {
       var v = cast(o, PolymodEnum.PolymodEnumValue);
-      if (v.parentEnum.usingFunctionsCache.exists(f))
+      var usingFunction = PolymodScriptClass.resolveUsingFunction(v.parentEnum.usingFunctionsCache, f, o);
+      if (usingFunction != null)
       {
-        return v.parentEnum.usingFunctionsCache[f]([o].concat(args));
+        return usingFunction([o].concat(args));
       }
       return null;
     }
 
+    var usingFunction:Null<Array<Dynamic>->Dynamic> = null;
     @:privateAccess
-    if (_proxy?._cachedUsingFunctions.exists(f) ?? false)
+    if (_proxy != null)
     {
-      return _proxy._cachedUsingFunctions[f]([o].concat(args));
+      usingFunction = PolymodScriptClass.resolveUsingFunction(_proxy._cachedUsingFunctions, f, o);
     }
-    else if (_classDeclOverride != null)
+
+    if (usingFunction == null && _classDeclOverride != null)
     {
-      var usingFuncs:Map<String, Array<Dynamic>->Dynamic> = [];
+      var usingFuncs:Map<String, PolymodScriptClass.UsingDispatcher> = [];
       PolymodScriptClass.buildExtensionFunctionCache(_classDeclOverride, usingFuncs);
 
-      if (usingFuncs.exists(f))
-      {
-        return usingFuncs[f]([o].concat(args));
-      }
+      usingFunction = PolymodScriptClass.resolveUsingFunction(usingFuncs, f, o);
     }
+
+    if (usingFunction != null) return usingFunction([o].concat(args));
     return null;
   }
 
@@ -387,19 +389,20 @@ class Interp
   {
     if (o is PolymodEnum.PolymodEnumValue)
     {
-      return cast(o, PolymodEnum.PolymodEnumValue).parentEnum.usingFunctionsCache.exists(f);
+      var v = cast(o, PolymodEnum.PolymodEnumValue);
+      return PolymodScriptClass.resolveUsingFunction(v.parentEnum.usingFunctionsCache, f, o) != null;
     }
 
     @:privateAccess
-    if (_proxy?._cachedUsingFunctions.exists(f) ?? false)
+    if (_proxy != null && PolymodScriptClass.resolveUsingFunction(_proxy._cachedUsingFunctions, f, o) != null)
       return true;
 
     if (_classDeclOverride != null)
     {
-      var usingFuncs:Map<String, Array<Dynamic>->Dynamic> = [];
+      var usingFuncs:Map<String, PolymodScriptClass.UsingDispatcher> = [];
       PolymodScriptClass.buildExtensionFunctionCache(_classDeclOverride, usingFuncs);
 
-      return usingFuncs.exists(f);
+      return PolymodScriptClass.resolveUsingFunction(usingFuncs, f, o) != null;
     }
     return false;
   }
@@ -4047,7 +4050,7 @@ class Interp
       var ref:PolymodStaticClassReference = cast(o, PolymodStaticClassReference);
 
       // We are retrieving this field within the same script class context.
-      if (o.cls == getClassDecl())
+      if (ref.cls == getClassDecl())
         return true;
 
       var field:Null<FieldDecl> = PolymodScriptClass.scriptInterp.getScriptClassStaticFieldDecl(ref.getFullyQualifiedName(), f);

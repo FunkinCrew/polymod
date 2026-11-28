@@ -6,7 +6,7 @@ import polymod.hscript._internal.Expr;
 @:allow(polymod.hscript._internal.PolymodEnumValue)
 class PolymodEnum
 {
-  static final _staticUsingFunctionsCache:Map<String, Map<String, Array<Dynamic>->Dynamic>> = [];
+  static final _staticUsingFunctionsCache:Map<String, Map<String, PolymodScriptClass.UsingDispatcher>> = [];
 
   /**
    * Internal cache for active `PolymodEnum` instances to optimize and prevent redundant allocations.
@@ -22,7 +22,7 @@ class PolymodEnum
    */
   var _fieldCach:Map<String, Dynamic> = new Map<String, Dynamic>();
 
-  public var usingFunctionsCache:Map<String, Array<Dynamic>->Dynamic> = [];
+  public var usingFunctionsCache:Map<String, PolymodScriptClass.UsingDispatcher> = [];
 
   public function new(e:EnumDecl)
   {
@@ -144,7 +144,7 @@ class PolymodEnum
 
     if (_staticUsingFunctionsCache.exists(fullEnumName)) return usingFunctionsCache = _staticUsingFunctionsCache.get(fullEnumName);
 
-    var list:Map<String, Array<Dynamic>->Dynamic> = [];
+    var list:Map<String, PolymodScriptClass.UsingDispatcher> = [];
     for (m in _e.meta)
     {
       if (m.name == ':using')
@@ -152,10 +152,7 @@ class PolymodEnum
         var clsMetaName:String = Printer.toString(m.params[0]);
 
         var usingList = PolymodScriptClass.buildUsingListCache(clsMetaName);
-        for (name => func in usingList ?? [])
-        {
-          list.set(name, func);
-        }
+        PolymodScriptClass.appendUsingCandidates(list, usingList);
       }
     }
     _staticUsingFunctionsCache.set(fullEnumName, list);
